@@ -1,14 +1,24 @@
 'use client';
 
-import { useState } from 'react';
-import { Calendar, momentLocalizer } from 'react-big-calendar';
-import moment from 'moment';
+import { useState, useEffect } from 'react';
 import { Card, Title, Group, Button, Modal, Text, Badge, Stack } from '@mantine/core';
 import { IconPlus, IconClock, IconMapPin, IconUsers } from '@tabler/icons-react';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './LessonCalendar.css';
 
-const localizer = momentLocalizer(moment);
+// Lazy load the calendar to avoid SSR issues
+import dynamic from 'next/dynamic';
+
+const DynamicCalendar = dynamic(
+  () => import('./CalendarComponent').then((mod) => ({ default: mod.CalendarComponent })),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{ height: '600px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Text>Caricamento calendario...</Text>
+      </div>
+    ),
+  }
+);
 
 interface Lesson {
   id: string;
@@ -45,15 +55,6 @@ export function LessonCalendar({
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
 
-  // Transform lessons to calendar events
-  const events = lessons.map((lesson) => ({
-    id: lesson.id,
-    title: lesson.title,
-    start: lesson.startTime,
-    end: lesson.endTime,
-    resource: lesson,
-  }));
-
   const handleSelectEvent = (event: any) => {
     setSelectedLesson(event.resource);
     setModalOpened(true);
@@ -79,37 +80,6 @@ export function LessonCalendar({
     }
   };
 
-  const eventStyleGetter = (event: any) => {
-    const status = event.resource.status;
-    let backgroundColor = '#3174ad';
-    
-    switch (status) {
-      case 'SCHEDULED':
-        backgroundColor = '#339af0';
-        break;
-      case 'IN_PROGRESS':
-        backgroundColor = '#ffd43b';
-        break;
-      case 'COMPLETED':
-        backgroundColor = '#51cf66';
-        break;
-      case 'CANCELLED':
-        backgroundColor = '#ff6b6b';
-        break;
-    }
-
-    return {
-      style: {
-        backgroundColor,
-        borderRadius: '4px',
-        opacity: status === 'CANCELLED' ? 0.6 : 1,
-        color: 'white',
-        border: '0',
-        display: 'block',
-      },
-    };
-  };
-
   return (
     <>
       <Card withBorder radius="md" p="lg">
@@ -126,33 +96,12 @@ export function LessonCalendar({
           )}
         </Group>
 
-        <div style={{ height: '600px' }}>
-          <Calendar
-            localizer={localizer}
-            events={events}
-            startAccessor="start"
-            endAccessor="end"
-            onSelectEvent={handleSelectEvent}
-            onSelectSlot={handleSelectSlot}
-            selectable
-            defaultView={view}
-            views={['month', 'week', 'day']}
-            eventPropGetter={eventStyleGetter}
-            messages={{
-              next: 'Avanti',
-              previous: 'Indietro',
-              today: 'Oggi',
-              month: 'Mese',
-              week: 'Settimana',
-              day: 'Giorno',
-              agenda: 'Agenda',
-              date: 'Data',
-              time: 'Ora',
-              event: 'Lezione',
-              noEventsInRange: 'Nessuna lezione in questo periodo',
-            }}
-          />
-        </div>
+        <DynamicCalendar
+          lessons={lessons}
+          onSelectEvent={handleSelectEvent}
+          onSelectSlot={handleSelectSlot}
+          view={view}
+        />
       </Card>
 
       <Modal
@@ -173,8 +122,17 @@ export function LessonCalendar({
             <Group gap="xs">
               <IconClock size={16} />
               <Text size="sm">
-                {moment(selectedLesson.startTime).format('DD/MM/YYYY HH:mm')} -{' '}
-                {moment(selectedLesson.endTime).format('HH:mm')}
+                {new Date(selectedLesson.startTime).toLocaleDateString('it-IT', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })} -{' '}
+                {new Date(selectedLesson.endTime).toLocaleTimeString('it-IT', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
               </Text>
             </Group>
 

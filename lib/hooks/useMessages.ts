@@ -236,7 +236,9 @@ export function useCommunicationGroups() {
         throw new Error(`Failed to fetch groups: ${response.statusText}`);
       }
 
-      return response.json();
+      const data = await response.json();
+      // Handle both direct array response and object with groups property
+      return Array.isArray(data) ? data : (data.groups || []);
     },
     enabled: !!session?.user,
   });

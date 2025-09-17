@@ -48,16 +48,13 @@ export default function LocaleLayout({
     loadLocaleData();
   }, [params]);
 
-  if (!locale) {
-    return <div>Loading...</div>;
-  }
-
+  // Don't show loading screen - let the app render immediately
   return (
     <QueryClientProvider client={queryClient}>
-      <NextIntlClientProvider locale={locale} messages={messages}>
+      <NextIntlClientProvider locale={locale || 'it'} messages={messages}>
         <SessionProvider>
           <MantineProvider>
-            <div data-locale={locale}>
+            <div data-locale={locale || 'it'}>
               {children}
             </div>
           </MantineProvider>

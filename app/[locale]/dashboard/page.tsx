@@ -52,7 +52,14 @@ export default function DashboardPage() {
 
   if (!session?.user) {
     return (
-      <Container size="xl" py="md">
+      <Container 
+        size="xl" 
+        py="md"
+        style={{
+          background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+          minHeight: '100vh',
+        }}
+      >
         <LoadingOverlay visible />
       </Container>
     );
@@ -114,23 +121,67 @@ export default function DashboardPage() {
   const isLoadingEssentialData = studentsLoading || teachersLoading || classesLoading;
 
   return (
-    <Container size="xl" py="md">
-      <Group justify="space-between" align="flex-start" mb="xl">
-        <div>
-          <Group align="center" mb="xs">
-            <IconDashboard size={32} />
-            <Title order={1}>{welcomeInfo.title}</Title>
-            <Badge color={welcomeInfo.badgeColor} variant="light">
-              {welcomeInfo.badge}
-            </Badge>
+    <Container 
+      size="xl" 
+      py="md"
+      style={{
+        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+        minHeight: '100vh',
+      }}
+    >
+      {/* Welcome Header with gradient background */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: '24px',
+          padding: '32px',
+          marginBottom: '32px',
+          color: 'white',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: '-50%',
+            right: '-20%',
+            width: '300px',
+            height: '300px',
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '50%',
+            filter: 'blur(40px)',
+          }}
+        />
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          <Group justify="space-between" align="flex-start">
+            <div>
+              <Group align="center" mb="xs">
+                <IconDashboard size={32} color="white" />
+                <Title order={1} c="white">{welcomeInfo.title}</Title>
+                <Badge 
+                  color={welcomeInfo.badgeColor} 
+                  variant="white" 
+                  style={{ 
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    color: '#1a1a1a',
+                  }}
+                >
+                  {welcomeInfo.badge}
+                </Badge>
+              </Group>
+              <Text c="rgba(255, 255, 255, 0.9)" size="lg">
+                {welcomeInfo.subtitle}
+              </Text>
+            </div>
           </Group>
-          <Text c="dimmed" size="lg">
-            {welcomeInfo.subtitle}
-          </Text>
         </div>
-      </Group>
-
-      <Space h="md" />
+      </div>
 
       {/* Dashboard Statistics */}
       <Grid mb="xl">

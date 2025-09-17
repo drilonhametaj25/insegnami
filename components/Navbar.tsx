@@ -45,7 +45,18 @@ export function Navbar({ opened, toggle }: NavbarProps) {
   };
 
   return (
-    <Group h="100%" px="md" justify="space-between" style={{ borderBottom: 'none' }}>
+    <div
+      style={{
+        height: '100%',
+        padding: '0 24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+        borderBottom: '1px solid #e2e8f0',
+        backdropFilter: 'blur(10px)',
+      }}
+    >
       <Group>
         <Burger
           opened={opened}
@@ -54,26 +65,18 @@ export function Navbar({ opened, toggle }: NavbarProps) {
           size="sm"
           color="gray.6"
         />
-        <Group>
-          <Text
-            size="xl"
-            fw={700}
-            visibleFrom="sm"
-            style={{
-              background: 'linear-gradient(45deg, #667eea, #764ba2)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
-          >
-            {session?.user?.tenantName || 'InsegnaMi.pro'}
-          </Text>
+        <Group gap="xs">
+          <img 
+            src="/images/logo-small.svg" 
+            alt="InsegnaMi.pro" 
+            height="32"
+            style={{ height: '32px', width: 'auto' }}
+          />
           <Badge 
             size="xs" 
-            variant="light" 
-            color="blue" 
+            variant="gradient" 
+            gradient={{ from: 'indigo', to: 'purple', deg: 45 }}
             visibleFrom="sm"
-            style={{ marginLeft: 8 }}
           >
             v2.0
           </Badge>
@@ -199,6 +202,6 @@ export function Navbar({ opened, toggle }: NavbarProps) {
           {session?.user?.firstName}
         </Text>
       </Group>
-    </Group>
+    </div>
   );
 }

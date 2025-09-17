@@ -40,9 +40,16 @@ Write-Host "  - MailHog UI: http://localhost:8025" -ForegroundColor Gray
 Write-Host ""
 Write-Host "👥 Available login accounts (password: 'password'):" -ForegroundColor White
 Write-Host "  📧 Admin: admin@englishplus.it" -ForegroundColor Cyan
-Write-Host "  🏫 Teacher: teacher1@englishplus.it, teacher2@englishplus.it" -ForegroundColor Cyan
-Write-Host "  🎓 Student: student@englishplus.it" -ForegroundColor Cyan
-Write-Host "  👨‍👩‍👧‍👦 Parent: parent@englishplus.it" -ForegroundColor Cyan
+Write-Host "  🏫 Teacher: teacher@englishplus.it, teacher2@englishplus.it" -ForegroundColor Cyan
+Write-Host "  🎓 Student: student@englishplus.it, giulia.romano@email.it, +4 more" -ForegroundColor Cyan
+Write-Host "  👨‍👩‍👧‍👦 Parent: parent@englishplus.it, +5 more" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "📊 Sample Data Includes:" -ForegroundColor White
+Write-Host "  • 3 courses (Beginner, Intermediate, Advanced Business)" -ForegroundColor Gray
+Write-Host "  • 3 active classes with enrolled students" -ForegroundColor Gray
+Write-Host "  • Multiple lessons with attendance tracking" -ForegroundColor Gray
+Write-Host "  • Payment records with various statuses" -ForegroundColor Gray
+Write-Host "  • Notices for different user roles" -ForegroundColor Gray
 Write-Host ""
 Write-Host "🚀 To start the development server:" -ForegroundColor White
 Write-Host "  npm run dev" -ForegroundColor Yellow

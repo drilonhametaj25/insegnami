@@ -63,7 +63,25 @@ function StatCard({ title, value, icon, color, change, progress, badge }: StatCa
   };
 
   return (
-    <Paper withBorder p="md" radius="md" className="hover:shadow-md transition-shadow">
+    <Paper 
+      withBorder 
+      p="lg" 
+      radius="xl" 
+      style={{
+        background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+        border: '1px solid #e2e8f0',
+        transition: 'all 0.2s ease',
+        cursor: 'default',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.boxShadow = '0 12px 24px -4px rgb(0 0 0 / 0.1)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0px)';
+        e.currentTarget.style.boxShadow = '0 1px 3px 0 rgb(0 0 0 / 0.1)';
+      }}
+    >
       <Group justify="space-between">
         <div>
           <Text c="dimmed" size="sm" mb={4}>

@@ -79,7 +79,15 @@
     "upload": "Carica",
     "refresh": "Aggiorna",
     "notifications": "Notifiche",
-    "noNotifications": "Nessuna notifica"
+    "noNotifications": "Nessuna notifica",
+    "enter": "Inserisci",
+    "sender": "Mittente",
+    "status": "Stato",
+    "priority": "Priorità",
+    "dateCreated": "Data Creazione",
+    "actions": "Azioni",
+    "type": "Tipo",
+    "urgent": "Urgente"
   },
   "students": {
     "title": "Gestione Studenti",
@@ -141,7 +149,8 @@
     "course": "Corso",
     "teacher": "Insegnante",
     "schedule": "Orario",
-    "status": {
+    "status": "Stato",
+    "statusValues": {
       "active": "Attivo",
       "inactive": "Inattivo",
       "suspended": "Sospeso",
@@ -266,7 +275,9 @@
     "schedule": "Orario",
     "teacher": "Docente",
     "students": "Studenti",
-    "enrolledStudents": "Studenti Iscritti"
+    "enrolledStudents": "Studenti Iscritti",
+    "status": "Stato",
+    "active": "Attiva"
   },
   "lessons": {
     "pageTitle": "Calendario Lezioni",
@@ -360,6 +371,7 @@
     "overview": "Panoramica",
     "payments": "Pagamenti",
     "overdue": "Scaduti",
+    "totalRevenue": "Totale Entrate",
     "confirmDelete": "Sei sicuro di voler eliminare questo pagamento?",
     "deleteSuccess": "Pagamento eliminato con successo",
     "deleteError": "Errore nell'eliminazione del pagamento",
@@ -787,6 +799,7 @@
       "2": "Urgente"
     },
     "channels": {
+      "title": "Canali di Comunicazione",
       "email": "Email",
       "sms": "SMS", 
       "push": "Notifica Push"
@@ -809,6 +822,10 @@
       "groupDescription": "Descrizione Gruppo",
       "groupType": {
         "CLASS": "Classe",
+        "COURSE": "Corso",
+        "TEACHERS": "Docenti",
+        "STUDENTS": "Studenti", 
+        "PARENTS": "Genitori",
         "ROLE": "Ruolo",
         "CUSTOM": "Personalizzato",
         "PARENT_CLASS": "Genitori Classe"
@@ -859,6 +876,7 @@
       "templateCreated": "Template creato con successo",
       "groupCreated": "Gruppo creato con successo"
     },
+    "requiresResponse": "Richiede Risposta",
     "errors": {
       "sendFailed": "Invio fallito",
       "noRecipients": "Nessun destinatario selezionato",
@@ -895,5 +913,15 @@
     "financialOverview": "Panoramica Finanziaria",
     "recentActivities": "Attività Recenti",
     "performanceMetrics": "Metriche Performance"
-  }
+  },
+  "search": "Cerca",
+  "sender": "Mittente", 
+  "status": "Stato",
+  "priority": "Priorità",
+  "dateCreated": "Data Creazione",
+  "actions": "Azioni",
+  "type": "Tipo",
+  "urgent": "Urgente",
+  "cancel": "Annulla",
+  "edit": "Modifica"
 }

@@ -146,7 +146,16 @@ export function DataTable<T extends { id: string }>({
   ));
 
   return (
-    <Paper p="md">
+    <Paper 
+      p="xl" 
+      radius="xl"
+      style={{
+        background: 'rgba(255, 255, 255, 0.9)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(226, 232, 240, 0.8)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+      }}
+    >
       <Stack gap="md">
         {/* Header with search, filter, and create button */}
         <Flex justify="space-between" align="center" wrap="wrap" gap="md">
@@ -175,6 +184,9 @@ export function DataTable<T extends { id: string }>({
             <Button
               leftSection={<IconPlus style={{ width: rem(16), height: rem(16) }} />}
               onClick={onCreate}
+              variant="gradient"
+              gradient={{ from: 'indigo', to: 'purple', deg: 45 }}
+              radius="lg"
             >
               {createButtonLabel}
             </Button>

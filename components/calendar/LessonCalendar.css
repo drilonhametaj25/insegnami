@@ -1,3 +1,6 @@
+/* Import React Big Calendar CSS */
+@import 'react-big-calendar/lib/css/react-big-calendar.css';
+
 /* Custom styles for React Big Calendar */
 .rbc-calendar {
   background: white;

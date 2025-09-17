@@ -117,9 +117,18 @@ npm run dev
 After running the seed, you can login with any of these accounts (password: `password`):
 
 - **Admin**: admin@englishplus.it
-- **Teacher**: teacher1@englishplus.it, teacher2@englishplus.it  
-- **Student**: student@englishplus.it
-- **Parent**: parent@englishplus.it
+- **Teachers**: teacher@englishplus.it, teacher2@englishplus.it  
+- **Students**: student@englishplus.it, giulia.romano@email.it, luca.ferrari@email.it, chiara.esposito@email.it, andrea.conti@email.it, sofia.ricci@email.it
+- **Parents**: parent@englishplus.it + 5 additional parent accounts
+
+### Sample Data
+
+The seed script creates realistic sample data including:
+- 3 courses (Beginner, Intermediate, Advanced Business)
+- 3 active classes with enrolled students
+- Multiple lessons with attendance tracking
+- Payment records with various statuses
+- Notices for different user roles
 
 ### Development Services
 

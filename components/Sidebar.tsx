@@ -115,18 +115,26 @@ export function Sidebar({ opened }: SidebarProps) {
   const navigationItems = getNavigationItems();
 
   return (
-    <AppShell.Navbar p="md" w={300}>
+    <AppShell.Navbar 
+      p="md" 
+      w={300}
+      style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRight: 'none',
+      }}
+    >
       <AppShell.Section>
-        <Group pb="md" mb="md" style={{ borderBottom: '1px solid #e9ecef' }}>
-          <IconSchool size="2rem" color="#0ea5e9" />
-          <Box>
-            <Text size="lg" fw={600} c="blue">
-              {session?.user?.tenantName || 'InsegnaMi.pro'}
-            </Text>
-            <Text size="xs" c="dimmed">
-              {userRole?.toLowerCase() || 'user'}
-            </Text>
-          </Box>
+        <Group pb="md" mb="md" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <img 
+            src="/images/logo.svg" 
+            alt="InsegnaMi.pro" 
+            height="40"
+            style={{ 
+              height: '40px', 
+              width: 'auto',
+              filter: 'brightness(0) invert(1)', // Makes the logo white
+            }}
+          />
         </Group>
       </AppShell.Section>
 
@@ -145,11 +153,29 @@ export function Sidebar({ opened }: SidebarProps) {
                 leftSection={<Icon size="1rem" stroke={1.5} />}
                 active={isActive}
                 variant="filled"
-                styles={{
+                styles={(theme) => ({
                   root: {
-                    borderRadius: rem(8),
+                    borderRadius: rem(12),
+                    color: 'white',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    },
+                    '&[data-active]': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                      color: 'white',
+                      '&::before': {
+                        backgroundColor: 'white',
+                      },
+                    },
                   },
-                }}
+                  section: {
+                    color: 'rgba(255, 255, 255, 0.8)',
+                  },
+                  label: {
+                    color: 'white',
+                    fontWeight: 500,
+                  },
+                })}
               />
             );
           })}
@@ -157,39 +183,48 @@ export function Sidebar({ opened }: SidebarProps) {
       </AppShell.Section>
 
       <AppShell.Section>
-        <Group style={{ borderTop: '1px solid #e9ecef', paddingTop: 16 }}>
+        <Group style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: 16 }}>
           <Menu shadow="md" width={200}>
             <Menu.Target>
               <UnstyledButton
                 style={{
                   width: '100%',
-                  padding: 8,
-                  borderRadius: 8,
+                  padding: 12,
+                  borderRadius: 12,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 8,
-                  '&:hover': {
-                    backgroundColor: '#f8f9fa',
-                  },
+                  gap: 12,
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
                 }}
               >
                 <Avatar
                   src={session?.user?.avatar}
                   size="sm"
                   radius="xl"
-                  color="blue"
+                  style={{
+                    background: 'linear-gradient(45deg, #fff, #f1f5f9)',
+                    color: '#475569',
+                  }}
                 >
                   {session?.user?.firstName?.[0]}{session?.user?.lastName?.[0]}
                 </Avatar>
                 <Box style={{ flex: 1, textAlign: 'left' }}>
-                  <Text size="sm" fw={500}>
+                  <Text size="sm" fw={500} c="white">
                     {session?.user?.firstName} {session?.user?.lastName}
                   </Text>
-                  <Text size="xs" c="dimmed">
-                    {session?.user?.email}
+                  <Text size="xs" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    {userRole?.toLowerCase() || 'user'}
                   </Text>
                 </Box>
-                <IconChevronDown size="0.875rem" stroke={1.5} />
+                <IconChevronDown size="0.875rem" stroke={1.5} color="rgba(255, 255, 255, 0.7)" />
               </UnstyledButton>
             </Menu.Target>
 

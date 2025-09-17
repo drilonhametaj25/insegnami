@@ -60,7 +60,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <AppShell
       navbar={{
-        width: 280,
+        width: 300,
         breakpoint: 'sm',
         collapsed: { mobile: !opened },
       }}
@@ -68,16 +68,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       padding="md"
       styles={{
         main: {
-          backgroundColor: '#f8f9fa',
+          background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
           minHeight: 'calc(100vh - 70px)',
         },
         navbar: {
-          borderRight: '1px solid #e9ecef',
-          backgroundColor: 'white',
+          border: 'none',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         },
         header: {
-          borderBottom: '1px solid #e9ecef',
-          backgroundColor: 'white',
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
         },
       }}
     >

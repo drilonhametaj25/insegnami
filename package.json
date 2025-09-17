@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx scripts/seed.ts",
     "dev:setup": "powershell -ExecutionPolicy Bypass -File scripts/dev-setup.ps1",
+    "quick-start": "powershell -ExecutionPolicy Bypass -File scripts/quick-start.ps1",
     "dev:services": "cd docker && docker-compose up -d postgres redis mailhog",
     "dev:stop": "cd docker && docker-compose down",
     "type-check": "tsc --noEmit",
