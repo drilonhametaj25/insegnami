@@ -664,6 +664,106 @@ async function main() {
   console.log('✅ Created payment records with realistic status distribution');
   console.log('✅ Created additional notices for different user types');
 
+  // 📢 Create sample notifications
+  console.log('Creating sample notifications...');
+  
+  // Notifiche per l'admin
+  await prisma.notification.createMany({
+    data: [
+      {
+        tenantId: tenant.id,
+        userId: adminUser.id,
+        title: 'Benvenuto in InsegnaMi.pro!',
+        content: 'La piattaforma è configurata e pronta all\'uso. Inizia aggiungendo studenti e classi.',
+        type: 'SYSTEM',
+        priority: 'NORMAL',
+        actionUrl: '/dashboard/admin',
+        actionLabel: 'Vai al dashboard',
+      },
+      {
+        tenantId: tenant.id,
+        userId: adminUser.id,
+        title: 'Nuovo studente iscritto',
+        content: `${studentUser.firstName} ${studentUser.lastName} si è iscritto alla classe English Beginner`,
+        type: 'CLASS',
+        priority: 'NORMAL',
+        actionUrl: `/dashboard/students/${student.id}`,
+        actionLabel: 'Vedi dettagli',
+        sourceType: 'student',
+        sourceId: student.id,
+      },
+      {
+        tenantId: tenant.id,
+        userId: adminUser.id,
+        title: 'Pagamento ricevuto',
+        content: 'Ricevuto pagamento di €150.00 da Giulia Romano',
+        type: 'PAYMENT',
+        priority: 'NORMAL',
+        actionUrl: '/dashboard/payments',
+        actionLabel: 'Vedi pagamenti',
+        readAt: new Date(),
+        status: 'READ',
+      }
+    ]
+  });
+
+  // Notifiche per lo studente
+  await prisma.notification.createMany({
+    data: [
+      {
+        tenantId: tenant.id,
+        userId: studentUser.id,
+        title: 'Benvenuto nella tua classe!',
+        content: 'Sei iscritto alla classe English Beginner. La tua prima lezione è programmata per domani.',
+        type: 'CLASS',
+        priority: 'NORMAL',
+        actionUrl: '/dashboard/student',
+        actionLabel: 'Vai al dashboard',
+      },
+      {
+        tenantId: tenant.id,
+        userId: studentUser.id,
+        title: 'Promemoria pagamento',
+        content: 'Il tuo pagamento mensile di €150.00 scade tra 3 giorni',
+        type: 'PAYMENT',
+        priority: 'HIGH',
+        actionUrl: '/dashboard/payments',
+        actionLabel: 'Vedi dettagli',
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 giorni
+      }
+    ]
+  });
+
+  // Notifiche per il genitore
+  await prisma.notification.createMany({
+    data: [
+      {
+        tenantId: tenant.id,
+        userId: parentUser.id,
+        title: 'Accesso genitore attivato',
+        content: `Ora puoi monitorare i progressi di ${studentUser.firstName} attraverso il portale genitori`,
+        type: 'SYSTEM',
+        priority: 'NORMAL',
+        actionUrl: '/dashboard/parent',
+        actionLabel: 'Vai al dashboard',
+      },
+      {
+        tenantId: tenant.id,
+        userId: parentUser.id,
+        title: 'Assenza registrata',
+        content: `${studentUser.firstName} è risultato assente alla lezione del ${new Date().toLocaleDateString('it-IT')}`,
+        type: 'ATTENDANCE',
+        priority: 'HIGH',
+        actionUrl: '/dashboard/attendance',
+        actionLabel: 'Vedi presenze',
+        sourceType: 'attendance',
+        sourceId: '1',
+      }
+    ]
+  });
+
+  console.log('✅ Created sample notifications');
+
   console.log('');
   console.log('🌱 Database seeding completed successfully!');
   console.log('');

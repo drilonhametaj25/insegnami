@@ -71,6 +71,30 @@ enum UserStatus {
   SUSPENDED
 }
 
+enum NotificationStatus {
+  UNREAD
+  READ
+  DISMISSED
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum NotificationType {
+  SYSTEM
+  CLASS
+  PAYMENT
+  ATTENDANCE
+  MESSAGE
+  CALENDAR
+  ANNOUNCEMENT
+  REMINDER
+}
+
 // Core Models
 
 model Tenant {
@@ -107,6 +131,7 @@ model Tenant {
   reports   Report[]
   analyticsSnapshots AnalyticsSnapshot[]
   dashboardWidgets DashboardWidget[]
+  notifications Notification[]
   
   @@map("tenants")
 }
@@ -146,6 +171,8 @@ model User {
   groupMemberships CommunicationGroupMember[]
   reports Report[] @relation("UserReports")
   dashboardWidgets DashboardWidget[] @relation("UserWidgets")
+  notifications Notification[]
+  notificationPreferences NotificationPreferences?
   
   // Student relations
   studentProfile Student? @relation("StudentUser")
@@ -778,4 +805,87 @@ model DashboardWidget {
   user        User     @relation("UserWidgets", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("dashboard_widgets")
+}
+
+// Notification System Models
+model Notification {
+  id          String              @id @default(cuid())
+  tenantId    String
+  userId      String
+  
+  title       String
+  content     String
+  type        NotificationType
+  priority    NotificationPriority @default(NORMAL)
+  status      NotificationStatus   @default(UNREAD)
+  
+  // Action & Navigation
+  actionUrl   String?             // URL to navigate when clicked
+  actionLabel String?             // Button text for action
+  
+  // Metadata for tracking source
+  sourceType  String?             // 'lesson', 'payment', 'class', etc.
+  sourceId    String?             // ID of the source entity
+  
+  // Email and push settings
+  emailSent   Boolean             @default(false)
+  pushSent    Boolean             @default(false)
+  emailSentAt DateTime?
+  pushSentAt  DateTime?
+  
+  // User interaction
+  readAt      DateTime?
+  dismissedAt DateTime?
+  
+  // Scheduling
+  scheduledFor DateTime?          // For future notifications
+  expiresAt    DateTime?
+  
+  // Metadata
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  
+  // Relations
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, status])
+  @@index([tenantId, type])
+  @@index([scheduledFor])
+  @@map("notifications")
+}
+
+model NotificationPreferences {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  
+  // Email preferences
+  emailEnabled    Boolean  @default(true)
+  emailDigest     Boolean  @default(true)
+  emailImmediate  Boolean  @default(false)
+  
+  // Push preferences
+  pushEnabled     Boolean  @default(true)
+  pushSound       Boolean  @default(true)
+  
+  // Type-specific preferences (JSON)
+  typePreferences Json     @default("{}")
+  
+  // Quiet hours
+  quietHoursEnabled Boolean @default(false)
+  quietHoursStart   String? // "22:00"
+  quietHoursEnd     String? // "08:00"
+  
+  // Digest settings
+  digestFrequency String   @default("daily") // daily, weekly, never
+  digestTime      String   @default("09:00")
+  
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notification_preferences")
 }

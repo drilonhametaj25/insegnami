@@ -22,6 +22,7 @@ import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { LanguageSelector } from './LanguageSelector';
+import { NotificationBell } from './notifications/NotificationCenter';
 
 interface NavbarProps {
   opened: boolean;
@@ -32,13 +33,6 @@ export function Navbar({ opened, toggle }: NavbarProps) {
   const { data: session } = useSession();
   const t = useTranslations('common');
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>('light');
-  const [notifications] = useState([
-    { id: 1, title: 'Nuovo studente iscritto', time: '5 min fa', unread: true },
-    { id: 2, title: 'Pagamento ricevuto', time: '1 ora fa', unread: true },
-    { id: 3, title: 'Lezione cancellata', time: '2 ore fa', unread: false },
-  ]);
-
-  const unreadCount = notifications.filter(n => n.unread).length;
 
   const toggleColorScheme = () => {
     setColorScheme(colorScheme === 'dark' ? 'light' : 'dark');
@@ -140,92 +134,25 @@ export function Navbar({ opened, toggle }: NavbarProps) {
         </ActionIcon>
 
         {/* Notifications */}
-        <Menu shadow="md" width={300} position="bottom-end">
-          <Menu.Target>
-            <ActionIcon
-              size="lg"
-              title="Notifiche"
-              style={{
-                color: 'white',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(10px)',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              <Indicator
-                color="red"
-                size={16}
-                label={unreadCount > 0 ? unreadCount : undefined}
-                disabled={unreadCount === 0}
-              >
-                <IconBell size="1.25rem" />
-              </Indicator>
-            </ActionIcon>
-          </Menu.Target>
-
-          <Menu.Dropdown>
-            <Menu.Label>
-              <Group justify="space-between">
-                <Text>{t('notifications')}</Text>
-                {unreadCount > 0 && (
-                  <Badge size="sm" variant="filled" color="red">
-                    {unreadCount}
-                  </Badge>
-                )}
-              </Group>
-            </Menu.Label>
-
-            {notifications.length === 0 ? (
-              <Menu.Item disabled>
-                <Text size="sm" c="dimmed">
-                  {t('noNotifications')}
-                </Text>
-              </Menu.Item>
-            ) : (
-              notifications.map((notification) => (
-                <Menu.Item
-                  key={notification.id}
-                  style={{
-                    backgroundColor: notification.unread ? '#f8f9fa' : 'transparent',
-                  }}
-                >
-                  <div>
-                    <Text size="sm" fw={notification.unread ? 500 : 400}>
-                      {notification.title}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {notification.time}
-                    </Text>
-                  </div>
-                </Menu.Item>
-              ))
-            )}
-
-            {notifications.length > 0 && (
-              <>
-                <Menu.Divider />
-                <Menu.Item
-                  style={{
-                    textAlign: 'center',
-                    color: '#0ea5e9',
-                    fontSize: '0.875rem',
-                  }}
-                >
-                  Vedi tutte le notifiche
-                </Menu.Item>
-              </>
-            )}
-          </Menu.Dropdown>
-        </Menu>
+        <div
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '8px',
+            backdropFilter: 'blur(10px)',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          <NotificationBell size={20} />
+        </div>
 
         {/* Settings */}
         <ActionIcon
