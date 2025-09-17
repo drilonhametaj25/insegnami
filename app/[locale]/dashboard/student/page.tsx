@@ -36,11 +36,8 @@ import {
   IconMapPin,
 } from '@tabler/icons-react';
 
+import { useStudentDashboard } from '@/lib/hooks/useDashboard';
 import { StatsCard } from '@/components/cards/StatsCard';
-import { useStudents } from '@/lib/hooks/useStudents';
-import { useCalendarLessons } from '@/lib/hooks/useLessons';
-import { useCourses } from '@/lib/hooks/useCourses';
-import { usePayments } from '@/lib/hooks/usePayments';
 
 const localizer = momentLocalizer(moment);
 
@@ -59,24 +56,12 @@ export default function StudentDashboard() {
   const tc = useTranslations('common');
   const [activeTab, setActiveTab] = useState('overview');
 
-  // TanStack Query hooks
+  // Use the new dashboard hook
   const { 
-    data: lessonsData, 
-    isLoading: lessonsLoading,
-    error: lessonsError
-  } = useCalendarLessons();
-
-  const { 
-    data: coursesData, 
-    isLoading: coursesLoading 
-  } = useCourses(1, 10);
-
-  const { 
-    data: paymentsData, 
-    isLoading: paymentsLoading 
-  } = usePayments(1, 10, { 
-    studentId: session?.user?.id // Filter by current student
-  });
+    data: dashboardResponse, 
+    isLoading: dashboardLoading,
+    error: dashboardError
+  } = useStudentDashboard();
 
   if (!session?.user) {
     return (
@@ -86,64 +71,67 @@ export default function StudentDashboard() {
     );
   }
 
-  const lessons = lessonsData || [];
-  const courses = coursesData?.courses || [];
-  const payments = paymentsData?.payments || [];
+  if (dashboardLoading) {
+    return (
+      <Container size="xl" py="md">
+        <LoadingOverlay visible />
+      </Container>
+    );
+  }
 
-  // Filter lessons for current student (simplified - in real app this would be done server-side)
-  // For now, we'll show all lessons since we don't have the full relationship structure
-  const studentLessons = lessons;
+  if (dashboardError || !dashboardResponse?.success) {
+    return (
+      <Container size="xl" py="md">
+        <Alert color="red" icon={<IconInfoCircle size={16} />}>
+          Errore nel caricamento dei dati: {dashboardError?.message || 'Errore sconosciuto'}
+        </Alert>
+      </Container>
+    );
+  }
 
-  // Upcoming lessons (next 7 days)
-  const now = new Date();
-  const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const upcomingLessons = studentLessons.filter(lesson => 
-    lesson.startTime > now && lesson.startTime < weekFromNow
-  );
+  const dashboardData = dashboardResponse.data;
+  const { student, stats, classes, upcomingLessons, recentAttendance, payments, notices } = dashboardData;
 
-  // Mock assignments data (in a real app, this would come from an API)
-  const assignments: Assignment[] = [
+  // Mock assignments data (keeping for assignments tab - in real app would come from API)
+  const assignments = [
     {
       id: '1',
-      title: t('mockData.assignment1Title'),
-      course: t('mockData.course1'),
-      dueDate: new Date(2024, 1, 18),
+      title: 'Homework 1',
+      course: classes[0]?.course?.name || 'Course 1',
+      dueDate: new Date(2025, 1, 18),
       status: 'pending',
     },
     {
-      id: '2',
-      title: t('mockData.assignment2Title'),
-      course: t('mockData.course1'),
-      dueDate: new Date(2024, 1, 12),
+      id: '2', 
+      title: 'Assignment 2',
+      course: classes[0]?.course?.name || 'Course 1',
+      dueDate: new Date(2025, 1, 12),
       status: 'graded',
       grade: 8.5,
     },
   ];
 
-  // Calculate attendance rate (mock calculation)
-  const attendanceRate = 83;
-
-  const stats = [
+  const dashboardStats = [
     {
       title: t('stats.activeCourses'),
-      value: courses.length,
+      value: stats.activeCourses,
       icon: <IconBook size={24} />,
       color: 'blue',
-      loading: coursesLoading,
+      loading: false,
     },
     {
       title: t('stats.attendanceRate'),
-      value: `${attendanceRate}%`,
+      value: `${stats.attendanceRate}%`,
       icon: <IconClipboardCheck size={24} />,
       color: 'green',
       loading: false,
     },
     {
       title: t('stats.upcomingLessons'),
-      value: upcomingLessons.length,
+      value: stats.upcomingLessons,
       icon: <IconCalendar size={24} />,
       color: 'violet',
-      loading: lessonsLoading,
+      loading: false,
     },
     {
       title: t('stats.pendingAssignments'),
@@ -155,11 +143,11 @@ export default function StudentDashboard() {
   ];
 
   // Transform lessons for calendar
-  const calendarEvents = studentLessons.map((lesson) => ({
+  const calendarEvents = upcomingLessons.map((lesson) => ({
     id: lesson.id,
     title: lesson.title,
-    start: lesson.startTime,
-    end: lesson.endTime,
+    start: new Date(lesson.startTime),
+    end: new Date(lesson.endTime),
     resource: lesson,
   }));
 
@@ -198,7 +186,7 @@ export default function StudentDashboard() {
             <Stack gap="lg">
               {/* Stats Cards */}
               <Grid>
-                {stats.map((stat, index) => (
+                {dashboardStats.map((stat, index) => (
                   <Grid.Col span={{ base: 12, sm: 6, md: 3 }} key={index}>
                     {stat.loading ? (
                       <Skeleton height={120} />
@@ -216,17 +204,7 @@ export default function StudentDashboard() {
                   <Badge color="blue">{upcomingLessons.length} {t('lessons')}</Badge>
                 </Group>
                 
-                {lessonsLoading ? (
-                  <Stack gap="sm">
-                    {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} height={80} />
-                    ))}
-                  </Stack>
-                ) : lessonsError ? (
-                  <Alert color="red" icon={<IconInfoCircle size={16} />}>
-                    {t('lessonLoadError')}: {lessonsError.message}
-                  </Alert>
-                ) : upcomingLessons.length === 0 ? (
+                {upcomingLessons.length === 0 ? (
                   <Text c="dimmed" ta="center" py="xl">
                     {t('noUpcomingLessons')}
                   </Text>
@@ -244,7 +222,10 @@ export default function StudentDashboard() {
                               </Text>
                             </Group>
                             <Text size="sm" c="dimmed" mt="xs">
-                              {t('teacher')}: {lesson.teacher?.firstName} {lesson.teacher?.lastName}
+                              {t('teacher')}: {lesson.teacher.name}
+                            </Text>
+                            <Text size="sm" c="dimmed">
+                              Corso: {lesson.class.course}
                             </Text>
                           </div>
                           <Badge 
@@ -296,38 +277,30 @@ export default function StudentDashboard() {
 
           <Tabs.Panel value="calendar" pt="lg">
             <Paper p="md" withBorder>
-              {lessonsLoading ? (
-                <Skeleton height={600} />
-              ) : lessonsError ? (
-                <Alert color="red" icon={<IconInfoCircle size={16} />}>
-                  Errore nel caricamento del calendario: {lessonsError.message}
-                </Alert>
-              ) : (
-                <div style={{ height: '600px' }}>
-                  <Calendar
-                    localizer={localizer}
-                    events={calendarEvents}
-                    startAccessor="start"
-                    endAccessor="end"
-                    style={{ height: '100%' }}
-                    views={['month', 'week', 'day']}
-                    defaultView="week"
-                    messages={{
-                      next: 'Avanti',
-                      previous: 'Indietro',
-                      today: 'Oggi',
-                      month: 'Mese',
-                      week: 'Settimana',
-                      day: 'Giorno',
-                      agenda: 'Agenda',
-                      date: 'Data',
-                      time: 'Ora',
-                      event: 'Lezione',
-                      noEventsInRange: 'Nessuna lezione in questo periodo',
-                    }}
-                  />
-                </div>
-              )}
+              <div style={{ height: '600px' }}>
+                <Calendar
+                  localizer={localizer}
+                  events={calendarEvents}
+                  startAccessor="start"
+                  endAccessor="end"
+                  style={{ height: '100%' }}
+                  views={['month', 'week', 'day']}
+                  defaultView="week"
+                  messages={{
+                    next: 'Avanti',
+                    previous: 'Indietro',
+                    today: 'Oggi',
+                    month: 'Mese',
+                    week: 'Settimana',
+                    day: 'Giorno',
+                    agenda: 'Agenda',
+                    date: 'Data',
+                    time: 'Ora',
+                    event: 'Lezione',
+                    noEventsInRange: 'Nessuna lezione in questo periodo',
+                  }}
+                />
+              </div>
             </Paper>
           </Tabs.Panel>
 
@@ -337,41 +310,41 @@ export default function StudentDashboard() {
                 <Title order={2}>I Miei Corsi</Title>
               </Group>
               
-              {coursesLoading ? (
-                <Grid>
-                  {[1, 2, 3, 4].map((i) => (
-                    <Grid.Col span={{ base: 12, md: 6 }} key={i}>
-                      <Skeleton height={200} />
-                    </Grid.Col>
-                  ))}
-                </Grid>
-              ) : courses.length === 0 ? (
+              {classes.length === 0 ? (
                 <Text c="dimmed" ta="center" py="xl">
                   Non sei iscritto a nessun corso
                 </Text>
               ) : (
                 <Grid>
-                  {courses.map((course) => {
+                  {classes.map((classItem) => {
                     // Mock progress calculation
                     const progress = Math.floor(Math.random() * 100);
                     const totalLessons = 24;
                     const attendedLessons = Math.floor((progress / 100) * totalLessons);
 
                     return (
-                      <Grid.Col span={{ base: 12, md: 6 }} key={course.id}>
+                      <Grid.Col span={{ base: 12, md: 6 }} key={classItem.id}>
                         <Card p="md" withBorder>
                           <Stack gap="sm">
                             <Group justify="space-between">
                               <div>
-                                <Text fw={500} size="lg">{course.name}</Text>
+                                <Text fw={500} size="lg">{classItem.name}</Text>
                                 <Badge color="blue" size="sm" mt="xs">
-                                  {course.level || 'N/A'}
+                                  {classItem.course?.level || 'N/A'}
                                 </Badge>
                               </div>
                             </Group>
                             
                             <Text size="sm" c="dimmed">
-                              Descrizione: {course.description || 'Nessuna descrizione disponibile'}
+                              Descrizione: {classItem.description || 'Nessuna descrizione disponibile'}
+                            </Text>
+                            
+                            <Text size="sm" c="dimmed">
+                              Corso: {classItem.course?.name || 'N/A'}
+                            </Text>
+                            
+                            <Text size="sm" c="dimmed">
+                              Insegnante: {classItem.teacher.name}
                             </Text>
                             
                             <div>
@@ -454,15 +427,7 @@ export default function StudentDashboard() {
                 </Button>
               </Group>
               
-              {paymentsLoading ? (
-                <Grid>
-                  {[1, 2, 3, 4].map((i) => (
-                    <Grid.Col span={{ base: 12, md: 6 }} key={i}>
-                      <Skeleton height={150} />
-                    </Grid.Col>
-                  ))}
-                </Grid>
-              ) : payments.length === 0 ? (
+              {payments.length === 0 ? (
                 <Text c="dimmed" ta="center" py="xl">
                   Nessun pagamento registrato
                 </Text>

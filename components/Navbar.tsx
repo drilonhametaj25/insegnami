@@ -52,9 +52,10 @@ export function Navbar({ opened, toggle }: NavbarProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-        borderBottom: '1px solid #e2e8f0',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderBottom: 'none',
         backdropFilter: 'blur(10px)',
+        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
       }}
     >
       <Group>
@@ -63,23 +64,22 @@ export function Navbar({ opened, toggle }: NavbarProps) {
           onClick={toggle}
           hiddenFrom="sm"
           size="sm"
-          color="gray.6"
+          color="white"
+          style={{ color: 'white' }}
         />
-        <Group gap="xs">
+        
+        {/* Logo - shown only on desktop when sidebar is present */}
+        <Group visibleFrom="sm">
           <img 
-            src="/images/logo-small.svg" 
+            src="/images/logo-white.svg" 
             alt="InsegnaMi.pro" 
             height="32"
-            style={{ height: '32px', width: 'auto' }}
+            style={{ 
+              height: '32px', 
+              width: 'auto',
+              filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))',
+            }}
           />
-          <Badge 
-            size="xs" 
-            variant="gradient" 
-            gradient={{ from: 'indigo', to: 'purple', deg: 45 }}
-            visibleFrom="sm"
-          >
-            v2.0
-          </Badge>
         </Group>
       </Group>
 
@@ -87,9 +87,23 @@ export function Navbar({ opened, toggle }: NavbarProps) {
         {/* Search */}
         <ActionIcon
           variant="subtle"
-          color="gray"
           size="lg"
           title="Cerca"
+          style={{
+            color: 'white',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            backdropFilter: 'blur(10px)',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
         >
           <IconSearch size="1.25rem" />
         </ActionIcon>
@@ -99,11 +113,24 @@ export function Navbar({ opened, toggle }: NavbarProps) {
 
         {/* Theme Toggle */}
         <ActionIcon
-          variant="subtle"
-          color="gray"
           size="lg"
           title="Cambia tema"
           onClick={toggleColorScheme}
+          style={{
+            color: 'white',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            backdropFilter: 'blur(10px)',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
         >
           {colorScheme === 'dark' ? (
             <IconSun size="1.25rem" />
@@ -116,10 +143,23 @@ export function Navbar({ opened, toggle }: NavbarProps) {
         <Menu shadow="md" width={300} position="bottom-end">
           <Menu.Target>
             <ActionIcon
-              variant="subtle"
-              color="gray"
               size="lg"
               title="Notifiche"
+              style={{
+                color: 'white',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
             >
               <Indicator
                 color="red"
@@ -189,16 +229,29 @@ export function Navbar({ opened, toggle }: NavbarProps) {
 
         {/* Settings */}
         <ActionIcon
-          variant="subtle"
-          color="gray"
           size="lg"
           title="Impostazioni"
+          style={{
+            color: 'white',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            backdropFilter: 'blur(10px)',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
         >
           <IconSettings size="1.25rem" />
         </ActionIcon>
 
         {/* User Info - Mobile */}
-        <Text size="sm" fw={500} hiddenFrom="sm">
+        <Text size="sm" fw={500} hiddenFrom="sm" style={{ color: 'white' }}>
           {session?.user?.firstName}
         </Text>
       </Group>

@@ -147,6 +147,10 @@ model User {
   reports Report[] @relation("UserReports")
   dashboardWidgets DashboardWidget[] @relation("UserWidgets")
   
+  // Student relations
+  studentProfile Student? @relation("StudentUser")
+  childrenAsParent Student[] @relation("ParentUser")
+  
   @@map("users")
 }
 
@@ -174,7 +178,11 @@ model Student {
   id          String   @id @default(cuid())
   tenantId    String
   
-  // Personal info
+  // Links to User accounts
+  userId      String   @unique // Student user account
+  parentUserId String? @unique // Optional parent user account
+  
+  // Personal info (duplicated from User for quick access)
   firstName   String
   lastName    String
   dateOfBirth DateTime
@@ -187,10 +195,7 @@ model Student {
   enrollmentDate DateTime @default(now())
   status      UserStatus @default(ACTIVE)
   
-  // Parent/Guardian info
-  parentName    String?
-  parentEmail   String?
-  parentPhone   String?
+  // Emergency contact (if different from parent)
   emergencyContact String?
   
   // Medical/Special needs
@@ -203,6 +208,8 @@ model Student {
   
   // Relations
   tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User          @relation("StudentUser", fields: [userId], references: [id], onDelete: Cascade)
+  parentUser User?         @relation("ParentUser", fields: [parentUserId], references: [id], onDelete: SetNull)
   classes    StudentClass[]
   attendance Attendance[]
   payments   Payment[]

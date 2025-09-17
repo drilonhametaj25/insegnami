@@ -179,7 +179,8 @@ export function AdvancedDataTable<T>({
           
           {enableFilters && (
             <Button
-              variant="light"
+              variant="gradient"
+              gradient={{ from: 'blue', to: 'indigo', deg: 45 }}
               leftSection={<IconFilter size={16} />}
               onClick={() => {
                 // Toggle filters visibility - implement as needed
@@ -203,7 +204,8 @@ export function AdvancedDataTable<T>({
           
           {onExport && (
             <Button
-              variant="light"
+              variant="gradient"
+              gradient={{ from: 'teal', to: 'green', deg: 45 }}
               leftSection={<IconDownload size={16} />}
               onClick={onExport}
             >
@@ -214,7 +216,16 @@ export function AdvancedDataTable<T>({
       </Group>
 
       {/* Table */}
-      <Paper withBorder>
+      <Paper 
+        p="xl" 
+        radius="xl"
+        style={{
+          background: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(226, 232, 240, 0.8)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+        }}
+      >
         <Table.ScrollContainer minWidth={800}>
           <Table striped highlightOnHover>
             <Table.Thead>

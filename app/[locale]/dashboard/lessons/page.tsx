@@ -349,19 +349,49 @@ export default function LessonsPage() {
   }
 
   return (
-    <Container size="xl" py="md">
-      <Stack gap="lg">
-        <Group justify="space-between" align="center">
-          <Title order={1}>{t('pageTitle')}</Title>
-          <Button
-            leftSection={<IconPlus size={16} />}
-            onClick={handleNewLesson}
-          >
-            {t('createLesson')}
-          </Button>
-        </Group>
+    <div style={{ 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+      padding: '24px'
+    }}>
+      <Container size="xl">
+        <Stack gap="lg">
+          <Group justify="space-between" align="center">
+            <Title 
+              order={1}
+              style={{ 
+                color: 'white',
+                fontSize: '2.5rem',
+                fontWeight: 700,
+                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+              }}
+            >
+              {t('pageTitle')}
+            </Title>
+            <Button
+              leftSection={<IconPlus size={16} />}
+              onClick={handleNewLesson}
+              style={{
+                background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                border: 'none',
+                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)'
+              }}
+            >
+              {t('createLesson')}
+            </Button>
+          </Group>
 
-        <Paper shadow="sm" radius="md" p="lg" withBorder>
+        <Paper 
+          shadow="lg" 
+          radius="md" 
+          p="lg" 
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px'
+          }}
+        >
           {isLoading ? (
             <div style={{ height: 600, position: 'relative' }}>
               <LoadingOverlay visible />
@@ -618,6 +648,7 @@ export default function LessonsPage() {
           </form>
         </Modal>
       </Stack>
-    </Container>
+      </Container>
+    </div>
   );
 }

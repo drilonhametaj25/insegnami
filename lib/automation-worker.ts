@@ -124,7 +124,19 @@ async function processAttendanceReminder(data: any) {
       class: {
         include: {
           students: {
-            include: { student: true },
+            include: { 
+              student: {
+                include: {
+                  parentUser: {
+                    select: {
+                      email: true,
+                      firstName: true,
+                      lastName: true,
+                    },
+                  },
+                },
+              } as any,
+            },
           },
         },
       },
@@ -179,9 +191,19 @@ async function processPaymentReminder(data: any) {
   const payment = await prisma.payment.findUnique({
     where: { id: data.paymentId },
     include: {
-      student: true,
+      student: {
+        include: {
+          parentUser: {
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      },
     },
-  });
+  }) as any;
 
   if (!payment) {
     logger.error(`Payment not found: ${data.paymentId}`);
@@ -197,7 +219,7 @@ async function processPaymentReminder(data: any) {
   // Send to student email first, then parent email if available
   const emailAddresses = [
     payment.student.email,
-    payment.student.parentEmail,
+    payment.student.parentUser?.email,
   ].filter(Boolean);
 
   if (emailAddresses.length === 0) {

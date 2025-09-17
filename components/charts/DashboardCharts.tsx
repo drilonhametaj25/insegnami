@@ -71,7 +71,7 @@ export function AttendanceChart({ data, title = 'Tasso di Presenza per Classe' }
   };
 
   return (
-    <Paper p="md" withBorder>
+    <Paper p="xl" radius="xl" style={{background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(10px)", border: "1px solid rgba(226, 232, 240, 0.8)", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)"}}>
       <Bar data={chartData} options={options} />
     </Paper>
   );
@@ -121,7 +121,7 @@ export function PaymentStatusChart({ data, title = 'Status Pagamenti' }: Payment
   };
 
   return (
-    <Paper p="md" withBorder>
+    <Paper p="xl" radius="xl" style={{background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(10px)", border: "1px solid rgba(226, 232, 240, 0.8)", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)"}}>
       <Pie data={chartData} options={options} />
     </Paper>
   );
@@ -170,7 +170,7 @@ export function EnrollmentTrend({ data, title = 'Andamento Iscrizioni' }: Enroll
   };
 
   return (
-    <Paper p="md" withBorder>
+    <Paper p="xl" radius="xl" style={{background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(10px)", border: "1px solid rgba(226, 232, 240, 0.8)", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)"}}>
       <Line data={chartData} options={options} />
     </Paper>
   );
@@ -222,7 +222,7 @@ export function RevenueChart({ data, title = 'Ricavi Mensili' }: RevenueChartPro
   };
 
   return (
-    <Paper p="md" withBorder>
+    <Paper p="xl" radius="xl" style={{background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(10px)", border: "1px solid rgba(226, 232, 240, 0.8)", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)"}}>
       <Bar data={chartData} options={options} />
     </Paper>
   );
@@ -354,7 +354,7 @@ export function KPICards({ stats }: KPICardsProps) {
     <Grid>
       {kpis.map((kpi, index) => (
         <Grid.Col span={{ base: 12, sm: 6, md: 3 }} key={index}>
-          <Paper p="md" withBorder>
+          <Paper p="xl" radius="xl" style={{background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(10px)", border: "1px solid rgba(226, 232, 240, 0.8)", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)"}}>
             <Group justify="space-between">
               <Stack gap="xs">
                 <Text size="sm" c="dimmed">

@@ -113,6 +113,31 @@ export function StudentForm({
       onClose={onClose}
       title={student ? 'Modifica Studente' : 'Nuovo Studente'}
       size="xl"
+      overlayProps={{
+        backgroundOpacity: 0.55,
+        blur: 3,
+      }}
+      styles={{
+        content: {
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(226, 232, 240, 0.8)',
+          borderRadius: '20px',
+        },
+        header: {
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: '20px 20px 0 0',
+          color: 'white',
+          borderBottom: 'none',
+        },
+        title: {
+          color: 'white',
+          fontWeight: 600,
+        },
+        close: {
+          color: 'white',
+        },
+      }}
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
@@ -243,13 +268,20 @@ export function StudentForm({
           </div>
 
           <Group justify="flex-end" mt="xl">
-            <Button variant="light" onClick={onClose}>
+            <Button 
+              variant="light" 
+              onClick={onClose}
+              radius="lg"
+            >
               Annulla
             </Button>
             <Button
               type="submit"
               loading={submitLoading || loading}
               disabled={!form.isValid()}
+              variant="gradient"
+              gradient={{ from: 'indigo', to: 'purple', deg: 45 }}
+              radius="lg"
             >
               {student ? 'Aggiorna' : 'Crea'} Studente
             </Button>

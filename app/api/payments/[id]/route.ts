@@ -57,9 +57,6 @@ export async function GET(
             lastName: true,
             studentCode: true,
             email: true,
-            parentName: true,
-            parentEmail: true,
-            parentPhone: true,
           },
         },
         class: {

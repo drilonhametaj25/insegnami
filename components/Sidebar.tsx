@@ -123,20 +123,7 @@ export function Sidebar({ opened }: SidebarProps) {
         borderRight: 'none',
       }}
     >
-      <AppShell.Section>
-        <Group pb="md" mb="md" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-          <img 
-            src="/images/logo.svg" 
-            alt="InsegnaMi.pro" 
-            height="40"
-            style={{ 
-              height: '40px', 
-              width: 'auto',
-              filter: 'brightness(0) invert(1)', // Makes the logo white
-            }}
-          />
-        </Group>
-      </AppShell.Section>
+      {/* Logo section removed - moved to navbar */}
 
       <AppShell.Section grow>
         <Stack gap="xs">
@@ -152,30 +139,44 @@ export function Sidebar({ opened }: SidebarProps) {
                 label={item.label}
                 leftSection={<Icon size="1rem" stroke={1.5} />}
                 active={isActive}
-                variant="filled"
-                styles={(theme) => ({
+                styles={{
                   root: {
                     borderRadius: rem(12),
-                    color: 'white',
+                    backgroundColor: isActive ? 'rgba(255, 255, 255, 0.25)' : 'transparent',
+                    fontWeight: isActive ? 600 : 'normal',
+                    boxShadow: isActive ? '0 4px 15px rgba(0, 0, 0, 0.2)' : 'none',
+                    transition: 'all 0.3s ease',
+                    
                     '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    },
-                    '&[data-active]': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                      color: 'white',
-                      '&::before': {
-                        backgroundColor: 'white',
+                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                      transform: 'translateY(-2px) translateX(4px)',
+                      boxShadow: '0 8px 25px rgba(0, 0, 0, 0.25)',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      
+                      // Effetti hover per gli elementi interni
+                      '& .mantine-NavLink-label': {
+                        fontWeight: 600,
+                        textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+                      },
+                      
+                      '& .mantine-NavLink-section': {
+                        transform: 'scale(1.1)',
+                        filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))',
                       },
                     },
                   },
-                  section: {
-                    color: 'rgba(255, 255, 255, 0.8)',
-                  },
                   label: {
-                    color: 'white',
+                    color: '#ffffff',
                     fontWeight: 500,
+                    fontSize: '14px',
+                    transition: 'all 0.3s ease',
                   },
-                })}
+                  section: {
+                    color: '#ffffff',
+                    transition: 'all 0.3s ease',
+                  },
+                }}
               />
             );
           })}

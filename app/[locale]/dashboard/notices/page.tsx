@@ -352,21 +352,41 @@ export default function NoticesPage() {
   }
 
   return (
-    <Container size="xl" py="md">
-      <Stack gap="lg">
-        <Group justify="space-between" align="center">
-          <Title order={1}>{t('pageTitle')}</Title>
-          <Button
-            leftSection={<IconPlus size={16} />}
-            onClick={() => {
-              setEditingNotice(null);
-              form.reset();
-              openModal();
-            }}
-          >
-            {t('createNotice')}
-          </Button>
-        </Group>
+    <div style={{ 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+      padding: '24px'
+    }}>
+      <Container size="xl">
+        <Stack gap="lg">
+          <Group justify="space-between" align="center">
+            <Title 
+              order={1}
+              style={{ 
+                color: 'white',
+                fontSize: '2.5rem',
+                fontWeight: 700,
+                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+              }}
+            >
+              {t('pageTitle')}
+            </Title>
+            <Button
+              leftSection={<IconPlus size={16} />}
+              onClick={() => {
+                setEditingNotice(null);
+                form.reset();
+                openModal();
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                border: 'none',
+                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)'
+              }}
+            >
+              {t('createNotice')}
+            </Button>
+          </Group>
 
         {/* Statistics Cards */}
         {statsLoading ? (
@@ -705,6 +725,7 @@ export default function NoticesPage() {
           </Stack>
         </form>
       </Modal>
-    </Container>
+      </Container>
+    </div>
   );
 }

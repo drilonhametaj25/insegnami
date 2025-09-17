@@ -234,33 +234,68 @@ export default function AttendancePage() {
   const isSaving = recordAttendance.isPending || updateAttendance.isPending;
 
   return (
-    <Container size="xl" py="md">
-      <Stack gap="lg">
-        <Group justify="space-between" align="center">
-          <Title order={1}>{t('title')}</Title>
-          <Group>
-            <Button
-              variant="light"
-              leftSection={<IconDownload size={16} />}
-              onClick={() => handleExportAttendance('xlsx')}
+    <div style={{ 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+      padding: '24px'
+    }}>
+      <Container size="xl">
+        <Stack gap="lg">
+          <Group justify="space-between" align="center">
+            <Title 
+              order={1}
+              style={{ 
+                color: 'white',
+                fontSize: '2.5rem',
+                fontWeight: 700,
+                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+              }}
             >
-              {t('exportExcel')}
-            </Button>
-            <Button
-              leftSection={<IconCalendar size={16} />}
-              onClick={openAttendanceModal}
-            >
-              {t('recordAttendance')}
-            </Button>
+              {t('title')}
+            </Title>
+            <Group>
+              <Button
+                variant="light"
+                leftSection={<IconDownload size={16} />}
+                onClick={() => handleExportAttendance('xlsx')}
+                style={{
+                  background: 'rgba(34, 197, 94, 0.1)',
+                  border: '1px solid rgba(34, 197, 94, 0.2)',
+                  color: '#4ade80',
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
+                {t('exportExcel')}
+              </Button>
+              <Button
+                leftSection={<IconCalendar size={16} />}
+                onClick={openAttendanceModal}
+                style={{
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                  border: 'none',
+                  boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)'
+                }}
+              >
+                {t('recordAttendance')}
+              </Button>
+            </Group>
           </Group>
-        </Group>
 
         {/* Statistics Cards */}
         {statsLoading ? (
           <Grid>
             {[1, 2, 3, 4].map((i) => (
               <Grid.Col key={i} span={{ base: 12, sm: 6, md: 3 }}>
-                <Card shadow="sm" padding="lg" radius="md" withBorder>
+                <Card 
+                  shadow="lg" 
+                  padding="lg" 
+                  radius="md"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                >
                   <Skeleton height={20} mb="xs" />
                   <Skeleton height={32} mb="xs" />
                   <Skeleton height={16} />
@@ -271,54 +306,107 @@ export default function AttendancePage() {
         ) : stats ? (
           <Grid>
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Card 
+                shadow="lg" 
+                padding="lg" 
+                radius="md"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
                 <Group justify="space-between">
                   <div>
-                    <Text size="sm" c="dimmed">{t('totalRecords')}</Text>
-                    <Text size="xl" fw={700}>{stats.totalRecords}</Text>
+                    <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                      {t('totalRecords')}
+                    </Text>
+                    <Text size="xl" fw={700} style={{ color: 'white' }}>
+                      {stats.totalRecords}
+                    </Text>
                   </div>
-                  <IconUsers size={32} color="var(--mantine-color-blue-6)" />
+                  <IconUsers size={32} color="#3b82f6" />
                 </Group>
               </Card>
             </Grid.Col>
             
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Card 
+                shadow="lg" 
+                padding="lg" 
+                radius="md"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(21, 128, 61, 0.1) 100%)',
+                  border: '1px solid rgba(34, 197, 94, 0.2)',
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
                 <Group justify="space-between">
                   <div>
-                    <Text size="sm" c="dimmed">{t('attendanceRate')}</Text>
-                    <Text size="xl" fw={700}>{stats.attendanceRate.toFixed(1)}%</Text>
+                    <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                      {t('attendanceRate')}
+                    </Text>
+                    <Text size="xl" fw={700} style={{ color: 'white' }}>
+                      {stats.attendanceRate.toFixed(1)}%
+                    </Text>
                     <Progress 
                       value={stats.attendanceRate} 
                       size="xs" 
                       color={stats.attendanceRate > 80 ? 'green' : stats.attendanceRate > 60 ? 'yellow' : 'red'} 
+                      style={{ marginTop: '4px' }}
                     />
                   </div>
-                  <IconChartBar size={32} color="var(--mantine-color-green-6)" />
+                  <IconChartBar size={32} color="#22c55e" />
                 </Group>
               </Card>
             </Grid.Col>
             
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Card 
+                shadow="lg" 
+                padding="lg" 
+                radius="md"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
                 <Group justify="space-between">
                   <div>
-                    <Text size="sm" c="dimmed">{t('presentCount')}</Text>
-                    <Text size="xl" fw={700} c="green">{stats.presentCount}</Text>
+                    <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                      {t('presentCount')}
+                    </Text>
+                    <Text size="xl" fw={700} style={{ color: '#10b981' }}>
+                      {stats.presentCount}
+                    </Text>
                   </div>
-                  <IconCheck size={32} color="var(--mantine-color-green-6)" />
+                  <IconCheck size={32} color="#10b981" />
                 </Group>
               </Card>
             </Grid.Col>
             
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Card 
+                shadow="lg" 
+                padding="lg" 
+                radius="md"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
                 <Group justify="space-between">
                   <div>
-                    <Text size="sm" c="dimmed">{t('absentCount')}</Text>
-                    <Text size="xl" fw={700} c="red">{stats.absentCount}</Text>
+                    <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                      {t('absentCount')}
+                    </Text>
+                    <Text size="xl" fw={700} style={{ color: '#ef4444' }}>
+                      {stats.absentCount}
+                    </Text>
                   </div>
-                  <IconX size={32} color="var(--mantine-color-red-6)" />
+                  <IconX size={32} color="#ef4444" />
                 </Group>
               </Card>
             </Grid.Col>
@@ -326,15 +414,56 @@ export default function AttendancePage() {
         ) : null}
 
         {/* Main Content Tabs */}
-        <Tabs value={activeTab} onChange={(value) => value && setActiveTab(value)}>
-          <Tabs.List>
-            <Tabs.Tab value="record" leftSection={<IconCalendar size={16} />}>
+        <Tabs 
+          value={activeTab} 
+          onChange={(value) => value && setActiveTab(value)}
+          style={{
+            '--mantine-tabs-list-border-color': 'rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          <Tabs.List 
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              padding: '4px'
+            }}
+          >
+            <Tabs.Tab 
+              value="record" 
+              leftSection={<IconCalendar size={16} />}
+              style={{
+                color: activeTab === 'record' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                backgroundColor: activeTab === 'record' ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+                borderRadius: '8px',
+                border: 'none'
+              }}
+            >
               Registro Presenze
             </Tabs.Tab>
-            <Tabs.Tab value="reports" leftSection={<IconChartBar size={16} />}>
+            <Tabs.Tab 
+              value="reports" 
+              leftSection={<IconChartBar size={16} />}
+              style={{
+                color: activeTab === 'reports' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                backgroundColor: activeTab === 'reports' ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+                borderRadius: '8px',
+                border: 'none'
+              }}
+            >
               Report Classe
             </Tabs.Tab>
-            <Tabs.Tab value="history" leftSection={<IconFileText size={16} />}>
+            <Tabs.Tab 
+              value="history" 
+              leftSection={<IconFileText size={16} />}
+              style={{
+                color: activeTab === 'history' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                backgroundColor: activeTab === 'history' ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+                borderRadius: '8px',
+                border: 'none'
+              }}
+            >
               Storico
             </Tabs.Tab>
           </Tabs.List>
@@ -342,7 +471,15 @@ export default function AttendancePage() {
           {/* Attendance Records Tab */}
           <Tabs.Panel value="record" pt="lg">
             <Stack gap="md">
-              <Paper p="md" withBorder>
+              <Paper 
+                p="md" 
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '12px'
+                }}
+              >
                 <Group>
                   <Select
                     placeholder="Seleziona lezione"
@@ -354,10 +491,32 @@ export default function AttendancePage() {
                     onChange={(value) => setSelectedLessonId(value || '')}
                     style={{ flex: 1 }}
                     searchable
+                    styles={{
+                      input: {
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        color: 'white',
+                        '&::placeholder': { color: 'rgba(255, 255, 255, 0.5)' },
+                      },
+                      dropdown: {
+                        background: '#1e293b',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                      },
+                      option: {
+                        color: 'white',
+                        '&[data-selected]': {
+                          background: 'rgba(59, 130, 246, 0.3)',
+                        },
+                      },
+                    }}
                   />
                   <Button
                     onClick={openAttendanceModal}
                     disabled={!selectedLessonId}
+                    style={{
+                      background: selectedLessonId ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' : 'rgba(255, 255, 255, 0.1)',
+                      border: 'none',
+                    }}
                   >
                     Registra Presenze
                   </Button>
@@ -365,68 +524,92 @@ export default function AttendancePage() {
               </Paper>
 
               {selectedLessonId && (
-                <Paper p="lg" withBorder>
+                <Paper 
+                  p="lg" 
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: '16px'
+                  }}
+                >
                   <LoadingOverlay visible={lessonAttendanceLoading} />
-                  <Title order={3} mb="md">
+                  <Title order={3} mb="md" style={{ color: 'white' }}>
                     Presenze per la Lezione Selezionata
                   </Title>
                   
-                  <Table striped highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>Studente</Table.Th>
-                        <Table.Th>Stato</Table.Th>
-                        <Table.Th>Note</Table.Th>
-                        <Table.Th>Registrato il</Table.Th>
-                        <Table.Th>Azioni</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {lessonAttendance?.map((record: AttendanceRecord) => (
-                        <Table.Tr key={record.id}>
-                          <Table.Td>
-                            <div>
-                              <Text size="sm" fw={500}>
-                                {record.student.firstName} {record.student.lastName}
-                              </Text>
-                              <Text size="xs" c="dimmed">
-                                {record.student.email}
-                              </Text>
-                            </div>
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge
-                              color={getStatusColor(record.status)}
-                              variant="light"
-                              leftSection={getStatusIcon(record.status)}
-                            >
-                              {getStatusLabel(record.status)}
-                            </Badge>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm">{record.notes || '-'}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="xs">
-                              {dayjs(record.recordedAt).format('DD/MM/YYYY HH:mm')}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <ActionIcon
-                              variant="light"
-                              color="blue"
-                              size="sm"
-                              onClick={() => {
-                                // TODO: Implement edit attendance modal
-                              }}
-                            >
-                              <IconEdit size={14} />
-                            </ActionIcon>
-                          </Table.Td>
+                  <div style={{
+                    background: 'rgba(0, 0, 0, 0.2)',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}>
+                    <Table 
+                      striped 
+                      highlightOnHover
+                      style={{
+                        '--table-hover-color': 'rgba(255, 255, 255, 0.05)',
+                        '--table-striped-color': 'rgba(255, 255, 255, 0.02)'
+                      }}
+                    >
+                      <Table.Thead style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
+                        <Table.Tr>
+                          <Table.Th style={{ color: 'white', fontWeight: 600 }}>Studente</Table.Th>
+                          <Table.Th style={{ color: 'white', fontWeight: 600 }}>Stato</Table.Th>
+                          <Table.Th style={{ color: 'white', fontWeight: 600 }}>Note</Table.Th>
+                          <Table.Th style={{ color: 'white', fontWeight: 600 }}>Registrato il</Table.Th>
+                          <Table.Th style={{ color: 'white', fontWeight: 600 }}>Azioni</Table.Th>
                         </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {lessonAttendance?.map((record: AttendanceRecord) => (
+                          <Table.Tr key={record.id}>
+                            <Table.Td>
+                              <div>
+                                <Text size="sm" fw={500} style={{ color: 'white' }}>
+                                  {record.student.firstName} {record.student.lastName}
+                                </Text>
+                                <Text size="xs" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                                  {record.student.email}
+                                </Text>
+                              </div>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge
+                                color={getStatusColor(record.status)}
+                                variant="light"
+                                leftSection={getStatusIcon(record.status)}
+                              >
+                                {getStatusLabel(record.status)}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                                {record.notes || '-'}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="xs" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                                {dayjs(record.recordedAt).format('DD/MM/YYYY HH:mm')}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <ActionIcon
+                                variant="light"
+                                color="blue"
+                                size="sm"
+                                onClick={() => {
+                                  // TODO: Implement edit attendance modal
+                                }}
+                              >
+                                <IconEdit size={14} />
+                              </ActionIcon>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </div>
                 </Paper>
               )}
             </Stack>
@@ -582,17 +765,17 @@ export default function AttendancePage() {
                             {record.lesson.title}
                           </Text>
                           <Text size="xs" c="dimmed">
-                            {record.lesson.course.name} - {record.lesson.teacher.firstName} {record.lesson.teacher.lastName}
+                            {record.lesson.course?.name || 'No Course'} - {record.lesson.teacher?.firstName || 'Unknown'} {record.lesson.teacher?.lastName || 'Teacher'}
                           </Text>
                         </div>
                       </Table.Td>
                       <Table.Td>
                         <div>
                           <Text size="sm" fw={500}>
-                            {record.student.firstName} {record.student.lastName}
+                            {record.student?.firstName || 'Unknown'} {record.student?.lastName || 'Student'}
                           </Text>
                           <Text size="xs" c="dimmed">
-                            {record.student.email}
+                            {record.student?.email || 'No email'}
                           </Text>
                         </div>
                       </Table.Td>
@@ -623,6 +806,21 @@ export default function AttendancePage() {
         onClose={closeAttendanceModal}
         title="Registra Presenze"
         size="xl"
+        styles={{
+          content: {
+            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+          },
+          header: {
+            background: 'transparent',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          },
+          title: {
+            color: 'white',
+            fontSize: '1.25rem',
+            fontWeight: 600,
+          },
+        }}
       >
         <form onSubmit={form.onSubmit(handleRecordAttendance)}>
           <Stack gap="md">
@@ -635,32 +833,80 @@ export default function AttendancePage() {
               }))}
               {...form.getInputProps('lessonId')}
               searchable
+              styles={{
+                label: { color: 'white', fontWeight: 500 },
+                input: {
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  '&::placeholder': { color: 'rgba(255, 255, 255, 0.5)' },
+                },
+                dropdown: {
+                  background: '#1e293b',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                },
+                option: {
+                  color: 'white',
+                  '&[data-selected]': {
+                    background: 'rgba(59, 130, 246, 0.3)',
+                  },
+                },
+              }}
             />
 
             {form.values.lessonId && (
-              <Paper p="md" withBorder>
-                <Text size="sm" c="dimmed" mb="md">
+              <Paper 
+                p="md" 
+                style={{
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  borderRadius: '12px'
+                }}
+              >
+                <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.8)' }} mb="md">
                   Seleziona lo stato di presenza per ogni studente
                 </Text>
                 
-                {/* TODO: Add students attendance form based on selected lesson */}
-                <Alert color="blue">
+                <Alert 
+                  color="blue"
+                  style={{
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                    color: '#60a5fa'
+                  }}
+                >
                   Implementazione del form di presenza per studenti in corso...
                 </Alert>
               </Paper>
             )}
 
             <Group justify="flex-end" mt="md">
-              <Button variant="light" onClick={closeAttendanceModal}>
+              <Button 
+                variant="light" 
+                onClick={closeAttendanceModal}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  border: 'none',
+                }}
+              >
                 Annulla
               </Button>
-              <Button type="submit" loading={isSaving}>
+              <Button 
+                type="submit" 
+                loading={isSaving}
+                style={{
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                  border: 'none',
+                }}
+              >
                 Registra Presenze
               </Button>
             </Group>
           </Stack>
         </form>
       </Modal>
-    </Container>
+      </Container>
+    </div>
   );
 }

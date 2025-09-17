@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Only admin and superadmin can access teacher stats
-    if (!['admin', 'superadmin'].includes(session.user.role)) {
+    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 

@@ -240,6 +240,7 @@
     "teacherDetails": "Dettagli Insegnante",
     "firstName": "Nome",
     "lastName": "Cognome",
+    "name": "Nome",
     "email": "Email",
     "phone": "Telefono",
     "qualifications": "Qualifiche",
@@ -251,7 +252,12 @@
     "status": "Stato",
     "active": "Attivo",
     "inactive": "Inattivo",
-    "retired": "In Pensione"
+    "retired": "In Pensione",
+    "suspended": "Sospeso",
+    "searchPlaceholder": "Cerca insegnanti...",
+    "allStatuses": "Tutti gli stati",
+    "edit": "Modifica",
+    "delete": "Elimina"
   },
   "classes": {
     "title": "Gestione Classi",

@@ -242,12 +242,11 @@ async function main() {
       dateOfBirth: new Date('1990-05-15'),
       studentCode: 'S001',
       address: 'Via Roma 123, Milano',
-      parentName: 'Giuseppe Bianchi',
-      parentEmail: 'parent@englishplus.it',
-      parentPhone: '+39 333 2222222',
       tenantId: tenant.id,
       status: UserStatus.ACTIVE,
-    },
+      userId: studentUser.id,
+      parentUserId: parentUser.id,
+    } as any,
   });
 
   console.log('✅ Created student record');
@@ -393,11 +392,11 @@ async function main() {
   // Create more students
   const students = [];
   const studentData = [
-    { firstName: 'Giulia', lastName: 'Romano', email: 'giulia.romano@email.it', parentName: 'Roberto Romano', parentEmail: 'roberto.romano@email.it' },
-    { firstName: 'Luca', lastName: 'Ferrari', email: 'luca.ferrari@email.it', parentName: 'Maria Ferrari', parentEmail: 'maria.ferrari@email.it' },
-    { firstName: 'Chiara', lastName: 'Esposito', email: 'chiara.esposito@email.it', parentName: 'Antonio Esposito', parentEmail: 'antonio.esposito@email.it' },
-    { firstName: 'Andrea', lastName: 'Conti', email: 'andrea.conti@email.it', parentName: 'Francesca Conti', parentEmail: 'francesca.conti@email.it' },
-    { firstName: 'Sofia', lastName: 'Ricci', email: 'sofia.ricci@email.it', parentName: 'Marco Ricci', parentEmail: 'marco.ricci@email.it' },
+    { firstName: 'Giulia', lastName: 'Romano', email: 'giulia.romano@email.it', parentFirstName: 'Roberto', parentLastName: 'Romano', parentEmail: 'roberto.romano@email.it' },
+    { firstName: 'Luca', lastName: 'Ferrari', email: 'luca.ferrari@email.it', parentFirstName: 'Maria', parentLastName: 'Ferrari', parentEmail: 'maria.ferrari@email.it' },
+    { firstName: 'Chiara', lastName: 'Esposito', email: 'chiara.esposito@email.it', parentFirstName: 'Antonio', parentLastName: 'Esposito', parentEmail: 'antonio.esposito@email.it' },
+    { firstName: 'Andrea', lastName: 'Conti', email: 'andrea.conti@email.it', parentFirstName: 'Francesca', parentLastName: 'Conti', parentEmail: 'francesca.conti@email.it' },
+    { firstName: 'Sofia', lastName: 'Ricci', email: 'sofia.ricci@email.it', parentFirstName: 'Marco', parentLastName: 'Ricci', parentEmail: 'marco.ricci@email.it' },
   ];
 
   for (let i = 0; i < studentData.length; i++) {
@@ -436,8 +435,8 @@ async function main() {
       data: {
         email: studentInfo.parentEmail,
         password: hashedPassword,
-        firstName: studentInfo.parentName.split(' ')[0],
-        lastName: studentInfo.parentName.split(' ')[1],
+        firstName: studentInfo.parentFirstName,
+        lastName: studentInfo.parentLastName,
         phone: `+39 334 ${(1000000 + i).toString()}`,
         status: UserStatus.ACTIVE,
         emailVerified: new Date(),
@@ -470,12 +469,11 @@ async function main() {
         dateOfBirth: new Date(`199${2 + i}-0${(i % 9) + 1}-${10 + i}`),
         studentCode: `S${(i + 2).toString().padStart(3, '0')}`,
         address: `Via ${['Roma', 'Milano', 'Napoli', 'Torino', 'Palermo'][i]} ${123 + i * 10}, Milano`,
-        parentName: studentInfo.parentName,
-        parentEmail: studentInfo.parentEmail,
-        parentPhone: `+39 334 ${(1000000 + i).toString()}`,
         tenantId: tenant.id,
         status: UserStatus.ACTIVE,
-      },
+        userId: studentUser.id,
+        parentUserId: parentUser.id,
+      } as any,
     });
 
     students.push(studentRecord);

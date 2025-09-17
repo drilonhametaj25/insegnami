@@ -67,7 +67,16 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon, color, change }: StatCardProps) {
   return (
-    <Paper withBorder p="md" radius="md">
+    <Paper 
+      p="xl" 
+      radius="xl"
+      style={{
+        background: 'rgba(255, 255, 255, 0.9)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(226, 232, 240, 0.8)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+      }}
+    >
       <Group justify="space-between">
         <div>
           <Text c="dimmed" size="sm" fw={500} tt="uppercase">

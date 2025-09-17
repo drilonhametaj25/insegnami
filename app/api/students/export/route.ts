@@ -22,6 +22,24 @@ export async function GET(request: NextRequest) {
         tenantId: session.user.tenantId,
       },
       include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
+        parentUser: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
         classes: {
           include: {
             class: {
@@ -44,16 +62,16 @@ export async function GET(request: NextRequest) {
             dueDate: true,
           },
         },
-      },
+      } as any,
       orderBy: { lastName: 'asc' },
     });
 
     if (format === 'csv') {
       // Generate CSV
       const csvHeader = 'Nome,Cognome,Email,Telefono,Data Nascita,Indirizzo,Nome Genitore,Email Genitore,Telefone Genitore,Codice,Data Iscrizione,Stato,Classi,Pagamenti Totali,Note Mediche,Esigenze Speciali\n';
-      const csvData = students.map(student => {
-        const classes = student.classes.map(sc => sc.class.name).join('; ');
-        const totalPayments = student.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const csvData = students.map((student: any) => {
+        const classes = student.classes.map((sc: any) => sc.class.name).join('; ');
+        const totalPayments = student.payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
         
         return [
           `"${student.firstName}"`,
@@ -62,9 +80,9 @@ export async function GET(request: NextRequest) {
           student.phone || '',
           student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : '',
           `"${student.address || ''}"`,
-          `"${student.parentName || ''}"`,
-          student.parentEmail || '',
-          student.parentPhone || '',
+          `"${student.parentUser ? `${student.parentUser.firstName} ${student.parentUser.lastName}` : ''}"`,
+          student.parentUser?.email || '',
+          student.parentUser?.phone || '',
           student.studentCode || '',
           new Date(student.enrollmentDate).toISOString().split('T')[0],
           student.status,
@@ -86,9 +104,9 @@ export async function GET(request: NextRequest) {
     } else if (format === 'xlsx') {
       // For now, fallback to CSV (can implement XLSX later)
       const csvHeader = 'Nome,Cognome,Email,Telefono,Data Nascita,Indirizzo,Nome Genitore,Email Genitore,Telefono Genitore,Codice,Data Iscrizione,Stato,Classi,Pagamenti Totali,Note Mediche,Esigenze Speciali\n';
-      const csvData = students.map(student => {
-        const classes = student.classes.map(sc => sc.class.name).join('; ');
-        const totalPayments = student.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const csvData = students.map((student: any) => {
+        const classes = student.classes.map((sc: any) => sc.class.name).join('; ');
+        const totalPayments = student.payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
         
         return [
           `"${student.firstName}"`,
@@ -97,9 +115,9 @@ export async function GET(request: NextRequest) {
           student.phone || '',
           student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : '',
           `"${student.address || ''}"`,
-          `"${student.parentName || ''}"`,
-          student.parentEmail || '',
-          student.parentPhone || '',
+          `"${student.parentUser ? `${student.parentUser.firstName} ${student.parentUser.lastName}` : ''}"`,
+          student.parentUser?.email || '',
+          student.parentUser?.phone || '',
           student.studentCode || '',
           new Date(student.enrollmentDate).toISOString().split('T')[0],
           student.status,

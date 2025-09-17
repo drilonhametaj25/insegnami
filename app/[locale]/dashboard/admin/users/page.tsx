@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useLocale } from 'next-intl';
 import {
   Container,
   Stack,
@@ -12,10 +14,12 @@ import {
   Text,
   Alert,
   LoadingOverlay,
+  Avatar,
+  UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCheck, IconX, IconInfoCircle } from '@tabler/icons-react';
+import { IconCheck, IconX, IconInfoCircle, IconEye } from '@tabler/icons-react';
 import { DataTable, TableRenderers } from '@/components/tables/DataTable';
 import { UserForm, UserFormData } from '@/components/forms/UserForm';
 import { Role } from '@prisma/client';
@@ -49,6 +53,8 @@ interface UsersResponse {
 
 export default function UsersManagementPage() {
   const { data: session } = useSession();
+  const router = useRouter();
+  const locale = useLocale();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -68,6 +74,11 @@ export default function UsersManagementPage() {
 
   // Check if user has permission to manage users
   const canManageUsers = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN';
+
+  // Navigate to user detail
+  const handleViewUser = (userId: string) => {
+    router.push(`/${locale}/dashboard/users/${userId}`);
+  };
 
   // Fetch users
   const fetchUsers = async () => {
@@ -224,8 +235,33 @@ export default function UsersManagementPage() {
     {
       key: 'firstName' as keyof User,
       title: 'Utente',
-      render: (_value: any, user: User) => 
-        TableRenderers.avatar(`${user.firstName} ${user.lastName}`, user.email),
+      render: (_value: any, user: User) => (
+        <Group gap="sm">
+          <UnstyledButton onClick={() => handleViewUser(user.id)}>
+            <Group gap="sm">
+              <Avatar size="sm" color="blue">
+                {user.firstName[0]}{user.lastName[0]}
+              </Avatar>
+              <div>
+                <Text fw={500} size="sm" c="blue" style={{ cursor: 'pointer' }}>
+                  {user.firstName} {user.lastName}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {user.email}
+                </Text>
+              </div>
+            </Group>
+          </UnstyledButton>
+          <Button
+            size="xs"
+            variant="light"
+            leftSection={<IconEye size={14} />}
+            onClick={() => handleViewUser(user.id)}
+          >
+            Dettagli
+          </Button>
+        </Group>
+      ),
     },
     {
       key: 'phone' as keyof User,
@@ -307,26 +343,20 @@ export default function UsersManagementPage() {
       </Stack>
 
       {/* User Form Modal */}
-      <Modal
+      <UserForm
         opened={opened}
         onClose={close}
-        title={editingUser ? 'Modifica Utente' : 'Nuovo Utente'}
-        size="lg"
-      >
-        <UserForm
-          initialData={editingUser ? {
-            firstName: editingUser.firstName,
-            lastName: editingUser.lastName,
-            email: editingUser.email,
-            phone: editingUser.phone || '',
-            role: editingUser.tenants[0]?.role || 'STUDENT',
-          } : undefined}
-          onSubmit={handleSubmit}
-          onCancel={close}
-          loading={submitting}
-          isEdit={!!editingUser}
-        />
-      </Modal>
+        initialData={editingUser ? {
+          firstName: editingUser.firstName,
+          lastName: editingUser.lastName,
+          email: editingUser.email,
+          phone: editingUser.phone || '',
+          role: editingUser.tenants[0]?.role || 'STUDENT',
+        } : undefined}
+        onSubmit={handleSubmit}
+        loading={submitting}
+        isEdit={!!editingUser}
+      />
 
       {/* Delete Confirmation Modal */}
       <Modal

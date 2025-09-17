@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import bcrypt from 'bcryptjs';
+
+// Generate temporary password
+function generateTempPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let password = '';
+  for (let i = 0; i < 8; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
 
 // GET /api/students - List students with pagination and filtering
 export async function GET(request: NextRequest) {
@@ -60,6 +71,26 @@ export async function GET(request: NextRequest) {
       prisma.student.findMany({
         where,
         include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              status: true,
+            },
+          },
+          parentUser: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              status: true,
+            },
+          },
           classes: {
             include: {
               class: {
@@ -77,7 +108,7 @@ export async function GET(request: NextRequest) {
               name: true,
             },
           },
-        },
+        } as any, // Temporary cast for new relations
         orderBy: {
           lastName: 'asc',
         },
@@ -88,7 +119,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Transform students for response
-    const transformedStudents = students.map(student => ({
+    const transformedStudents = students.map((student: any) => ({
       id: student.id,
       studentCode: student.studentCode,
       firstName: student.firstName,
@@ -98,9 +129,9 @@ export async function GET(request: NextRequest) {
       dateOfBirth: student.dateOfBirth,
       address: student.address,
       emergencyContact: student.emergencyContact,
-      parentName: student.parentName,
-      parentEmail: student.parentEmail,
-      parentPhone: student.parentPhone,
+      parentName: student.parentUser ? `${student.parentUser.firstName} ${student.parentUser.lastName}` : null,
+      parentEmail: student.parentUser?.email || null,
+      parentPhone: student.parentUser?.phone || null,
       medicalNotes: student.medicalNotes,
       specialNeeds: student.specialNeeds,
       status: student.status,
@@ -108,9 +139,9 @@ export async function GET(request: NextRequest) {
       createdAt: student.createdAt,
       updatedAt: student.updatedAt,
       classes: student.classes.map((sc: any) => ({
-        classId: sc.classId,
-        className: sc.class.name,
-        classCode: sc.class.code,
+        id: sc.class.id,
+        name: sc.class.name,
+        code: sc.class.code,
         enrolledAt: sc.enrolledAt,
         isActive: sc.isActive,
       })),
@@ -136,7 +167,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/students - Create new student
+// POST /api/students - Create new student with advanced options
 export async function POST(request: NextRequest) {
   try {
     const session = await getAuth();
@@ -149,194 +180,261 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
-    const { 
-      firstName, 
-      lastName, 
+    const data = await request.json();
+
+    // Student data
+    const {
+      firstName,
+      lastName,
+      dateOfBirth,
       email,
       phone,
-      dateOfBirth,
       address,
       emergencyContact,
-      parentName,
-      parentEmail,
-      parentPhone,
       medicalNotes,
       specialNeeds,
-      classIds = [],
-      tenantId 
-    } = body;
+      status = 'ACTIVE',
+      
+      // Account management
+      createStudentAccount = false,
+      studentPassword,
+      
+      // Parent management
+      hasParent = false,
+      parentType, // 'new', 'existing', 'search'
+      
+      // New parent data
+      parentFirstName,
+      parentLastName,
+      parentEmail,
+      parentPhone,
+      parentPassword,
+      
+      // Existing parent
+      existingParentId,
+    } = data;
 
-    // Validate required fields
-    if (!firstName || !lastName) {
-      return NextResponse.json(
-        { error: 'First name and last name are required' },
-        { status: 400 }
-      );
-    }
+    let studentUser = null;
+    let parentUser = null;
 
-    // Validate email if provided
-    if (email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
+    // Create student account if requested
+    if (createStudentAccount) {
+      if (!email) {
         return NextResponse.json(
-          { error: 'Invalid email format' },
+          { error: 'Email richiesta per account studente' },
           { status: 400 }
         );
       }
-    }
 
-    // Determine target tenant
-    let targetTenantId = tenantId;
-    if (session.user.role !== 'SUPERADMIN') {
-      targetTenantId = session.user.tenantId; // Force current tenant
-    }
-
-    if (!targetTenantId) {
-      return NextResponse.json(
-        { error: 'Tenant ID required' },
-        { status: 400 }
-      );
-    }
-
-    // Verify tenant exists
-    const tenant = await prisma.tenant.findUnique({
-      where: { id: targetTenantId },
-    });
-
-    if (!tenant) {
-      return NextResponse.json(
-        { error: 'Tenant not found' },
-        { status: 404 }
-      );
-    }
-
-    // Verify parent exists if provided
-    // Note: In this schema, parent info is stored as strings, not as User relation
-
-    // Generate unique student code
-    const codePrefix = tenant.slug.toUpperCase().substring(0, 3);
-    const studentCount = await prisma.student.count({
-      where: { tenantId: targetTenantId },
-    });
-    const studentCode = `${codePrefix}${String(studentCount + 1).padStart(4, '0')}`;
-
-    // Create student and class enrollments in transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Create student
-      const student = await tx.student.create({
-        data: {
-          studentCode,
-          firstName,
-          lastName,
-          email: email || null,
-          phone: phone || null,
-          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : new Date('1900-01-01'), // Required field in schema
-          address: address || null,
-          emergencyContact: emergencyContact || null,
-          parentName: parentName || null,
-          parentEmail: parentEmail || null,
-          parentPhone: parentPhone || null,
-          medicalNotes: medicalNotes || null,
-          specialNeeds: specialNeeds || null,
-          tenantId: targetTenantId,
-          status: 'ACTIVE',
-          enrollmentDate: new Date(),
-        },
-      });
-
-      // Enroll in classes if provided
-      if (classIds.length > 0) {
-        // Verify classes exist and belong to tenant
-        const classes = await tx.class.findMany({
-          where: {
-            id: { in: classIds },
-            tenantId: targetTenantId,
-          },
-        });
-
-        if (classes.length !== classIds.length) {
-          throw new Error('One or more classes not found');
-        }
-
-        // Create enrollments
-        await tx.studentClass.createMany({
-          data: classIds.map((classId: string) => ({
-            studentId: student.id,
-            classId,
-            enrolledAt: new Date(),
-          })),
-        });
+      if (!studentPassword) {
+        return NextResponse.json(
+          { error: 'Password richiesta per account studente' },
+          { status: 400 }
+        );
       }
 
-      return student;
-    });
+      // Check if email is already used
+      const existingUser = await prisma.user.findUnique({
+        where: { email },
+      });
 
-    // Fetch created student with relations
-    const createdStudent = await prisma.student.findUnique({
-      where: { id: result.id },
-      include: {
-        classes: {
-          include: {
-            class: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-              },
-            },
-          },
-        },
-        tenant: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
+      if (existingUser) {
+        return NextResponse.json(
+          { error: 'Email già utilizzata da un altro utente' },
+          { status: 400 }
+        );
+      }
 
-    if (!createdStudent) {
-      throw new Error('Failed to retrieve created student');
+      const hashedStudentPassword = await bcrypt.hash(studentPassword, 10);
+
+      studentUser = await prisma.user.create({
+        data: {
+          email,
+          password: hashedStudentPassword,
+          firstName,
+          lastName,
+          phone: phone || null,
+          status: 'ACTIVE',
+          emailVerified: new Date(),
+        } as any,
+      });
+
+      // Add to tenant
+      await prisma.userTenant.create({
+        data: {
+          userId: studentUser.id,
+          tenantId: session.user.tenantId,
+          role: 'STUDENT',
+          permissions: JSON.stringify({
+            classes: { read: true },
+            lessons: { read: true },
+            attendance: { read: true },
+            payments: { read: true },
+            notices: { read: true },
+          }),
+        },
+      });
     }
 
-    // Transform response
-    const responseStudent = {
-      id: createdStudent.id,
-      studentCode: createdStudent.studentCode,
-      firstName: createdStudent.firstName,
-      lastName: createdStudent.lastName,
-      email: createdStudent.email,
-      phone: createdStudent.phone,
-      dateOfBirth: createdStudent.dateOfBirth,
-      address: createdStudent.address,
-      emergencyContact: createdStudent.emergencyContact,
-      parentName: createdStudent.parentName,
-      parentEmail: createdStudent.parentEmail,
-      parentPhone: createdStudent.parentPhone,
-      medicalNotes: createdStudent.medicalNotes,
-      specialNeeds: createdStudent.specialNeeds,
-      status: createdStudent.status,
-      enrollmentDate: createdStudent.enrollmentDate,
-      classes: createdStudent.classes.map((sc: any) => ({
-        classId: sc.classId,
-        className: sc.class.name,
-        classCode: sc.class.code,
-        enrolledAt: sc.enrolledAt,
-        isActive: sc.isActive,
-      })),
-      tenant: createdStudent.tenant,
-    };
+    // Handle parent account
+    if (hasParent) {
+      if (parentType === 'existing' || parentType === 'search') {
+        // Use existing parent
+        if (!existingParentId) {
+          return NextResponse.json(
+            { error: 'ID genitore richiesto per genitore esistente' },
+            { status: 400 }
+          );
+        }
 
-    return NextResponse.json({
-      message: 'Student created successfully',
-      student: responseStudent,
+        parentUser = await prisma.user.findUnique({
+          where: { id: existingParentId },
+        });
+
+        if (!parentUser) {
+          return NextResponse.json(
+            { error: 'Genitore non trovato' },
+            { status: 404 }
+          );
+        }
+
+        // Ensure parent has PARENT role in this tenant
+        const existingUserTenant = await prisma.userTenant.findUnique({
+          where: {
+            userId_tenantId: {
+              userId: parentUser.id,
+              tenantId: session.user.tenantId,
+            },
+          },
+        });
+
+        if (!existingUserTenant) {
+          await prisma.userTenant.create({
+            data: {
+              userId: parentUser.id,
+              tenantId: session.user.tenantId,
+              role: 'PARENT',
+              permissions: JSON.stringify({
+                students: { read: true },
+                attendance: { read: true },
+                payments: { read: true },
+                notices: { read: true },
+              }),
+            },
+          });
+        }
+      } else if (parentType === 'new') {
+        // Create new parent
+        if (!parentFirstName || !parentLastName || !parentEmail || !parentPassword) {
+          return NextResponse.json(
+            { error: 'Tutti i dati del genitore sono richiesti per nuovo account' },
+            { status: 400 }
+          );
+        }
+
+        // Check if email is already used
+        const existingParent = await prisma.user.findUnique({
+          where: { email: parentEmail },
+        });
+
+        if (existingParent) {
+          return NextResponse.json(
+            { error: 'Email genitore già utilizzata da un altro utente' },
+            { status: 400 }
+          );
+        }
+
+        const hashedParentPassword = await bcrypt.hash(parentPassword, 10);
+
+        parentUser = await prisma.user.create({
+          data: {
+            email: parentEmail,
+            password: hashedParentPassword,
+            firstName: parentFirstName,
+            lastName: parentLastName,
+            phone: parentPhone || null,
+            status: 'ACTIVE',
+            emailVerified: new Date(),
+          } as any,
+        });
+
+        // Add to tenant
+        await prisma.userTenant.create({
+          data: {
+            userId: parentUser.id,
+            tenantId: session.user.tenantId,
+            role: 'PARENT',
+            permissions: JSON.stringify({
+              students: { read: true },
+              attendance: { read: true },
+              payments: { read: true },
+              notices: { read: true },
+            }),
+          },
+        });
+      }
+    }
+
+    // Generate unique student code
+    const studentCount = await prisma.student.count({
+      where: { tenantId: session.user.tenantId },
+    });
+    const studentCode = `S${(studentCount + 1).toString().padStart(3, '0')}`;
+
+    // Create student record
+    const student = await prisma.student.create({
+      data: {
+        firstName,
+        lastName,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : new Date('1900-01-01'),
+        email,
+        phone,
+        address,
+        studentCode,
+        emergencyContact,
+        medicalNotes,
+        specialNeeds,
+        status,
+        tenantId: session.user.tenantId,
+        userId: studentUser?.id,
+        parentUserId: parentUser?.id,
+      } as any,
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        parentUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+      } as any,
     });
 
+    return NextResponse.json({
+      success: true,
+      student: {
+        ...(student as any),
+        // For backward compatibility in the UI
+        parentName: (student as any).parentUser ? `${(student as any).parentUser.firstName} ${(student as any).parentUser.lastName}` : null,
+        parentEmail: (student as any).parentUser?.email || null,
+        parentPhone: (student as any).parentUser?.phone || null,
+      },
+    });
   } catch (error) {
-    console.error('Students POST error:', error);
+    console.error('Error creating student:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

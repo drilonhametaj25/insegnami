@@ -43,8 +43,8 @@ import {
   IconUser,
 } from '@tabler/icons-react';
 
+import { useParentDashboard } from '@/lib/hooks/useDashboard';
 import { StatsCard } from '@/components/cards/StatsCard';
-import { useNotices } from '@/lib/hooks/useNotices';
 
 const localizer = momentLocalizer(moment);
 
@@ -77,21 +77,12 @@ export default function ParentDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedChild, setSelectedChild] = useState<string>('all');
 
-  // TanStack Query hooks (using mock data for now)
-  const studentsLoading = false;
-  const studentsError = null;
-  const lessonsLoading = false;
-  const attendanceLoading = false;
-  const paymentsLoading = false;
-
-  const lessons: any[] = []; // Mock empty lessons
-  const attendanceRecords: any[] = []; // Mock empty attendance records
-  const payments: any[] = []; // Mock empty payments
-
+  // Use the new parent dashboard hook
   const { 
-    data: noticesData, 
-    isLoading: noticesLoading 
-  } = useNotices(1, 10, { status: 'PUBLISHED' });
+    data: dashboardResponse, 
+    isLoading: dashboardLoading,
+    error: dashboardError
+  } = useParentDashboard();
 
   if (!session?.user) {
     return (
@@ -101,99 +92,94 @@ export default function ParentDashboard() {
     );
   }
 
-  const notices = noticesData?.notices || [];
+  if (dashboardLoading) {
+    return (
+      <Container size="xl" py="md">
+        <LoadingOverlay visible />
+      </Container>
+    );
+  }
 
-  // Mock children data (in a real app, this would be filtered from students API based on parent relationship)
-  const mockChildren: Child[] = [
-    {
-      id: '1',
-      name: 'Marco Rossi',
-      class: t('mockData.class1'),
-      teacher: 'Sarah Johnson',
-      attendanceRate: 92,
-      currentGrade: 8.5,
-      nextLesson: new Date(2024, 1, 17, 9, 0),
-    },
-    {
-      id: '2',
-      name: 'Giulia Rossi',
-      class: t('mockData.class2'),
-      teacher: 'Marie Dubois',
-      attendanceRate: 88,
-      currentGrade: 7.8,
-      nextLesson: new Date(2024, 1, 16, 14, 0),
-    },
-  ];
+  if (dashboardError || !dashboardResponse?.success) {
+    return (
+      <Container size="xl" py="md">
+        <Alert color="red" icon={<IconInfoCircle size={16} />}>
+          Errore nel caricamento dei dati: {dashboardError?.message || 'Errore sconosciuto'}
+        </Alert>
+      </Container>
+    );
+  }
+
+  const dashboardData = dashboardResponse.data;
+  const { parent, stats, children, upcomingLessons, attendanceRecords, payments, notices } = dashboardData;
 
   // Filter lessons by selected child
   const filteredLessons = selectedChild === 'all' 
-    ? lessons 
-    : lessons.filter(lesson => 
-        mockChildren.some(child => 
-          child.id === selectedChild && lesson.class?.name === child.class
-        )
+    ? upcomingLessons 
+    : upcomingLessons.filter(lesson => 
+        lesson.enrolledChildren.some(child => child.id === selectedChild)
       );
 
   // Transform lessons for calendar
   const calendarEvents = filteredLessons.map((lesson) => ({
     id: lesson.id,
     title: lesson.title,
-    start: lesson.startTime,
-    end: lesson.endTime,
+    start: new Date(lesson.startTime),
+    end: new Date(lesson.endTime),
     resource: lesson,
   }));
 
-  // Mock communications
-  const communications: Communication[] = [
+  // Mock communications (keeping for backward compatibility)
+  const communications = [
     {
       id: '1',
       from: 'Sarah Johnson',
-      subject: t('mockData.communication1Subject'),
-      message: t('mockData.communication1Message'),
-      date: new Date(2024, 1, 14),
+      subject: 'Ottimi progressi',
+      message: 'Suo figlio ha fatto grandi progressi questo mese.',
+      date: new Date(2025, 0, 14),
       type: 'grade',
-      childId: '1',
+      childId: children[0]?.id,
       read: false,
     },
     {
       id: '2',
-      from: t('mockData.schoolDirection'),
-      subject: t('mockData.communication2Subject'),
-      message: t('mockData.communication2Message'),
-      date: new Date(2024, 1, 13),
+      from: 'Direzione Scuola',
+      subject: 'Riunione genitori',
+      message: 'Vi informiamo che la riunione genitori si terrà il 20 gennaio.',
+      date: new Date(2025, 0, 13),
       type: 'general',
       read: true,
     },
   ];
 
-  const stats = [
+  const dashboardStats = [
     {
       title: t('stats.enrolledChildren'),
-      value: mockChildren.length,
+      value: stats.enrolledChildren,
       icon: <IconUser size={24} />,
       color: 'blue',
-      loading: studentsLoading,
+      loading: false,
     },
     {
       title: t('stats.activeCourses'),
-      value: mockChildren.length, // Each child has one active course
+      value: stats.totalActiveCourses,
       icon: <IconBook size={24} />,
       color: 'green',
       loading: false,
     },
     {
       title: t('stats.averageAttendanceRate'),
-      value: `${Math.round(mockChildren.reduce((acc, child) => acc + child.attendanceRate, 0) / mockChildren.length)}%`,
+      value: `${stats.averageAttendanceRate}%`,
       icon: <IconClipboardCheck size={24} />,
       color: 'teal',
-      loading: attendanceLoading,
+      loading: false,
     },
     {
       title: t('stats.pendingPayments'),
-      value: payments.filter(p => p.status === 'PENDING').length,
+      value: stats.totalPendingPayments,
       icon: <IconCoin size={24} />,
       color: 'orange',
-      loading: paymentsLoading,
+      loading: false,
     },
   ];
 
@@ -211,7 +197,7 @@ export default function ParentDashboard() {
             placeholder={t('selectChild')}
             data={[
               { value: 'all', label: t('allChildren') },
-              ...mockChildren.map(child => ({ value: child.id, label: child.name }))
+              ...children.map(child => ({ value: child.id, label: `${child.firstName} ${child.lastName}` }))
             ]}
             value={selectedChild}
             onChange={(value) => setSelectedChild(value || 'all')}
@@ -242,7 +228,7 @@ export default function ParentDashboard() {
             <Stack gap="lg">
               {/* Stats Cards */}
               <Grid>
-                {stats.map((stat, index) => (
+                {dashboardStats.map((stat, index) => (
                   <Grid.Col span={{ base: 12, sm: 6, md: 3 }} key={index}>
                     {stat.loading ? (
                       <Skeleton height={120} />
@@ -256,32 +242,26 @@ export default function ParentDashboard() {
               {/* Children Overview */}
               <Paper p="md" withBorder>
                 <Title order={3} mb="md">{t('yourChildren')}</Title>
-                {studentsLoading ? (
-                  <Grid>
-                    {[1, 2].map((i) => (
-                      <Grid.Col span={{ base: 12, md: 6 }} key={i}>
-                        <Skeleton height={200} />
-                      </Grid.Col>
-                    ))}
-                  </Grid>
-                ) : studentsError ? (
-                  <Alert color="red" icon={<IconInfoCircle size={16} />}>
-                    {t('errorLoadingData')}
+                {children.length === 0 ? (
+                  <Alert color="blue" icon={<IconInfoCircle size={16} />}>
+                    Nessun figlio trovato per questo account genitore
                   </Alert>
                 ) : (
                   <Grid>
-                    {mockChildren.map((child) => (
+                    {children.map((child) => (
                       <Grid.Col span={{ base: 12, md: 6 }} key={child.id}>
                         <Card p="md" withBorder>
                           <Stack gap="sm">
                             <Group gap="sm">
                               <Avatar size="md" color="blue">
-                                {child.name.split(' ').map(n => n[0]).join('')}
+                                {child.firstName[0]}{child.lastName[0]}
                               </Avatar>
                               <div>
-                                <Text fw={500} size="lg">{child.name}</Text>
-                                <Text size="sm" c="dimmed">{child.class}</Text>
-                                <Text size="sm" c="dimmed">{t('teacher')}: {child.teacher}</Text>
+                                <Text fw={500} size="lg">{child.firstName} {child.lastName}</Text>
+                                <Text size="sm" c="dimmed">Codice: {child.studentCode}</Text>
+                                <Text size="sm" c="dimmed">
+                                  Iscritto: {moment(child.enrollmentDate).format('DD/MM/YYYY')}
+                                </Text>
                               </div>
                             </Group>
 
@@ -289,25 +269,23 @@ export default function ParentDashboard() {
 
                             <Group justify="space-between">
                               <Text size="sm">{t('attendance')}</Text>
-                              <Badge color={child.attendanceRate >= 90 ? 'green' : child.attendanceRate >= 80 ? 'yellow' : 'red'}>
-                                {child.attendanceRate}%
+                              <Badge color={child.stats.attendanceRate >= 90 ? 'green' : child.stats.attendanceRate >= 80 ? 'yellow' : 'red'}>
+                                {child.stats.attendanceRate}%
                               </Badge>
                             </Group>
 
-                            {child.currentGrade && (
-                              <Group justify="space-between">
-                                <Text size="sm">{t('averageGrade')}</Text>
-                                <Badge color={child.currentGrade >= 8 ? 'green' : child.currentGrade >= 6 ? 'yellow' : 'red'}>
-                                  {child.currentGrade}/10
-                                </Badge>
-                              </Group>
-                            )}
+                            <Group justify="space-between">
+                              <Text size="sm">Corsi attivi</Text>
+                              <Badge color="blue">
+                                {child.stats.activeCourses}
+                              </Badge>
+                            </Group>
 
                             {child.nextLesson && (
                               <Group gap="xs">
                                 <IconClock size={14} />
                                 <Text size="sm" c="dimmed">
-                                  {t('nextLesson')}: {moment(child.nextLesson).format('DD/MM/YYYY HH:mm')}
+                                  Prossima lezione: {moment(child.nextLesson.startTime).format('DD/MM/YYYY HH:mm')}
                                 </Text>
                               </Group>
                             )}
@@ -332,7 +310,7 @@ export default function ParentDashboard() {
                   </Badge>
                 </Group>
 
-                {noticesLoading ? (
+                {dashboardLoading ? (
                   <Stack gap="sm">
                     {[1, 2, 3].map((i) => (
                       <Skeleton key={i} height={80} />
@@ -386,11 +364,11 @@ export default function ParentDashboard() {
               <Group justify="space-between" mb="md">
                 <Title order={3}>{t('lessonsCalendar')}</Title>
                 <Text size="sm" c="dimmed">
-                  {t('viewing')}: {selectedChild === 'all' ? t('allChildren') : mockChildren.find(c => c.id === selectedChild)?.name}
+                  {t('viewing')}: {selectedChild === 'all' ? t('allChildren') : children.find(c => c.id === selectedChild)?.firstName + ' ' + children.find(c => c.id === selectedChild)?.lastName}
                 </Text>
               </Group>
               
-              {lessonsLoading ? (
+              {dashboardLoading ? (
                 <Skeleton height={600} />
               ) : (
                 <div style={{ height: '600px' }}>
@@ -425,7 +403,7 @@ export default function ParentDashboard() {
             <Paper p="md" withBorder>
               <Title order={2} mb="md">{t('attendanceRegister')}</Title>
               
-              {attendanceLoading ? (
+              {dashboardLoading ? (
                 <Skeleton height={400} />
               ) : (
                 <Table>
@@ -444,10 +422,10 @@ export default function ParentDashboard() {
                         <Table.Td>
                           <Group gap="sm">
                             <Avatar size="sm" color="blue">
-                              {record.student?.firstName?.[0]}{record.student?.lastName?.[0]}
+                              {record.child.name[0]}
                             </Avatar>
                             <Text size="sm">
-                              {record.student?.firstName} {record.student?.lastName}
+                              {record.child.name}
                             </Text>
                           </Group>
                         </Table.Td>
@@ -491,7 +469,7 @@ export default function ParentDashboard() {
                 </Button>
               </Group>
               
-              {paymentsLoading ? (
+              {dashboardLoading ? (
                 <Grid>
                   {[1, 2, 3, 4].map((i) => (
                     <Grid.Col span={{ base: 12, md: 6 }} key={i}>
@@ -579,7 +557,7 @@ export default function ParentDashboard() {
                           )}
                           {comm.childId && (
                             <Badge variant="outline">
-                              {mockChildren.find(c => c.id === comm.childId)?.name}
+                              {children.find(c => c.id === comm.childId)?.firstName + ' ' + children.find(c => c.id === comm.childId)?.lastName}
                             </Badge>
                           )}
                         </Group>

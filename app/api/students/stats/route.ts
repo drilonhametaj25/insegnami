@@ -101,12 +101,11 @@ export async function GET(request: NextRequest) {
     }
 
     const stats = {
-      total: totalCount,
-      active: activeCount,
-      inactive: inactiveCount,
-      suspended: suspendedCount,
-      enrolledThisMonth,
-      averageAge,
+      totalStudents: totalCount,
+      activeStudents: activeCount,
+      inactiveStudents: inactiveCount,
+      newStudentsThisMonth: enrolledThisMonth,
+      averageAge: Math.round(averageAge),
       totalClasses: totalClassEnrollments,
     };
 

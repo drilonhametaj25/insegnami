@@ -281,18 +281,11 @@ export class DashboardService {
 
   // Get parent dashboard stats
   static async getParentStats(userId: string, tenantId: string) {
-    const parentEmail = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true }
-    });
-
-    if (!parentEmail) return null;
-
     const children = await prisma.student.findMany({
       where: {
-        parentEmail: parentEmail.email,
+        parentUserId: userId, // Use parentUserId directly with the user's ID
         tenantId
-      },
+      } as any,
       include: {
         classes: {
           include: {

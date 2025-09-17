@@ -76,9 +76,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         },
         header: {
-          background: 'rgba(255, 255, 255, 0.95)',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           backdropFilter: 'blur(10px)',
-          borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
+          border: 'none',
         },
       }}
     >
