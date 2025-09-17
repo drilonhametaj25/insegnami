@@ -34,10 +34,13 @@ import {
   IconInfoCircle,
   IconClock,
   IconMapPin,
+  IconKey,
+  IconSettings,
 } from '@tabler/icons-react';
 
 import { useStudentDashboard } from '@/lib/hooks/useDashboard';
 import { StatsCard } from '@/components/cards/StatsCard';
+import { ChangePasswordModal } from '@/components/modals/ChangePasswordModal';
 
 const localizer = momentLocalizer(moment);
 
@@ -55,6 +58,7 @@ export default function StudentDashboard() {
   const t = useTranslations('student');
   const tc = useTranslations('common');
   const [activeTab, setActiveTab] = useState('overview');
+  const [changePasswordOpened, setChangePasswordOpened] = useState(false);
 
   // Use the new dashboard hook
   const { 
@@ -161,6 +165,13 @@ export default function StudentDashboard() {
               {t('welcome', { name: `${session.user.firstName} ${session.user.lastName}` })}
             </Text>
           </div>
+          <Button
+            variant="light"
+            leftSection={<IconKey size={16} />}
+            onClick={() => setChangePasswordOpened(true)}
+          >
+            Cambia Password
+          </Button>
         </Group>
 
         <Tabs value={activeTab} onChange={(value) => setActiveTab(value || 'overview')}>
@@ -482,6 +493,12 @@ export default function StudentDashboard() {
           </Tabs.Panel>
         </Tabs>
       </Stack>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        opened={changePasswordOpened}
+        onClose={() => setChangePasswordOpened(false)}
+      />
     </Container>
   );
 }

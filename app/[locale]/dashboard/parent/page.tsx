@@ -41,10 +41,13 @@ import {
   IconMail,
   IconPhone,
   IconUser,
+  IconKey,
+  IconSettings,
 } from '@tabler/icons-react';
 
 import { useParentDashboard } from '@/lib/hooks/useDashboard';
 import { StatsCard } from '@/components/cards/StatsCard';
+import { ChangePasswordModal } from '@/components/modals/ChangePasswordModal';
 
 const localizer = momentLocalizer(moment);
 
@@ -76,6 +79,7 @@ export default function ParentDashboard() {
   const tc = useTranslations('common');
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedChild, setSelectedChild] = useState<string>('all');
+  const [changePasswordOpened, setChangePasswordOpened] = useState(false);
 
   // Use the new parent dashboard hook
   const { 
@@ -193,16 +197,25 @@ export default function ParentDashboard() {
               {t('welcome', { name: `${session.user?.firstName || 'N/A'} ${session.user?.lastName || 'N/A'}` })}
             </Text>
           </div>
-          <Select
-            placeholder={t('selectChild')}
-            data={[
-              { value: 'all', label: t('allChildren') },
-              ...children.map(child => ({ value: child.id, label: `${child.firstName} ${child.lastName}` }))
-            ]}
-            value={selectedChild}
-            onChange={(value) => setSelectedChild(value || 'all')}
-            w={200}
-          />
+          <Group gap="md">
+            <Button
+              variant="light"
+              leftSection={<IconKey size={16} />}
+              onClick={() => setChangePasswordOpened(true)}
+            >
+              Cambia Password
+            </Button>
+            <Select
+              placeholder={t('selectChild')}
+              data={[
+                { value: 'all', label: t('allChildren') },
+                ...children.map(child => ({ value: child.id, label: `${child.firstName} ${child.lastName}` }))
+              ]}
+              value={selectedChild}
+              onChange={(value) => setSelectedChild(value || 'all')}
+              w={200}
+            />
+          </Group>
         </Group>
 
         <Tabs value={activeTab} onChange={(value) => setActiveTab(value || 'overview')}>
@@ -597,6 +610,12 @@ export default function ParentDashboard() {
           </Tabs.Panel>
         </Tabs>
       </Stack>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        opened={changePasswordOpened}
+        onClose={() => setChangePasswordOpened(false)}
+      />
     </Container>
   );
 }

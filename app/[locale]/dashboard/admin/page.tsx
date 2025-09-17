@@ -24,6 +24,7 @@ import {
   IconCalendar,
   IconPlus,
   IconSettings,
+  IconDownload,
 } from '@tabler/icons-react';
 
 import { AdvancedDataTable, createCellRenderers } from '@/components/tables/AdvancedDataTable';
@@ -370,6 +371,119 @@ export default function AdminDashboard() {
     await loadData();
   };
 
+  // Export functions
+  const handleExportStudents = async () => {
+    try {
+      const response = await fetch('/api/students/export?format=csv');
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `students-export-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        notifications.show({
+          title: 'Export Completato',
+          message: 'File degli studenti scaricato con successo',
+          color: 'green',
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Errore Export',
+        message: 'Errore durante l\'export degli studenti',
+        color: 'red',
+      });
+    }
+  };
+
+  const handleExportPayments = async () => {
+    try {
+      const response = await fetch('/api/payments/export?format=csv');
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `payments-export-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        notifications.show({
+          title: 'Export Completato',
+          message: 'File dei pagamenti scaricato con successo',
+          color: 'green',
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Errore Export',
+        message: 'Errore durante l\'export dei pagamenti',
+        color: 'red',
+      });
+    }
+  };
+
+  const handleExportAttendance = async () => {
+    try {
+      const response = await fetch('/api/attendance/export?format=csv');
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `attendance-export-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        notifications.show({
+          title: 'Export Completato',
+          message: 'File delle presenze scaricato con successo',
+          color: 'green',
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Errore Export',
+        message: 'Errore durante l\'export delle presenze',
+        color: 'red',
+      });
+    }
+  };
+
+  const handleExportCompleteReport = async () => {
+    try {
+      const response = await fetch('/api/reports/export?type=overview&format=csv');
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `complete-report-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        notifications.show({
+          title: 'Export Completato',
+          message: 'Report completo scaricato con successo',
+          color: 'green',
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Errore Export',
+        message: 'Errore durante l\'export del report',
+        color: 'red',
+      });
+    }
+  };
+
   return (
     <Container size="xl" py="md">
       <Stack gap="lg">
@@ -401,6 +515,16 @@ export default function AdminDashboard() {
 
           <Tabs.Panel value="overview" pt="lg">
             <Stack gap="lg">
+              <Group justify="space-between">
+                <Title order={2}>Dashboard Panoramica</Title>
+                <Button
+                  variant="outline"
+                  leftSection={<IconDownload size={16} />}
+                  onClick={handleExportCompleteReport}
+                >
+                  Esporta Report Completo
+                </Button>
+              </Group>
               <KPICards stats={dashboardStats} />
               <DashboardCharts />
               
@@ -440,15 +564,24 @@ export default function AdminDashboard() {
             <Stack gap="md">
               <Group justify="space-between">
                 <Title order={2}>Gestione Studenti</Title>
-                <Button
-                  leftSection={<IconPlus size={16} />}
-                  onClick={() => {
-                    setEditingStudent(undefined);
-                    openStudentModal();
-                  }}
-                >
-                  Nuovo Studente
-                </Button>
+                <Group gap="sm">
+                  <Button
+                    variant="outline"
+                    leftSection={<IconDownload size={16} />}
+                    onClick={handleExportStudents}
+                  >
+                    Esporta CSV
+                  </Button>
+                  <Button
+                    leftSection={<IconPlus size={16} />}
+                    onClick={() => {
+                      setEditingStudent(undefined);
+                      openStudentModal();
+                    }}
+                  >
+                    Nuovo Studente
+                  </Button>
+                </Group>
               </Group>
               <AdvancedDataTable
                 data={students}

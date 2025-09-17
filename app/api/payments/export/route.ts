@@ -39,11 +39,22 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         student: {
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true,
-            studentCode: true,
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            parentUser: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+              },
+            },
           },
         },
         class: {
@@ -57,18 +68,24 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-      },
+      } as any,
       orderBy: { createdAt: 'desc' },
     });
 
     if (format === 'csv') {
       // Generate CSV
-      const csvHeader = 'Student,Code,Email,Class,Course,Description,Amount,Status,Due Date,Paid Date,Payment Method,Reference,Notes\n';
-      const csvData = payments.map(payment => {
+      const csvHeader = 'Student,Code,Email,Parent,Parent Email,Parent Phone,Class,Course,Description,Amount,Status,Due Date,Paid Date,Payment Method,Reference,Notes\n';
+      const csvData = payments.map((payment: any) => {
+        const student = payment.student;
+        const studentUser = student.user;
+        const parentUser = student.parentUser;
         return [
-          `"${payment.student.firstName} ${payment.student.lastName}"`,
-          payment.student.studentCode || '',
-          payment.student.email,
+          `"${studentUser?.firstName || ''} ${studentUser?.lastName || ''}"`,
+          student.studentCode || '',
+          studentUser?.email || '',
+          `"${parentUser ? `${parentUser.firstName} ${parentUser.lastName}` : ''}"`,
+          parentUser?.email || '',
+          parentUser?.phone || '',
           payment.class?.name || '',
           payment.class?.course?.name || '',
           `"${payment.description}"`,
@@ -92,12 +109,18 @@ export async function GET(request: NextRequest) {
       });
     } else {
       // For now, fallback to CSV until PDF library is implemented
-      const csvHeader = 'Student,Code,Email,Class,Course,Description,Amount,Status,Due Date,Paid Date,Payment Method,Reference,Notes\n';
-      const csvData = payments.map(payment => {
+      const csvHeader = 'Student,Code,Email,Parent,Parent Email,Parent Phone,Class,Course,Description,Amount,Status,Due Date,Paid Date,Payment Method,Reference,Notes\n';
+      const csvData = payments.map((payment: any) => {
+        const student = payment.student;
+        const studentUser = student.user;
+        const parentUser = student.parentUser;
         return [
-          `"${payment.student.firstName} ${payment.student.lastName}"`,
-          payment.student.studentCode || '',
-          payment.student.email,
+          `"${studentUser?.firstName || ''} ${studentUser?.lastName || ''}"`,
+          student.studentCode || '',
+          studentUser?.email || '',
+          `"${parentUser ? `${parentUser.firstName} ${parentUser.lastName}` : ''}"`,
+          parentUser?.email || '',
+          parentUser?.phone || '',
           payment.class?.name || '',
           payment.class?.course?.name || '',
           `"${payment.description}"`,
