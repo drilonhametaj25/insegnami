@@ -1,0 +1,56 @@
+# Replace your-domain.com with your actual domain
+your-domain.com {
+    # Reverse proxy to Next.js app
+    reverse_proxy app:3000 {
+        header_up Host {http.request.host}
+        header_up X-Real-IP {http.request.remote}
+        header_up X-Forwarded-For {http.request.remote}
+        header_up X-Forwarded-Proto {http.request.scheme}
+    }
+
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security max-age=31536000;
+        # Prevent MIME type sniffing
+        X-Content-Type-Options nosniff
+        # Prevent clickjacking
+        X-Frame-Options DENY
+        # XSS protection
+        X-XSS-Protection "1; mode=block"
+        # Referrer policy
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    # Enable compression
+    encode gzip
+
+    # Cache static assets
+    @static {
+        path *.css *.js *.ico *.png *.jpg *.jpeg *.gif *.svg *.woff *.woff2
+    }
+    header @static Cache-Control max-age=31536000
+
+    # Log access (optional)
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 10MB
+            roll_keep 3
+        }
+    }
+}
+
+# Optional: redirect www to non-www
+www.your-domain.com {
+    redir https://your-domain.com{uri}
+}
+
+# Development/staging subdomain (optional)
+staging.your-domain.com {
+    reverse_proxy app:3000
+    
+    # Basic auth for staging (optional)
+    basicauth {
+        admin $2a$14$hashed_password_here
+    }
+}

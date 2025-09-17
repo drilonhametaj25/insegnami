@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+*.lcov
+
+# Next.js
+.next/
+out/
+build
+
+# Misc
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment variables
+.env
+.env*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database
+*.db
+*.sqlite
+
+# OS
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Backup files
+backups/
+*.sql.gz
+
+# Uploads
+uploads/
+public/uploads/
+
+# Generated files
+prisma/migrations/*.sql

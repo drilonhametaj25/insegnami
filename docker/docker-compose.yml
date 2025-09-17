@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: insegnami_db
+      POSTGRES_USER: insegnami_user
+      POSTGRES_PASSWORD: insegnami_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U insegnami_user -d insegnami_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - insegnami_network
+
+  # Redis for caching and queues
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - insegnami_network
+
+  # MailHog for local email testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - insegnami_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  insegnami_network:
+    driver: bridge

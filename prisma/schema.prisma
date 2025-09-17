@@ -1,0 +1,774 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum definitions
+enum Role {
+  SUPERADMIN // Only in SaaS mode
+  ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum LessonStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum NoticeType {
+  ANNOUNCEMENT
+  EVENT
+  REMINDER
+  URGENT
+  MESSAGE
+  NEWSLETTER
+}
+
+enum MessageType {
+  DIRECT
+  GROUP
+  BROADCAST
+  AUTOMATED
+}
+
+enum MessageStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+// Core Models
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  domain    String?  @unique // For subdomain support in SaaS
+  plan      String   @default("basic")
+  
+  // Feature flags
+  featureFlags Json @default("{}")
+  
+  // Trial and billing (SaaS mode)
+  trialUntil DateTime?
+  isActive   Boolean  @default(true)
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  users     UserTenant[]
+  students  Student[]
+  teachers  Teacher[]
+  classes   Class[]
+  courses   Course[]
+  lessons   Lesson[]
+  payments  Payment[]
+  notices   Notice[]
+  events    Event[]
+  messages  Message[]
+  messageTemplates MessageTemplate[]
+  communicationGroups CommunicationGroup[]
+  reports   Report[]
+  analyticsSnapshots AnalyticsSnapshot[]
+  dashboardWidgets DashboardWidget[]
+  
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  phone     String?
+  avatar    String?
+  
+  status    UserStatus @default(ACTIVE)
+  
+  // Email verification
+  emailVerified DateTime?
+  verificationToken String?
+  
+  // Password reset
+  resetToken String?
+  resetTokenExpiry DateTime?
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLogin DateTime?
+  
+  // Relations
+  tenants   UserTenant[]
+  accounts  Account[]
+  sessions  Session[]
+  sentMessages Message[]
+  messageRecipients MessageRecipient[]
+  createdTemplates MessageTemplate[]
+  createdGroups CommunicationGroup[]
+  groupMemberships CommunicationGroupMember[]
+  reports Report[] @relation("UserReports")
+  dashboardWidgets DashboardWidget[] @relation("UserWidgets")
+  
+  @@map("users")
+}
+
+model UserTenant {
+  id       String @id @default(cuid())
+  userId   String
+  tenantId String
+  role     Role
+  
+  // Permissions (JSON field for fine-grained control)
+  permissions Json @default("{}")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, tenantId])
+  @@map("user_tenants")
+}
+
+model Student {
+  id          String   @id @default(cuid())
+  tenantId    String
+  
+  // Personal info
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime
+  email       String?
+  phone       String?
+  address     String?
+  
+  // Student specific
+  studentCode String   @unique // Generated student ID
+  enrollmentDate DateTime @default(now())
+  status      UserStatus @default(ACTIVE)
+  
+  // Parent/Guardian info
+  parentName    String?
+  parentEmail   String?
+  parentPhone   String?
+  emergencyContact String?
+  
+  // Medical/Special needs
+  medicalNotes String?
+  specialNeeds String?
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  classes    StudentClass[]
+  attendance Attendance[]
+  payments   Payment[]
+  
+  @@map("students")
+}
+
+model Teacher {
+  id        String   @id @default(cuid())
+  tenantId  String
+  
+  // Personal info
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+  address   String?
+  
+  // Professional info
+  teacherCode String   @unique // Generated teacher ID
+  hireDate    DateTime @default(now())
+  status      UserStatus @default(ACTIVE)
+  
+  // Qualifications
+  qualifications String?
+  specializations String?
+  biography      String?
+  
+  // Employment
+  hourlyRate     Decimal? @db.Decimal(10,2)
+  contractType   String? // Full-time, Part-time, Contract
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  classes Class[]
+  lessons Lesson[]
+  
+  @@map("teachers")
+}
+
+model Course {
+  id          String @id @default(cuid())
+  tenantId    String
+  
+  name        String
+  code        String @unique
+  description String?
+  category    String?
+  level       String? // Beginner, Intermediate, Advanced
+  
+  // Course details
+  duration    Int?    // Duration in hours
+  maxStudents Int?
+  minStudents Int?
+  price       Decimal? @db.Decimal(10,2)
+  
+  // Status
+  isActive Boolean @default(true)
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  classes Class[]
+  
+  @@map("courses")
+}
+
+model Class {
+  id        String @id @default(cuid())
+  tenantId  String
+  courseId  String
+  teacherId String
+  
+  name      String
+  code      String @unique
+  
+  // Schedule
+  startDate DateTime
+  endDate   DateTime?
+  
+  // Settings
+  maxStudents Int     @default(20)
+  isActive    Boolean @default(true)
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course   Course         @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  teacher  Teacher        @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  students StudentClass[]
+  lessons  Lesson[]
+  payments Payment[]
+  
+  @@map("classes")
+}
+
+model StudentClass {
+  id          String @id @default(cuid())
+  studentId   String
+  classId     String
+  
+  enrolledAt  DateTime @default(now())
+  droppedAt   DateTime?
+  isActive    Boolean  @default(true)
+  
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  
+  @@unique([studentId, classId])
+  @@map("student_classes")
+}
+
+model Lesson {
+  id        String @id @default(cuid())
+  tenantId  String
+  classId   String
+  teacherId String
+  
+  title     String
+  description String?
+  
+  // Schedule
+  startTime DateTime
+  endTime   DateTime
+  room      String?
+  
+  // Recurring lessons
+  isRecurring Boolean @default(false)
+  recurrenceRule String? // RRULE format
+  parentLessonId String?
+  
+  status LessonStatus @default(SCHEDULED)
+  
+  // Content
+  materials String? // JSON or text
+  homework  String?
+  notes     String?
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  class      Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher    Teacher      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  attendance Attendance[]
+  
+  @@map("lessons")
+}
+
+model Attendance {
+  id        String @id @default(cuid())
+  lessonId  String
+  studentId String
+  
+  status AttendanceStatus
+  notes  String?
+  
+  // Timing
+  arrivedAt DateTime?
+  leftAt    DateTime?
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  lesson  Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@unique([lessonId, studentId])
+  @@map("attendance")
+}
+
+model Payment {
+  id        String @id @default(cuid())
+  tenantId  String
+  studentId String
+  classId   String?
+  
+  // Payment details
+  description String
+  amount      Decimal @db.Decimal(10,2)
+  currency    String  @default("EUR")
+  
+  status PaymentStatus @default(PENDING)
+  
+  // Dates
+  dueDate  DateTime
+  paidDate DateTime?
+  
+  // Payment method and reference
+  paymentMethod String? // Cash, Card, Bank Transfer, etc.
+  reference     String? // Transaction ID, check number, etc.
+  
+  // Notes
+  notes String?
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class?  @relation(fields: [classId], references: [id], onDelete: SetNull)
+  
+  @@map("payments")
+}
+
+model Notice {
+  id       String @id @default(cuid())
+  tenantId String
+  
+  title   String
+  content String
+  type    NoticeType @default(ANNOUNCEMENT)
+  
+  // Visibility
+  isPublic Boolean @default(true)
+  targetRoles Role[] // Which roles can see this notice
+  
+  // Scheduling
+  publishAt DateTime @default(now())
+  expiresAt DateTime?
+  
+  // Flags
+  isPinned  Boolean @default(false)
+  isUrgent  Boolean @default(false)
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@map("notices")
+}
+
+model Event {
+  id        String @id @default(cuid())
+  tenantId  String
+  
+  title     String
+  description String?
+  location  String?
+  
+  // Timing
+  startTime DateTime
+  endTime   DateTime
+  isAllDay  Boolean @default(false)
+  
+  // Event details
+  color     String? @default("#3b82f6")
+  category  String?
+  
+  // Recurrence
+  isRecurring Boolean @default(false)
+  recurrenceRule String?
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@map("events")
+}
+
+// Auth.js required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Advanced Communication System
+model Message {
+  id        String @id @default(cuid())
+  tenantId  String
+  senderId  String
+  
+  title     String
+  content   String
+  type      MessageType @default(DIRECT)
+  status    MessageStatus @default(DRAFT)
+  
+  // Scheduling
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  
+  // Channels
+  sendEmail   Boolean @default(true)
+  sendSms     Boolean @default(false)
+  sendPush    Boolean @default(true)
+  
+  // Email specific
+  emailTemplate String?
+  emailSubject  String?
+  
+  // Priority and flags
+  priority    Int @default(0) // 0=normal, 1=high, 2=urgent
+  isUrgent    Boolean @default(false)
+  requiresResponse Boolean @default(false)
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sender     User              @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  recipients MessageRecipient[]
+  
+  @@map("messages")
+}
+
+model MessageRecipient {
+  id        String @id @default(cuid())
+  messageId String
+  userId    String
+  
+  // Delivery status per channel
+  emailStatus   MessageStatus @default(SCHEDULED)
+  smsStatus     MessageStatus @default(SCHEDULED)
+  pushStatus    MessageStatus @default(SCHEDULED)
+  
+  // Timestamps
+  emailDeliveredAt DateTime?
+  emailReadAt      DateTime?
+  smsDeliveredAt   DateTime?
+  pushDeliveredAt  DateTime?
+  pushReadAt       DateTime?
+  
+  // Response tracking
+  hasResponded Boolean @default(false)
+  respondedAt  DateTime?
+  response     String?
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([messageId, userId])
+  @@map("message_recipients")
+}
+
+model MessageTemplate {
+  id        String @id @default(cuid())
+  tenantId  String
+  creatorId String
+  
+  name        String
+  description String?
+  
+  // Template content
+  subject     String
+  content     String
+  type        NoticeType @default(MESSAGE)
+  
+  // Template variables (JSON)
+  variables   String? // JSON array of variable names
+  
+  // Usage stats
+  usageCount  Int @default(0)
+  lastUsedAt  DateTime?
+  
+  // Metadata
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creator User   @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  
+  @@map("message_templates")
+}
+
+model CommunicationGroup {
+  id        String @id @default(cuid())
+  tenantId  String
+  creatorId String
+  
+  name        String
+  description String?
+  
+  // Group types: CLASS, ROLE, CUSTOM, PARENT_CLASS
+  type        String @default("CUSTOM")
+  
+  // Auto-sync settings
+  autoSync    Boolean @default(false)
+  syncRules   String? // JSON rules for auto-membership
+  
+  // Metadata
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  tenant      Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creator     User                      @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  memberships CommunicationGroupMember[]
+  
+  @@map("communication_groups")
+}
+
+model CommunicationGroupMember {
+  id      String @id @default(cuid())
+  groupId String
+  userId  String
+  
+  // Member settings
+  isActive        Boolean @default(true)
+  canSendMessages Boolean @default(false)
+  
+  // Metadata
+  joinedAt DateTime @default(now())
+  
+  // Relations
+  group CommunicationGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([groupId, userId])
+  @@map("communication_group_members")
+}
+
+// Analytics and Reporting Enums
+enum ReportType {
+  ATTENDANCE
+  FINANCIAL
+  PROGRESS
+  OVERVIEW
+  CLASS_ANALYTICS
+  TEACHER_PERFORMANCE
+}
+
+enum ReportPeriod {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  CUSTOM
+}
+
+// Analytics and Reports Models
+model Report {
+  id          String      @id @default(cuid())
+  tenantId    String
+  title       String
+  type        ReportType
+  period      ReportPeriod
+  startDate   DateTime
+  endDate     DateTime
+  data        Json        // Flexible JSON storage for report data
+  filters     Json        @default("{}")
+  generatedBy String
+  
+  // Metadata
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // Relations
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User        @relation("UserReports", fields: [generatedBy], references: [id])
+
+  @@map("reports")
+}
+
+model AnalyticsSnapshot {
+  id                String   @id @default(cuid())
+  tenantId          String
+  date             DateTime
+  totalStudents    Int      @default(0)
+  totalTeachers    Int      @default(0)
+  totalClasses     Int      @default(0)
+  totalLessons     Int      @default(0)
+  attendanceRate   Float    @default(0)
+  paymentRate      Float    @default(0)
+  activeStudents   Int      @default(0)
+  overduePayments  Int      @default(0)
+  totalRevenue     Float    @default(0)
+  
+  // Monthly metrics
+  monthlyEnrollments Int    @default(0)
+  monthlyRevenue     Float  @default(0)
+  
+  // Metadata
+  createdAt        DateTime @default(now())
+  
+  // Relations
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date])
+  @@map("analytics_snapshots")
+}
+
+model DashboardWidget {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String
+  type        String   // 'chart', 'stat', 'table', etc.
+  title       String
+  config      Json     // Widget configuration
+  position    Json     // Grid position {x, y, w, h}
+  isVisible   Boolean  @default(true)
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User     @relation("UserWidgets", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("dashboard_widgets")
+}
