@@ -1,511 +1,493 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useLocale } from 'next-intl';
 import {
   Container,
   Title,
-  Grid,
-  Card,
   Text,
-  Tabs,
+  Card,
+  Grid,
+  Stack,
+  Group,
   Badge,
   Button,
-  Group,
-  Stack,
-  Avatar,
   ActionIcon,
-  Menu,
-  Modal,
-  LoadingOverlay,
+  Avatar,
+  Divider,
+  Tabs,
+  Paper,
+  SimpleGrid,
+  Progress,
   Alert,
-  Table,
+  LoadingOverlay,
+  List,
+  ThemeIcon,
 } from '@mantine/core';
 import {
   IconUser,
-  IconCalendar,
-  IconCurrency,
-  IconBooks,
-  IconPhone,
   IconMail,
-  IconEdit,
-  IconTrash,
-  IconDotsVertical,
-  IconChartBar,
+  IconPhone,
+  IconCalendarEvent,
   IconUsers,
+  IconChartBar,
+  IconEdit,
+  IconArrowLeft,
   IconClock,
+  IconMapPin,
+  IconBook,
+  IconTrendingUp,
+  IconAward,
   IconAlertCircle,
+  IconCheck,
 } from '@tabler/icons-react';
 import { useTranslations } from 'next-intl';
-import { useRouter, useParams } from 'next/navigation';
-import { useDisclosure } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
-import { DataTable } from '@/components/tables/DataTable';
-import { StatsCard } from '@/components/cards/StatsCard';
-import { useTeacherById } from '@/lib/hooks/useTeachers';
+import { format } from 'date-fns';
+import { it } from 'date-fns/locale';
+import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
+import { AdvancedDataTable } from '@/components/tables/AdvancedDataTable';
+import { AdvancedLessonCalendar } from '@/components/calendar/AdvancedLessonCalendar';
+
+// Mock data - sostituire con chiamate API reali
+const mockTeacher = {
+  id: '1',
+  firstName: 'Mario',
+  lastName: 'Rossi',
+  email: 'mario.rossi@school.com',
+  phone: '+39 123 456 7890',
+  dateOfBirth: '1980-05-15',
+  hireDate: '2020-01-10',
+  status: 'ACTIVE',
+  specializations: ['Matematica', 'Fisica'],
+  avatar: null,
+  bio: 'Docente esperto in matematica e fisica con oltre 15 anni di esperienza nell\'insegnamento.',
+  qualifications: [
+    'Laurea in Matematica - Università di Roma',
+    'Master in Didattica - Università Cattolica',
+    'Certificazione ECDL Advanced'
+  ],
+  classes: [
+    { id: '1', name: 'Matematica A', course: 'Matematica', students: 25 },
+    { id: '2', name: 'Fisica B', course: 'Fisica', students: 20 },
+    { id: '3', name: 'Matematica C', course: 'Matematica', students: 22 }
+  ],
+  stats: {
+    totalClasses: 3,
+    totalStudents: 67,
+    totalLessons: 156,
+    averageAttendance: 92.5,
+    completedLessons: 148,
+    cancelledLessons: 8,
+    monthlyHours: 48
+  }
+};
+
+const mockLessons = [
+  {
+    id: '1',
+    title: 'Algebra Lineare',
+    class: 'Matematica A',
+    date: '2024-01-15',
+    startTime: '09:00',
+    endTime: '10:30',
+    status: 'completed',
+    attendance: { present: 23, total: 25 },
+    room: 'Aula 101'
+  },
+  {
+    id: '2',
+    title: 'Cinematica',
+    class: 'Fisica B',
+    date: '2024-01-15',
+    startTime: '11:00',
+    endTime: '12:30',
+    status: 'completed',
+    attendance: { present: 18, total: 20 },
+    room: 'Lab Fisica'
+  },
+  {
+    id: '3',
+    title: 'Equazioni Differenziali',
+    class: 'Matematica C',
+    date: '2024-01-16',
+    startTime: '14:00',
+    endTime: '15:30',
+    status: 'scheduled',
+    room: 'Aula 203'
+  }
+];
 
 export default function TeacherDetailPage() {
-  const t = useTranslations();
-  const router = useRouter();
   const params = useParams();
+  const router = useRouter();
+  const locale = useLocale();
   const teacherId = params.id as string;
+  
+  const [activeTab, setActiveTab] = useState<string | null>('overview');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [deleteModalOpened, { open: openDeleteModal, close: closeDeleteModal }] = useDisclosure(false);
-
-  const {
-    data: teacher,
-    isLoading,
-    error,
-    refetch,
-  } = useTeacherById(teacherId);
+  // Mock loading state
+  const teacher = mockTeacher;
+  const lessons = mockLessons;
 
   const handleEdit = () => {
-    router.push(`/dashboard/teachers/edit/${teacherId}`);
+    router.push(`/${locale}/dashboard/teachers/${teacherId}/edit`);
   };
 
-  const handleDelete = async () => {
-    try {
-      const response = await fetch(`/api/teachers/${teacherId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete teacher');
-      }
-
-      notifications.show({
-        title: t('success'),
-        message: t('teacherDetail.deleted'),
-        color: 'green',
-      });
-
-      router.push('/dashboard/teachers');
-    } catch (error) {
-      notifications.show({
-        title: t('error'),
-        message: t('teacherDetail.deleteError'),
-        color: 'red',
-      });
-    } finally {
-      closeDeleteModal();
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ACTIVE': return 'green';
+      case 'INACTIVE': return 'gray';
+      case 'SUSPENDED': return 'red';
+      default: return 'blue';
     }
   };
 
-  if (isLoading) {
-    return (
-      <Container size="xl" py="xl">
-        <LoadingOverlay visible />
-      </Container>
-    );
-  }
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'ACTIVE': return 'Attivo';
+      case 'INACTIVE': return 'Inattivo';
+      case 'SUSPENDED': return 'Sospeso';
+      default: return status;
+    }
+  };
 
-  if (error) {
-    return (
-      <Container size="xl" py="xl">
-        <Alert icon={<IconAlertCircle size="1rem" />} title={t('error')} color="red">
-          {t('teacherDetail.loadError')}
-        </Alert>
-      </Container>
-    );
-  }
-
-  if (!teacher) {
-    return (
-      <Container size="xl" py="xl">
-        <Alert icon={<IconAlertCircle size="1rem" />} title={t('notFound')} color="yellow">
-          {t('teacherDetail.notFound')}
-        </Alert>
-      </Container>
-    );
-  }
-
-  // Calculate stats
-  const totalClasses = teacher.classes?.length || 0;
-  const totalStudents = teacher.classes?.reduce((acc: number, cls: any) => acc + (cls._count?.students || 0), 0) || 0;
-  const totalLessons = teacher.lessons?.length || 0;
-  const completedLessons = teacher.lessons?.filter((lesson: any) => lesson.status === 'COMPLETED').length || 0;
+  const lessonColumns = [
+    {
+      accessorKey: 'date',
+      header: 'Data',
+      cell: ({ row }: any) => format(new Date(row.original.date), 'dd/MM/yyyy', { locale: it }),
+    },
+    {
+      accessorKey: 'title',
+      header: 'Lezione',
+    },
+    {
+      accessorKey: 'class',
+      header: 'Classe',
+    },
+    {
+      accessorKey: 'time',
+      header: 'Orario',
+      cell: ({ row }: any) => `${row.original.startTime} - ${row.original.endTime}`,
+    },
+    {
+      accessorKey: 'room',
+      header: 'Aula',
+    },
+    {
+      accessorKey: 'status',
+      header: 'Stato',
+      cell: ({ row }: any) => {
+        const status = row.original.status;
+        const colors = {
+          completed: 'green',
+          scheduled: 'blue',
+          cancelled: 'red',
+          in_progress: 'yellow'
+        };
+        const labels = {
+          completed: 'Completata',
+          scheduled: 'Programmata',
+          cancelled: 'Annullata',
+          in_progress: 'In corso'
+        };
+        return (
+          <Badge color={colors[status as keyof typeof colors] || 'gray'}>
+            {labels[status as keyof typeof labels] || status}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: 'attendance',
+      header: 'Presenze',
+      cell: ({ row }: any) => {
+        const attendance = row.original.attendance;
+        if (!attendance) return '-';
+        const percentage = Math.round((attendance.present / attendance.total) * 100);
+        return `${attendance.present}/${attendance.total} (${percentage}%)`;
+      },
+    },
+  ];
 
   return (
-    <Container size="xl" py="xl">
+    <Container size="xl" py="md">
+      <LoadingOverlay visible={isLoading} />
+      
       {/* Header */}
       <Group justify="space-between" mb="xl">
         <Group>
-          <Avatar
-            size="xl"
-            src={teacher.avatar}
-            alt={`${teacher.firstName} ${teacher.lastName}`}
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            onClick={() => router.back()}
           >
-            <IconUser size="2rem" />
-          </Avatar>
+            <IconArrowLeft size={20} />
+          </ActionIcon>
           <div>
-            <Title order={2}>
-              {teacher.firstName} {teacher.lastName}
-            </Title>
-            <Group gap="xs" mt={4}>
-              <Badge color="blue" variant="light">
-                {t(`role.${teacher.role?.toLowerCase()}`)}
-              </Badge>
-              <Badge 
-                color={teacher.status === 'ACTIVE' ? 'green' : 'red'}
-                variant="light"
-              >
-                {t(`status.${teacher.status?.toLowerCase()}`)}
-              </Badge>
-            </Group>
+            <Title order={2}>Dettagli Docente</Title>
+            <Text c="dimmed">Informazioni complete e gestione</Text>
           </div>
         </Group>
-
-        <Menu shadow="md" width={200}>
-          <Menu.Target>
-            <ActionIcon variant="subtle" size="lg">
-              <IconDotsVertical size="1.2rem" />
-            </ActionIcon>
-          </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Item leftSection={<IconEdit size="1rem" />} onClick={handleEdit}>
-              {t('edit')}
-            </Menu.Item>
-            <Menu.Divider />
-            <Menu.Item 
-              leftSection={<IconTrash size="1rem" />} 
-              color="red"
-              onClick={openDeleteModal}
-            >
-              {t('delete')}
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
+        
+        <Group>
+          <Button
+            leftSection={<IconEdit size={16} />}
+            onClick={handleEdit}
+          >
+            Modifica
+          </Button>
+        </Group>
       </Group>
 
-      {/* Stats Cards */}
-      <Grid mb="xl">
-        <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-          <StatsCard
-            title={t('classes.total')}
-            value={totalClasses}
-            icon={<IconBooks size="1.5rem" />}
-            color="blue"
-          />
-        </Grid.Col>
-        <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-          <StatsCard
-            title={t('students.total')}
-            value={totalStudents}
-            icon={<IconUsers size="1.5rem" />}
-            color="green"
-          />
-        </Grid.Col>
-        <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-          <StatsCard
-            title={t('lessons.completed')}
-            value={completedLessons}
-            icon={<IconClock size="1.5rem" />}
-            color="orange"
-          />
-        </Grid.Col>
-        <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-          <StatsCard
-            title={t('lessons.total')}
-            value={totalLessons}
-            icon={<IconCalendar size="1.5rem" />}
-            color="purple"
-          />
-        </Grid.Col>
-      </Grid>
+      {/* Teacher Profile Card */}
+      <Card withBorder radius="lg" mb="xl" p="xl">
+        <Group align="flex-start">
+          <Avatar
+            src={teacher.avatar}
+            size={120}
+            radius="md"
+          >
+            <IconUser size={60} />
+          </Avatar>
+          
+          <Stack gap="sm" style={{ flex: 1 }}>
+            <Group justify="space-between" align="flex-start">
+              <div>
+                <Title order={3} mb={4}>
+                  {teacher.firstName} {teacher.lastName}
+                </Title>
+                <Badge
+                  color={getStatusColor(teacher.status)}
+                  size="lg"
+                  mb="sm"
+                >
+                  {getStatusLabel(teacher.status)}
+                </Badge>
+              </div>
+            </Group>
 
-      {/* Main Content */}
-      <Tabs defaultValue="overview">
-        <Tabs.List>
-          <Tabs.Tab value="overview" leftSection={<IconUser size="0.8rem" />}>
-            {t('overview')}
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
+              <Group gap="xs">
+                <IconMail size={16} color="#868e96" />
+                <Text size="sm">{teacher.email}</Text>
+              </Group>
+              <Group gap="xs">
+                <IconPhone size={16} color="#868e96" />
+                <Text size="sm">{teacher.phone || 'Non specificato'}</Text>
+              </Group>
+              <Group gap="xs">
+                <IconCalendarEvent size={16} color="#868e96" />
+                <Text size="sm">
+                  Assunto: {format(new Date(teacher.hireDate), 'dd/MM/yyyy', { locale: it })}
+                </Text>
+              </Group>
+              <Group gap="xs">
+                <IconBook size={16} color="#868e96" />
+                <Text size="sm">
+                  Materie: {teacher.specializations.join(', ')}
+                </Text>
+              </Group>
+            </SimpleGrid>
+
+            {teacher.bio && (
+              <>
+                <Divider my="sm" />
+                <Text size="sm" c="dimmed">{teacher.bio}</Text>
+              </>
+            )}
+          </Stack>
+        </Group>
+      </Card>
+
+      {/* Stats Cards */}
+      <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md" mb="xl">
+        <ModernStatsCard
+          title="Classi Totali"
+          value={teacher.stats.totalClasses.toString()}
+          change={{ value: 0, type: "neutral", period: "rispetto al mese scorso" }}
+          icon={<IconUsers size={20} />}
+          gradient="blue"
+        />
+        <ModernStatsCard
+          title="Studenti"
+          value={teacher.stats.totalStudents.toString()}
+          change={{ value: 5, type: "increase", period: "rispetto al mese scorso" }}
+          icon={<IconUser size={20} />}
+          gradient="green"
+        />
+        <ModernStatsCard
+          title="Lezioni"
+          value={teacher.stats.totalLessons.toString()}
+          change={{ value: 12, type: "increase", period: "rispetto al mese scorso" }}
+          icon={<IconBook size={20} />}
+          gradient="violet"
+        />
+        <ModernStatsCard
+          title="Presenze Media"
+          value={`${teacher.stats.averageAttendance}%`}
+          change={{ value: 3, type: "increase", period: "rispetto al mese scorso" }}
+          icon={<IconTrendingUp size={20} />}
+          gradient="orange"
+        />
+      </SimpleGrid>
+
+      {/* Tabs Content */}
+      <Tabs value={activeTab} onChange={setActiveTab}>
+        <Tabs.List mb="md">
+          <Tabs.Tab value="overview" leftSection={<IconChartBar size={16} />}>
+            Panoramica
           </Tabs.Tab>
-          <Tabs.Tab value="classes" leftSection={<IconBooks size="0.8rem" />}>
-            {t('classes')} ({totalClasses})
+          <Tabs.Tab value="classes" leftSection={<IconUsers size={16} />}>
+            Classi
           </Tabs.Tab>
-          <Tabs.Tab value="lessons" leftSection={<IconCalendar size="0.8rem" />}>
-            {t('lessons')} ({totalLessons})
+          <Tabs.Tab value="lessons" leftSection={<IconCalendarEvent size={16} />}>
+            Lezioni
           </Tabs.Tab>
-          <Tabs.Tab value="performance" leftSection={<IconChartBar size="0.8rem" />}>
-            {t('performance')}
+          <Tabs.Tab value="calendar" leftSection={<IconClock size={16} />}>
+            Calendario
+          </Tabs.Tab>
+          <Tabs.Tab value="qualifications" leftSection={<IconAward size={16} />}>
+            Qualifiche
           </Tabs.Tab>
         </Tabs.List>
 
-        {/* Overview Tab */}
         <Tabs.Panel value="overview">
-          <Grid>
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <Card withBorder>
-                <Stack gap="md">
-                  <Title order={4}>{t('contactInfo')}</Title>
-                  
-                  <Group>
-                    <IconMail size="1rem" />
-                    <Text size="sm">{teacher.email}</Text>
+          <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+            {/* Performance Overview */}
+            <Card withBorder radius="md" p="lg">
+              <Title order={4} mb="md">Performance Mensile</Title>
+              <Stack gap="md">
+                <div>
+                  <Group justify="space-between" mb="xs">
+                    <Text size="sm" fw={500}>Ore Insegnamento</Text>
+                    <Text size="sm" c="dimmed">{teacher.stats.monthlyHours} ore</Text>
                   </Group>
-
-                  {teacher.phone && (
-                    <Group>
-                      <IconPhone size="1rem" />
-                      <Text size="sm">{teacher.phone}</Text>
-                    </Group>
-                  )}
-
-                  {teacher.address && (
-                    <div>
-                      <Text fw={500} size="sm" mb={4}>{t('address')}</Text>
-                      <Text size="sm" c="dimmed">{teacher.address}</Text>
-                    </div>
-                  )}
-                </Stack>
-              </Card>
-            </Grid.Col>
-
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <Card withBorder>
-                <Stack gap="md">
-                  <Title order={4}>{t('teacherInfo')}</Title>
-                  
-                  <div>
-                    <Text fw={500} size="sm">{t('specializations')}</Text>
-                    <Group gap="xs" mt={4}>
-                      {teacher.specializations?.split(',').map((spec: string, index: number) => (
-                        <Badge key={index} variant="light" color="blue">
-                          {spec.trim()}
-                        </Badge>
-                      )) || <Text size="sm" c="dimmed">{t('noSpecializations')}</Text>}
-                    </Group>
-                  </div>
-
-                  {teacher.experience && (
-                    <div>
-                      <Text fw={500} size="sm">{t('experience')}</Text>
-                      <Text size="sm" c="dimmed">{teacher.experience} {t('years')}</Text>
-                    </div>
-                  )}
-
-                  <div>
-                    <Text fw={500} size="sm">{t('joinedDate')}</Text>
+                  <Progress value={75} color="blue" />
+                </div>
+                
+                <div>
+                  <Group justify="space-between" mb="xs">
+                    <Text size="sm" fw={500}>Lezioni Completate</Text>
                     <Text size="sm" c="dimmed">
-                      {new Date(teacher.createdAt).toLocaleDateString()}
+                      {teacher.stats.completedLessons}/{teacher.stats.totalLessons}
                     </Text>
-                  </div>
-                </Stack>
-              </Card>
-            </Grid.Col>
+                  </Group>
+                  <Progress 
+                    value={(teacher.stats.completedLessons / teacher.stats.totalLessons) * 100} 
+                    color="green" 
+                  />
+                </div>
+                
+                <div>
+                  <Group justify="space-between" mb="xs">
+                    <Text size="sm" fw={500}>Presenze Media</Text>
+                    <Text size="sm" c="dimmed">{teacher.stats.averageAttendance}%</Text>
+                  </Group>
+                  <Progress value={teacher.stats.averageAttendance} color="orange" />
+                </div>
+              </Stack>
+            </Card>
 
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <Card withBorder>
-                <Stack gap="md">
-                  <Title order={4}>{t('quickStats')}</Title>
-                  
-                  <div>
-                    <Text fw={500} size="sm">{t('activeClasses')}</Text>
-                    <Text size="sm" c="dimmed">
-                      {teacher.classes?.filter((cls: any) => cls.status === 'ACTIVE').length || 0}
-                    </Text>
-                  </div>
-
-                  <div>
-                    <Text fw={500} size="sm">{t('thisWeekLessons')}</Text>
-                    <Text size="sm" c="dimmed">
-                      {teacher.lessons?.filter((lesson: any) => {
-                        const lessonDate = new Date(lesson.date);
-                        const now = new Date();
-                        const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
-                        return lessonDate >= weekStart && lesson.status !== 'CANCELLED';
-                      }).length || 0}
-                    </Text>
-                  </div>
-
-                  <div>
-                    <Text fw={500} size="sm">{t('lastActivity')}</Text>
-                    <Text size="sm" c="dimmed">
-                      {teacher.updatedAt ? 
-                        new Date(teacher.updatedAt).toLocaleDateString() : 
-                        t('noActivity')
-                      }
-                    </Text>
-                  </div>
-                </Stack>
-              </Card>
-            </Grid.Col>
-          </Grid>
+            {/* Recent Activity */}
+            <Card withBorder radius="md" p="lg">
+              <Title order={4} mb="md">Attività Recente</Title>
+              <Stack gap="sm">
+                <Alert
+                  icon={<IconCheck size={16} />}
+                  color="green"
+                  variant="light"
+                >
+                  <Text size="sm">Lezione "Algebra Lineare" completata con successo</Text>
+                  <Text size="xs" c="dimmed">2 ore fa</Text>
+                </Alert>
+                
+                <Alert
+                  icon={<IconCalendarEvent size={16} />}
+                  color="blue"
+                  variant="light"
+                >
+                  <Text size="sm">Programmata lezione "Equazioni Differenziali"</Text>
+                  <Text size="xs" c="dimmed">Domani alle 14:00</Text>
+                </Alert>
+                
+                <Alert
+                  icon={<IconAlertCircle size={16} />}
+                  color="yellow"
+                  variant="light"
+                >
+                  <Text size="sm">Bassa partecipazione in Fisica B (18/20)</Text>
+                  <Text size="xs" c="dimmed">1 giorno fa</Text>
+                </Alert>
+              </Stack>
+            </Card>
+          </SimpleGrid>
         </Tabs.Panel>
 
-        {/* Classes Tab */}
         <Tabs.Panel value="classes">
-          <Card withBorder>
-            <Group justify="space-between" mb="md">
-              <Title order={4}>{t('assignedClasses')}</Title>
-              <Button
-                size="sm"
-                onClick={() => router.push('/dashboard/classes/new')}
-              >
-                {t('addClass')}
-              </Button>
-            </Group>
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t('class.name')}</Table.Th>
-                  <Table.Th>{t('course')}</Table.Th>
-                  <Table.Th>{t('students.count')}</Table.Th>
-                  <Table.Th>{t('schedule')}</Table.Th>
-                  <Table.Th>{t('status')}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {teacher.classes?.map((cls) => (
-                  <Table.Tr 
-                    key={cls.id}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
-                  >
-                    <Table.Td>{cls.name}</Table.Td>
-                    <Table.Td>{cls.course.name}</Table.Td>
-                    <Table.Td>
-                      <Badge variant="light" color="blue">
-                        {cls._count?.students || 0}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>{cls.schedule || t('noSchedule')}</Table.Td>
-                    <Table.Td>
-                      <Badge 
-                        color={cls.status === 'ACTIVE' ? 'green' : 'gray'}
-                      >
-                        {t(`status.${cls.status?.toLowerCase()}`)}
-                      </Badge>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+          <Card withBorder radius="md" p="lg">
+            <Title order={4} mb="md">Classi Assegnate</Title>
+            <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="md">
+              {teacher.classes.map((classItem) => (
+                <Paper key={classItem.id} withBorder p="md" radius="md">
+                  <Stack gap="sm">
+                    <Group justify="space-between">
+                      <Text fw={500}>{classItem.name}</Text>
+                      <Badge variant="light">{classItem.course}</Badge>
+                    </Group>
+                    <Group gap="xs">
+                      <IconUsers size={16} color="#868e96" />
+                      <Text size="sm" c="dimmed">
+                        {classItem.students} studenti
+                      </Text>
+                    </Group>
+                    <Button variant="light" size="xs" fullWidth>
+                      Visualizza Classe
+                    </Button>
+                  </Stack>
+                </Paper>
+              ))}
+            </SimpleGrid>
           </Card>
         </Tabs.Panel>
 
-        {/* Lessons Tab */}
         <Tabs.Panel value="lessons">
-          <Card withBorder>
-            <Group justify="space-between" mb="md">
-              <Title order={4}>{t('recentLessons')}</Title>
-              <Button
-                size="sm"
-                onClick={() => router.push('/dashboard/lessons/new')}
-              >
-                {t('addLesson')}
-              </Button>
-            </Group>
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t('date')}</Table.Th>
-                  <Table.Th>{t('class')}</Table.Th>
-                  <Table.Th>{t('topic')}</Table.Th>
-                  <Table.Th>{t('duration')}</Table.Th>
-                  <Table.Th>{t('status')}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {teacher.lessons?.slice(0, 10).map((lesson) => (
-                  <Table.Tr 
-                    key={lesson.id}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => router.push(`/dashboard/lessons/${lesson.id}`)}
-                  >
-                    <Table.Td>{new Date(lesson.date).toLocaleDateString()}</Table.Td>
-                    <Table.Td>{lesson.class.name}</Table.Td>
-                    <Table.Td>{lesson.topic || '-'}</Table.Td>
-                    <Table.Td>{lesson.duration ? `${lesson.duration} ${t('minutes')}` : '-'}</Table.Td>
-                    <Table.Td>
-                      <Badge 
-                        color={
-                          lesson.status === 'COMPLETED' ? 'green' : 
-                          lesson.status === 'CANCELLED' ? 'red' : 
-                          'blue'
-                        }
-                      >
-                        {t(`lessonStatus.${lesson.status?.toLowerCase()}`)}
-                      </Badge>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+          <Card withBorder radius="md" p="lg">
+            <Title order={4} mb="md">Lezioni Recenti</Title>
+            <AdvancedDataTable
+              data={lessons}
+              columns={lessonColumns}
+            />
           </Card>
         </Tabs.Panel>
 
-        {/* Performance Tab */}
-        <Tabs.Panel value="performance">
-          <Grid>
-            <Grid.Col span={12}>
-              <Card withBorder>
-                <Title order={4} mb="md">{t('performanceMetrics')}</Title>
-                <Grid>
-                  <Grid.Col span={{ base: 12, sm: 6 }}>
-                    <Text fw={500}>{t('completionRate')}</Text>
-                    <Text size="lg" c="blue">
-                      {totalLessons > 0 ? 
-                        `${Math.round((completedLessons / totalLessons) * 100)}%` : 
-                        '0%'
-                      }
-                    </Text>
-                  </Grid.Col>
-                  <Grid.Col span={{ base: 12, sm: 6 }}>
-                    <Text fw={500}>{t('averageStudentsPerClass')}</Text>
-                    <Text size="lg" c="green">
-                      {totalClasses > 0 ? 
-                        Math.round(totalStudents / totalClasses) : 
-                        0
-                      }
-                    </Text>
-                  </Grid.Col>
-                  <Grid.Col span={{ base: 12, sm: 6 }}>
-                    <Text fw={500}>{t('lessonsThisMonth')}</Text>
-                    <Text size="lg" c="orange">
-                      {teacher.lessons?.filter((lesson: any) => {
-                        const lessonDate = new Date(lesson.date);
-                        const now = new Date();
-                        return lessonDate.getMonth() === now.getMonth() && 
-                               lessonDate.getFullYear() === now.getFullYear();
-                      }).length || 0}
-                    </Text>
-                  </Grid.Col>
-                  <Grid.Col span={{ base: 12, sm: 6 }}>
-                    <Text fw={500}>{t('averageClassSize')}</Text>
-                    <Text size="lg" c="purple">
-                      {totalClasses > 0 ? 
-                        Math.round(totalStudents / totalClasses) : 
-                        0
-                      } {t('students')}
-                    </Text>
-                  </Grid.Col>
-                </Grid>
-              </Card>
-            </Grid.Col>
-          </Grid>
+        <Tabs.Panel value="calendar">
+          <AdvancedLessonCalendar
+            teacherId={teacherId}
+            height={600}
+            readonly={false}
+            showCreateButton={true}
+          />
+        </Tabs.Panel>
+
+        <Tabs.Panel value="qualifications">
+          <Card withBorder radius="md" p="lg">
+            <Title order={4} mb="md">Qualifiche e Certificazioni</Title>
+            <Stack gap="md">
+              {teacher.qualifications.map((qualification, index) => (
+                <Paper key={index} withBorder p="md" radius="md">
+                  <Group gap="sm">
+                    <IconAward size={20} color="#228be6" />
+                    <Text>{qualification}</Text>
+                  </Group>
+                </Paper>
+              ))}
+            </Stack>
+          </Card>
         </Tabs.Panel>
       </Tabs>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        opened={deleteModalOpened}
-        onClose={closeDeleteModal}
-        title={t('confirmDelete')}
-        centered
-      >
-        <Text mb="md">
-          {t('teacherDetail.deleteConfirmation', { 
-            name: `${teacher.firstName} ${teacher.lastName}` 
-          })}
-        </Text>
-        <Group justify="flex-end">
-          <Button variant="outline" onClick={closeDeleteModal}>
-            {t('cancel')}
-          </Button>
-          <Button color="red" onClick={handleDelete}>
-            {t('delete')}
-          </Button>
-        </Group>
-      </Modal>
     </Container>
   );
 }

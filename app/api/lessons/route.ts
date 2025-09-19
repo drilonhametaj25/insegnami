@@ -28,10 +28,13 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const limit = parseInt(searchParams.get('limit') || '50');
     const classId = searchParams.get('classId');
     const teacherId = searchParams.get('teacherId');
     const date = searchParams.get('date');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const status = searchParams.get('status');
 
     const skip = (page - 1) * limit;
 
@@ -42,6 +45,9 @@ export async function GET(request: NextRequest) {
 
     if (classId) where.classId = classId;
     if (teacherId) where.teacherId = teacherId;
+    if (status) where.status = status;
+
+    // Handle date filtering
     if (date) {
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
@@ -51,6 +57,20 @@ export async function GET(request: NextRequest) {
       where.startTime = {
         gte: startOfDay,
         lte: endOfDay,
+      };
+    } else if (startDate && endDate) {
+      // Handle date range filtering for calendar
+      where.startTime = {
+        gte: new Date(startDate),
+        lte: new Date(endDate + 'T23:59:59.999Z'),
+      };
+    } else if (startDate) {
+      where.startTime = {
+        gte: new Date(startDate),
+      };
+    } else if (endDate) {
+      where.startTime = {
+        lte: new Date(endDate + 'T23:59:59.999Z'),
       };
     }
 
