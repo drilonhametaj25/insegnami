@@ -106,6 +106,7 @@ export default function TeachersPage() {
     } catch (error) {
       console.error('Error fetching teachers:', error);
       notifications.show({
+        id: `fetch-error-${Date.now()}`, // ID unico per evitare duplicati
         title: 'Errore',
         message: 'Impossibile caricare i docenti',
         color: 'red',
@@ -156,6 +157,7 @@ export default function TeachersPage() {
   };
 
   const handleEdit = (teacher: Teacher) => {
+    console.log('Editing teacher:', teacher); // Debug log
     setEditingTeacher(teacher);
     open();
   };
@@ -173,6 +175,16 @@ export default function TeachersPage() {
       
       const method = editingTeacher ? 'PUT' : 'POST';
       
+      // Mostra notifica di caricamento
+      const loadingNotification = notifications.show({
+        id: 'saving-teacher',
+        title: editingTeacher ? '⏳ Aggiornamento in corso...' : '⏳ Creazione in corso...',
+        message: editingTeacher ? 'Salvataggio modifiche docente' : 'Creazione nuovo docente',
+        loading: true,
+        autoClose: false,
+        withCloseButton: false,
+      });
+      
       const response = await fetch(url, {
         method,
         headers: {
@@ -181,27 +193,40 @@ export default function TeachersPage() {
         body: JSON.stringify(formData),
       });
 
+      // Nasconde la notifica di caricamento
+      notifications.hide('saving-teacher');
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to save teacher');
       }
 
+      const responseData = await response.json();
+
       notifications.show({
-        title: 'Successo',
-        message: `Docente ${editingTeacher ? 'aggiornato' : 'creato'} con successo`,
+        id: `teacher-success-${Date.now()}`, // ID unico per evitare duplicati
+        title: '✅ Successo',
+        message: responseData.message || `Docente ${editingTeacher ? 'aggiornato' : 'creato'} con successo`,
         color: 'green',
         icon: <IconCheck size={18} />,
+        autoClose: 4000,
       });
 
       close();
       fetchTeachers();
       fetchStats();
     } catch (error: any) {
+      // Nasconde la notifica di caricamento in caso di errore
+      notifications.hide('saving-teacher');
+      
+      console.error('Error saving teacher:', error);
       notifications.show({
-        title: 'Errore',
-        message: error.message,
+        id: `teacher-error-${Date.now()}`, // ID unico per evitare duplicati
+        title: '❌ Errore',
+        message: error.message || 'Impossibile salvare il docente',
         color: 'red',
         icon: <IconX size={18} />,
+        autoClose: 6000,
       });
     } finally {
       setSubmitting(false);

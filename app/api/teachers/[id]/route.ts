@@ -172,7 +172,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       biography,
       hourlyRate,
       contractType,
-      status
+      status,
+      hireDate
     } = body;
 
     // Basic profile updates
@@ -184,6 +185,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (specializations !== undefined) updateData.specializations = specializations;
     if (biography !== undefined) updateData.biography = biography;
     if (contractType !== undefined) updateData.contractType = contractType;
+    if (hireDate !== undefined) {
+      try {
+        updateData.hireDate = new Date(hireDate);
+      } catch (error) {
+        return NextResponse.json(
+          { error: 'Invalid hire date format' },
+          { status: 400 }
+        );
+      }
+    }
 
     // Email update (admin only or for own profile with validation)
     if (email !== undefined) {

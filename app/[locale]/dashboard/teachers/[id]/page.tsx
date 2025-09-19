@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
+import { useDisclosure } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
 import {
   Container,
   Title,
@@ -41,6 +43,7 @@ import {
   IconAward,
   IconAlertCircle,
   IconCheck,
+  IconX,
 } from '@tabler/icons-react';
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
@@ -48,91 +51,125 @@ import { it } from 'date-fns/locale';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { AdvancedDataTable } from '@/components/tables/AdvancedDataTable';
 import { AdvancedLessonCalendar } from '@/components/calendar/AdvancedLessonCalendar';
-
-// Mock data - sostituire con chiamate API reali
-const mockTeacher = {
-  id: '1',
-  firstName: 'Mario',
-  lastName: 'Rossi',
-  email: 'mario.rossi@school.com',
-  phone: '+39 123 456 7890',
-  dateOfBirth: '1980-05-15',
-  hireDate: '2020-01-10',
-  status: 'ACTIVE',
-  specializations: ['Matematica', 'Fisica'],
-  avatar: null,
-  bio: 'Docente esperto in matematica e fisica con oltre 15 anni di esperienza nell\'insegnamento.',
-  qualifications: [
-    'Laurea in Matematica - Università di Roma',
-    'Master in Didattica - Università Cattolica',
-    'Certificazione ECDL Advanced'
-  ],
-  classes: [
-    { id: '1', name: 'Matematica A', course: 'Matematica', students: 25 },
-    { id: '2', name: 'Fisica B', course: 'Fisica', students: 20 },
-    { id: '3', name: 'Matematica C', course: 'Matematica', students: 22 }
-  ],
-  stats: {
-    totalClasses: 3,
-    totalStudents: 67,
-    totalLessons: 156,
-    averageAttendance: 92.5,
-    completedLessons: 148,
-    cancelledLessons: 8,
-    monthlyHours: 48
-  }
-};
-
-const mockLessons = [
-  {
-    id: '1',
-    title: 'Algebra Lineare',
-    class: 'Matematica A',
-    date: '2024-01-15',
-    startTime: '09:00',
-    endTime: '10:30',
-    status: 'completed',
-    attendance: { present: 23, total: 25 },
-    room: 'Aula 101'
-  },
-  {
-    id: '2',
-    title: 'Cinematica',
-    class: 'Fisica B',
-    date: '2024-01-15',
-    startTime: '11:00',
-    endTime: '12:30',
-    status: 'completed',
-    attendance: { present: 18, total: 20 },
-    room: 'Lab Fisica'
-  },
-  {
-    id: '3',
-    title: 'Equazioni Differenziali',
-    class: 'Matematica C',
-    date: '2024-01-16',
-    startTime: '14:00',
-    endTime: '15:30',
-    status: 'scheduled',
-    room: 'Aula 203'
-  }
-];
+import { TeacherForm } from '@/components/forms/TeacherForm';
 
 export default function TeacherDetailPage() {
   const params = useParams();
   const router = useRouter();
   const locale = useLocale();
   const teacherId = params.id as string;
+  const [opened, { open, close }] = useDisclosure(false);
   
   const [activeTab, setActiveTab] = useState<string | null>('overview');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [teacher, setTeacher] = useState<any>(null); // Iniziamo con null invece di mock
+  const [lessons, setLessons] = useState<any[]>([]); // State per le lezioni reali
+  const [submitting, setSubmitting] = useState(false);
+
+  // Fetch teacher data
+  useEffect(() => {
+    const fetchTeacher = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/teachers/${teacherId}`);
+        if (!response.ok) throw new Error('Failed to fetch teacher');
+        
+        const teacherData = await response.json();
+        setTeacher(teacherData);
+      } catch (error) {
+        console.error('Error fetching teacher:', error);
+        notifications.show({
+          title: 'Errore',
+          message: 'Impossibile caricare i dati del docente',
+          color: 'red',
+          icon: <IconX size={18} />,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const fetchLessons = async () => {
+      try {
+        // TODO: Implementare API per le lezioni del docente
+        // const response = await fetch(`/api/teachers/${teacherId}/lessons`);
+        // const lessonsData = await response.json();
+        // setLessons(lessonsData);
+      } catch (error) {
+        console.error('Error fetching lessons:', error);
+      }
+    };
+
+    fetchTeacher();
+    fetchLessons();
+  }, [teacherId]);
 
   // Mock loading state
-  const teacher = mockTeacher;
-  const lessons = mockLessons;
+  // const lessons = mockLessons;
 
   const handleEdit = () => {
-    router.push(`/${locale}/dashboard/teachers/${teacherId}/edit`);
+    open();
+  };
+
+  const handleFormSubmit = async (formData: any) => {
+    try {
+      setSubmitting(true);
+      
+      // Mostra notifica di caricamento
+      const loadingNotification = notifications.show({
+        id: 'updating-teacher',
+        title: '⏳ Salvataggio in corso...',
+        message: 'Aggiornamento dei dati del docente',
+        loading: true,
+        autoClose: false,
+        withCloseButton: false,
+      });
+
+      const response = await fetch(`/api/teachers/${teacherId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      // Nasconde la notifica di caricamento
+      notifications.hide('updating-teacher');
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update teacher');
+      }
+
+      const responseData = await response.json();
+      // L'API restituisce { message, teacher }
+      const updatedTeacher = responseData.teacher || responseData;
+      setTeacher(updatedTeacher);
+
+      notifications.show({
+        title: '✅ Successo',
+        message: responseData.message || 'Docente aggiornato con successo',
+        color: 'green',
+        icon: <IconCheck size={18} />,
+        autoClose: 4000,
+      });
+
+      close();
+    } catch (error: any) {
+      // Nasconde la notifica di caricamento in caso di errore
+      notifications.hide('updating-teacher');
+      
+      console.error('Error updating teacher:', error);
+      notifications.show({
+        title: '❌ Errore',
+        message: error.message || 'Impossibile aggiornare il docente',
+        color: 'red',
+        icon: <IconX size={18} />,
+        autoClose: 6000,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -212,6 +249,26 @@ export default function TeacherDetailPage() {
     },
   ];
 
+  // Early return se teacher non è caricato
+  if (isLoading) {
+    return (
+      <Container size="xl" py="md">
+        <LoadingOverlay visible={true} />
+        <div style={{ height: '400px' }} />
+      </Container>
+    );
+  }
+
+  if (!teacher) {
+    return (
+      <Container size="xl" py="md">
+        <Alert icon={<IconAlertCircle />} color="red">
+          Docente non trovato
+        </Alert>
+      </Container>
+    );
+  }
+
   return (
     <Container size="xl" py="md">
       <LoadingOverlay visible={isLoading} />
@@ -281,21 +338,31 @@ export default function TeacherDetailPage() {
               <Group gap="xs">
                 <IconCalendarEvent size={16} color="#868e96" />
                 <Text size="sm">
-                  Assunto: {format(new Date(teacher.hireDate), 'dd/MM/yyyy', { locale: it })}
+                  Assunto: {teacher.hireDate ? 
+                    (() => {
+                      try {
+                        const date = new Date(teacher.hireDate);
+                        return isNaN(date.getTime()) ? 'Data non valida' : format(date, 'dd/MM/yyyy', { locale: it });
+                      } catch {
+                        return 'Data non valida';
+                      }
+                    })()
+                    : 'Non specificata'
+                  }
                 </Text>
               </Group>
               <Group gap="xs">
                 <IconBook size={16} color="#868e96" />
                 <Text size="sm">
-                  Materie: {teacher.specializations.join(', ')}
+                  Materie: {teacher.specializations || 'Non specificate'}
                 </Text>
               </Group>
             </SimpleGrid>
 
-            {teacher.bio && (
+            {teacher.biography && (
               <>
                 <Divider my="sm" />
-                <Text size="sm" c="dimmed">{teacher.bio}</Text>
+                <Text size="sm" c="dimmed">{teacher.biography}</Text>
               </>
             )}
           </Stack>
@@ -306,28 +373,28 @@ export default function TeacherDetailPage() {
       <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md" mb="xl">
         <ModernStatsCard
           title="Classi Totali"
-          value={teacher.stats.totalClasses.toString()}
+          value={(teacher.classes?.length || teacher.stats?.totalClasses || 0).toString()}
           change={{ value: 0, type: "neutral", period: "rispetto al mese scorso" }}
           icon={<IconUsers size={20} />}
           gradient="blue"
         />
         <ModernStatsCard
           title="Studenti"
-          value={teacher.stats.totalStudents.toString()}
+          value={(teacher.stats?.totalStudents || 0).toString()}
           change={{ value: 5, type: "increase", period: "rispetto al mese scorso" }}
           icon={<IconUser size={20} />}
           gradient="green"
         />
         <ModernStatsCard
           title="Lezioni"
-          value={teacher.stats.totalLessons.toString()}
+          value={(teacher.stats?.totalLessons || 0).toString()}
           change={{ value: 12, type: "increase", period: "rispetto al mese scorso" }}
           icon={<IconBook size={20} />}
           gradient="violet"
         />
         <ModernStatsCard
           title="Presenze Media"
-          value={`${teacher.stats.averageAttendance}%`}
+          value={`${teacher.stats?.averageAttendance || 0}%`}
           change={{ value: 3, type: "increase", period: "rispetto al mese scorso" }}
           icon={<IconTrendingUp size={20} />}
           gradient="orange"
@@ -363,7 +430,7 @@ export default function TeacherDetailPage() {
                 <div>
                   <Group justify="space-between" mb="xs">
                     <Text size="sm" fw={500}>Ore Insegnamento</Text>
-                    <Text size="sm" c="dimmed">{teacher.stats.monthlyHours} ore</Text>
+                    <Text size="sm" c="dimmed">{teacher.stats?.monthlyHours || 0} ore</Text>
                   </Group>
                   <Progress value={75} color="blue" />
                 </div>
@@ -372,11 +439,12 @@ export default function TeacherDetailPage() {
                   <Group justify="space-between" mb="xs">
                     <Text size="sm" fw={500}>Lezioni Completate</Text>
                     <Text size="sm" c="dimmed">
-                      {teacher.stats.completedLessons}/{teacher.stats.totalLessons}
+                      {teacher.stats?.completedLessons || 0}/{teacher.stats?.totalLessons || 0}
                     </Text>
                   </Group>
                   <Progress 
-                    value={(teacher.stats.completedLessons / teacher.stats.totalLessons) * 100} 
+                    value={teacher.stats?.completedLessons && teacher.stats?.totalLessons ? 
+                      (teacher.stats.completedLessons / teacher.stats.totalLessons) * 100 : 0} 
                     color="green" 
                   />
                 </div>
@@ -384,9 +452,9 @@ export default function TeacherDetailPage() {
                 <div>
                   <Group justify="space-between" mb="xs">
                     <Text size="sm" fw={500}>Presenze Media</Text>
-                    <Text size="sm" c="dimmed">{teacher.stats.averageAttendance}%</Text>
+                    <Text size="sm" c="dimmed">{teacher.stats?.averageAttendance || 0}%</Text>
                   </Group>
-                  <Progress value={teacher.stats.averageAttendance} color="orange" />
+                  <Progress value={teacher.stats?.averageAttendance || 0} color="orange" />
                 </div>
               </Stack>
             </Card>
@@ -430,17 +498,21 @@ export default function TeacherDetailPage() {
           <Card withBorder radius="md" p="lg">
             <Title order={4} mb="md">Classi Assegnate</Title>
             <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="md">
-              {teacher.classes.map((classItem) => (
+              {teacher.classes?.map((classItem: any) => (
                 <Paper key={classItem.id} withBorder p="md" radius="md">
                   <Stack gap="sm">
                     <Group justify="space-between">
                       <Text fw={500}>{classItem.name}</Text>
-                      <Badge variant="light">{classItem.course}</Badge>
+                      <Badge variant="light">
+                        {typeof classItem.course === 'string' 
+                          ? classItem.course 
+                          : (classItem.course as any)?.name || 'N/A'}
+                      </Badge>
                     </Group>
                     <Group gap="xs">
                       <IconUsers size={16} color="#868e96" />
                       <Text size="sm" c="dimmed">
-                        {classItem.students} studenti
+                        {classItem.students || 0} studenti
                       </Text>
                     </Group>
                     <Button variant="light" size="xs" fullWidth>
@@ -448,7 +520,9 @@ export default function TeacherDetailPage() {
                     </Button>
                   </Stack>
                 </Paper>
-              ))}
+              )) || (
+                <Text c="dimmed">Nessuna classe assegnata</Text>
+              )}
             </SimpleGrid>
           </Card>
         </Tabs.Panel>
@@ -476,18 +550,47 @@ export default function TeacherDetailPage() {
           <Card withBorder radius="md" p="lg">
             <Title order={4} mb="md">Qualifiche e Certificazioni</Title>
             <Stack gap="md">
-              {teacher.qualifications.map((qualification, index) => (
-                <Paper key={index} withBorder p="md" radius="md">
-                  <Group gap="sm">
-                    <IconAward size={20} color="#228be6" />
-                    <Text>{qualification}</Text>
-                  </Group>
-                </Paper>
-              ))}
+              {teacher.qualifications ? (
+                teacher.qualifications.split(', ').map((qualification: string, index: number) => (
+                  <Paper key={index} withBorder p="md" radius="md">
+                    <Group gap="sm">
+                      <IconAward size={20} color="#228be6" />
+                      <Text>{qualification}</Text>
+                    </Group>
+                  </Paper>
+                ))
+              ) : (
+                <Text c="dimmed">Nessuna qualifica specificata</Text>
+              )}
             </Stack>
           </Card>
         </Tabs.Panel>
       </Tabs>
+
+      {/* Teacher Form Modal */}
+      <TeacherForm
+        opened={opened}
+        onClose={close}
+        teacher={{
+          id: teacher.id,
+          firstName: teacher.firstName,
+          lastName: teacher.lastName,
+          email: teacher.email,
+          phone: teacher.phone || '',
+          hireDate: (() => {
+            try {
+              const date = new Date(teacher.hireDate);
+              return isNaN(date.getTime()) ? new Date() : date;
+            } catch {
+              return new Date();
+            }
+          })(),
+          specializations: teacher.specializations || '',
+          status: teacher.status as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED',
+        }}
+        onSave={handleFormSubmit}
+        loading={submitting}
+      />
     </Container>
   );
 }
