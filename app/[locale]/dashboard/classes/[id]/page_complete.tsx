@@ -66,9 +66,6 @@ import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { DataTable, TableRenderers } from '@/components/tables/DataTable';
 import { ModernModal } from '@/components/modals/ModernModal';
 import { AdvancedCalendarComponent } from '@/components/calendar/AdvancedCalendarComponent';
-import { EnrollStudentsModal } from '@/components/forms/EnrollStudentsModal';
-import { AttendanceGrid } from '@/components/attendance/AttendanceGrid';
-import { MaterialsManager } from '@/components/materials/MaterialsManager';
 
 interface ClassDetail {
   id: string;
@@ -227,7 +224,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
       const response = await fetch(`/api/classes/${resolvedParams.id}/materials`);
       if (response.ok) {
         const data = await response.json();
-        setMaterials(data.materials || []);
+        setMaterials(data);
       }
     } catch (error) {
       console.error('Error fetching materials:', error);
@@ -868,55 +865,171 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
 
         {/* Attendance Tab - Interactive Grid */}
         <Tabs.Panel value="attendance">
-          {classData ? (
-            <AttendanceGrid
-              classId={resolvedParams?.id || ''}
-              students={classData.students?.map(sc => sc.student) || []}
-              lessons={classData.lessons || []}
-              canEdit={canManageClasses}
-            />
-          ) : (
-            <Paper p="xl" withBorder style={{ textAlign: 'center' }}>
-              <LoadingOverlay visible />
-              <Text c="dimmed">Caricamento dati presenze...</Text>
-            </Paper>
-          )}
+          <Paper p="lg" radius="lg" withBorder>
+            <Group justify="space-between" mb="md">
+              <div>
+                <Title order={4}>Gestione Presenze</Title>
+                <Text size="sm" c="dimmed">
+                  Registra e monitora le presenze degli studenti
+                </Text>
+              </div>
+              {canManageClasses && (
+                <Group gap="sm">
+                  <Button variant="light" leftSection={<IconDownload size={16} />}>
+                    Esporta Presenze
+                  </Button>
+                  <Button leftSection={<IconCheck size={16} />}>
+                    Salva Modifiche
+                  </Button>
+                </Group>
+              )}
+            </Group>
+
+            {totalStudents > 0 && totalLessons > 0 ? (
+              <div>
+                <Alert icon={<IconInfoCircle />} color="blue" mb="md">
+                  Griglia presenze interattiva in fase di implementazione avanzata
+                </Alert>
+                <Text c="dimmed">
+                  Qui potrai gestire le presenze con una griglia interattiva dove:
+                  • Le righe rappresentano gli studenti
+                  • Le colonne rappresentano le date delle lezioni
+                  • Click sulle celle per cambiare lo stato (Presente/Assente/Giustificato/Ritardo)
+                  • Statistiche automatiche delle percentuali di presenza
+                  • Export in PDF ed Excel
+                </Text>
+              </div>
+            ) : (
+              <Paper p="xl" withBorder style={{ textAlign: 'center' }}>
+                <IconChecklist size={48} color="var(--mantine-color-gray-4)" />
+                <Text size="lg" fw={500} mt="md" c="dimmed">
+                  Nessun dato per le presenze
+                </Text>
+                <Text size="sm" c="dimmed">
+                  Hai bisogno di studenti iscritti e lezioni programmate per gestire le presenze
+                </Text>
+              </Paper>
+            )}
+          </Paper>
         </Tabs.Panel>
 
         {/* Materials Tab - File Upload */}
         <Tabs.Panel value="materials">
-          {classData ? (
-            <MaterialsManager
-              classId={resolvedParams?.id || ''}
-              materials={materials?.map(m => {
-                const apiMaterial = m as any; // Cast per gestire la differenza tra API e interfaccia Material
-                return {
-                  id: m.id,
-                  name: m.name,
-                  description: apiMaterial.description || '',
-                  fileName: m.name,
-                  fileSize: apiMaterial.fileSize || m.size || 0,
-                  fileType: apiMaterial.mimeType || m.type || 'application/octet-stream',
-                  fileUrl: apiMaterial.filePath || m.url || '',
-                  uploadedAt: m.uploadedAt,
-                  uploadedBy: apiMaterial.uploadedBy || {
-                    id: '',
-                    firstName: '',
-                    lastName: ''
-                  },
-                  downloads: apiMaterial.downloadCount || 0,
-                  tags: []
-                };
-              }) || []}
-              canEdit={canManageClasses}
-              onMaterialsUpdate={() => fetchMaterials()}
-            />
-          ) : (
-            <Paper p="xl" withBorder style={{ textAlign: 'center' }}>
-              <LoadingOverlay visible />
-              <Text c="dimmed">Caricamento materiali...</Text>
-            </Paper>
-          )}
+          <Paper p="lg" radius="lg" withBorder>
+            <Group justify="space-between" mb="md">
+              <div>
+                <Title order={4}>Materiali Didattici</Title>
+                <Text size="sm" c="dimmed">
+                  Carica e gestisci i materiali per questa classe
+                </Text>
+              </div>
+              {canManageClasses && (
+                <FileButton onChange={handleFileUpload} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx" multiple>
+                  {(props) => (
+                    <Button {...props} loading={uploading} leftSection={<IconUpload size={16} />}>
+                      Carica File
+                    </Button>
+                  )}
+                </FileButton>
+              )}
+            </Group>
+
+            {canManageClasses && (
+              <Paper p="xl" withBorder mb="md" style={{ textAlign: 'center' }}>
+                <Group justify="center" gap="xl" mih={120}>
+                  <div>
+                    <IconFile size={48} color="var(--mantine-color-dimmed)" />
+                    <Text size="lg" inline mt="md">
+                      Area di caricamento file
+                    </Text>
+                    <Text size="sm" c="dimmed" inline mt={7}>
+                      Funzionalità drag & drop in fase di implementazione
+                    </Text>
+                  </div>
+                </Group>
+                <FileButton onChange={handleFileUpload} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx" multiple>
+                  {(props) => (
+                    <Button {...props} loading={uploading} leftSection={<IconUpload size={16} />} mt="md">
+                      Seleziona File
+                    </Button>
+                  )}
+                </FileButton>
+              </Paper>
+            )}
+
+            {materials.length > 0 ? (
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Nome File</Table.Th>
+                    <Table.Th>Tipo</Table.Th>
+                    <Table.Th>Dimensione</Table.Th>
+                    <Table.Th>Data Upload</Table.Th>
+                    <Table.Th>Azioni</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {materials.map((material) => (
+                    <Table.Tr key={material.id}>
+                      <Table.Td>
+                        <Group gap="sm">
+                          {material.category === 'DOCUMENT' && <IconFile size={20} />}
+                          {material.category === 'VIDEO' && <IconVideo size={20} />}
+                          {material.category === 'IMAGE' && <IconPhoto size={20} />}
+                          <Text fw={500}>{material.name}</Text>
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge variant="light" size="sm">
+                          {material.type.toUpperCase()}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        {(material.size / 1024 / 1024).toFixed(2)} MB
+                      </Table.Td>
+                      <Table.Td>
+                        {new Date(material.uploadedAt).toLocaleDateString('it-IT')}
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap="xs">
+                          <ActionIcon variant="subtle" color="blue">
+                            <IconDownload size={16} />
+                          </ActionIcon>
+                          <ActionIcon variant="subtle" color="blue">
+                            <IconEye size={16} />
+                          </ActionIcon>
+                          {canManageClasses && (
+                            <ActionIcon variant="subtle" color="red">
+                              <IconTrash size={16} />
+                            </ActionIcon>
+                          )}
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            ) : (
+              <Paper p="xl" withBorder style={{ textAlign: 'center' }}>
+                <IconFileText size={48} color="var(--mantine-color-gray-4)" />
+                <Text size="lg" fw={500} mt="md" c="dimmed">
+                  Nessun materiale caricato
+                </Text>
+                <Text size="sm" c="dimmed" mb="md">
+                  Inizia caricando il primo materiale didattico per questa classe
+                </Text>
+                {canManageClasses && (
+                  <FileButton onChange={handleFileUpload} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx" multiple>
+                    {(props) => (
+                      <Button {...props} loading={uploading}>
+                        Carica Primo Materiale
+                      </Button>
+                    )}
+                  </FileButton>
+                )}
+              </Paper>
+            )}
+          </Paper>
         </Tabs.Panel>
 
         {/* Assignments Tab */}
@@ -976,19 +1089,17 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
       </ModernModal>
 
       {/* Enroll Students Modal */}
-      <EnrollStudentsModal
+      <ModernModal
         opened={enrollModalOpened}
         onClose={closeEnrollModal}
-        classId={resolvedParams?.id || ''}
-        className={classData.name}
-        currentCapacity={totalStudents}
-        maxCapacity={maxStudents}
-        currentStudentIds={classData.students?.map(s => s.student.id) || []}
-        onEnrollComplete={() => {
-          closeEnrollModal();
-          fetchClassData(); // Refresh the data
-        }}
-      />
+        title="Iscrivi Studenti"
+        size="lg"
+      >
+        <Text c="dimmed" mb="md">
+          Modal per iscrizione studenti in fase di implementazione
+        </Text>
+        <Button onClick={closeEnrollModal}>Chiudi</Button>
+      </ModernModal>
     </Container>
   );
 }
