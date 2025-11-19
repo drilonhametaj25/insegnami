@@ -110,6 +110,20 @@ interface ClassesStats {
   classesNearCapacity: number;
 }
 
+interface Teacher {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+interface Course {
+  id: string;
+  name: string;
+  level: string;
+  code: string;
+}
+
 const StatusBadge = ({ status }: { status: boolean }) => (
   <Badge
     color={status ? 'green' : 'red'}
@@ -127,6 +141,8 @@ export default function ClassesPage() {
   const t = useTranslations('classes');
   
   const [classes, setClasses] = useState<Class[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [stats, setStats] = useState<ClassesStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -203,10 +219,42 @@ export default function ClassesPage() {
     }
   };
 
+  // Fetch teachers
+  const fetchTeachers = async () => {
+    if (!canManageClasses) return;
+    
+    try {
+      const response = await fetch('/api/teachers?limit=100');
+      if (!response.ok) throw new Error('Failed to fetch teachers');
+      
+      const data = await response.json();
+      setTeachers(data.teachers || []);
+    } catch (error) {
+      console.error('Error fetching teachers:', error);
+    }
+  };
+
+  // Fetch courses
+  const fetchCourses = async () => {
+    if (!canManageClasses) return;
+    
+    try {
+      const response = await fetch('/api/courses?limit=100');
+      if (!response.ok) throw new Error('Failed to fetch courses');
+      
+      const data = await response.json();
+      setCourses(data.courses || []);
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+    }
+  };
+
   useEffect(() => {
     if (canViewClasses) {
       fetchClasses();
       fetchStats();
+      fetchTeachers();
+      fetchCourses();
     }
   }, [canViewClasses]);
 
@@ -253,6 +301,24 @@ export default function ClassesPage() {
         : '/api/classes';
       const method = editingClass ? 'PUT' : 'POST';
       
+      // Transform formData to match API expectations
+      const apiData = {
+        name: formData.name,
+        courseId: formData.courseId,
+        teacherId: formData.teacherIds?.[0] || '', // API expects single teacherId
+        maxStudents: formData.maxStudents,
+        startDate: formData.startDate,
+        endDate: formData.endDate || undefined,
+        // Optional fields
+        room: formData.room,
+        schedule: formData.schedule,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        duration: formData.duration,
+        price: formData.price,
+        isActive: formData.isActive,
+      };
+      
       // Show loading notification
       notifications.show({
         id: 'saving-class',
@@ -268,7 +334,7 @@ export default function ClassesPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(apiData),
       });
 
       // Hide loading notification
@@ -619,9 +685,30 @@ export default function ClassesPage() {
         <ClassForm
           opened={opened}
           onClose={close}
-          classData={editingClass || undefined}
+          classData={editingClass ? {
+            id: editingClass.id,
+            name: editingClass.name,
+            description: '',
+            level: editingClass.course?.level as any,
+            maxStudents: editingClass.maxStudents,
+            duration: 90,
+            isActive: editingClass.isActive,
+            teacherIds: [editingClass.teacher?.id].filter(Boolean),
+            courseId: editingClass.course?.id,
+            startDate: editingClass.startDate,
+            endDate: editingClass.endDate,
+          } : undefined}
           onSave={handleFormSubmit}
           loading={submitting}
+          teachers={Array.isArray(teachers) ? teachers.map(t => ({ 
+            id: t.id, 
+            name: `${t.firstName} ${t.lastName}` 
+          })) : []}
+          courses={Array.isArray(courses) ? courses.map(c => ({
+            id: c.id,
+            name: c.name,
+            level: c.level,
+          })) : []}
         />
       </ModernModal>
     </Container>

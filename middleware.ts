@@ -15,15 +15,15 @@ const intlMiddleware = createMiddleware({
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Force redirect from root path to dashboard
+  // Allow root path to show landing page
   if (pathname === '/') {
-    return NextResponse.redirect(new URL('/it/dashboard', request.url));
+    return NextResponse.next();
   }
   
-  // Force redirect from locale root paths (e.g., /it, /en) to dashboard
+  // Force redirect from locale root paths (e.g., /it, /en) to landing page
   const localeRootMatch = pathname.match(/^\/([a-z]{2})$/);
   if (localeRootMatch) {
-    return NextResponse.redirect(new URL(`/${localeRootMatch[1]}/dashboard`, request.url));
+    return NextResponse.redirect(new URL('/', request.url));
   }
   
   // Don't process API routes, _next, and static files

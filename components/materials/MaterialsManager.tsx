@@ -66,13 +66,16 @@ interface Material {
 }
 
 interface MaterialsManagerProps {
-  classId: string;
+  classId?: string;
+  entityType?: 'class' | 'lesson';
+  entityId?: string;
   materials: Material[];
   canEdit?: boolean;
   onMaterialsUpdate?: () => void;
 }
 
-const getFileIcon = (fileType: string, size = 20) => {
+const getFileIcon = (fileType: string | undefined, size = 20) => {
+  if (!fileType) return <IconFile size={size} />;
   if (fileType.includes('image')) return <IconPhoto size={size} />;
   if (fileType.includes('video')) return <IconVideo size={size} />;
   if (fileType.includes('audio')) return <IconMusic size={size} />;
@@ -92,6 +95,8 @@ const formatFileSize = (bytes: number): string => {
 
 export function MaterialsManager({ 
   classId, 
+  entityType = 'class',
+  entityId,
   materials = [], 
   canEdit = false,
   onMaterialsUpdate 
@@ -103,9 +108,13 @@ export function MaterialsManager({
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [editForm, setEditForm] = useState({ name: '', description: '', tags: '' });
 
+  // Determine the actual ID to use
+  const actualId = entityId || classId;
+  const apiPath = entityType === 'lesson' ? `lessons/${actualId}` : `classes/${actualId}`;
+
   // Handle file upload via FileButton
   const handleFileUpload = useCallback(async (files: File[]) => {
-    if (!canEdit || files.length === 0) return;
+    if (!canEdit || files.length === 0 || !actualId) return;
 
     setUploading(true);
     
@@ -113,13 +122,13 @@ export function MaterialsManager({
       for (const file of files) {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('classId', classId);
+        formData.append(entityType === 'lesson' ? 'lessonId' : 'classId', actualId);
         formData.append('name', file.name);
 
         const fileKey = `${file.name}-${Date.now()}`;
         setUploadProgress(prev => ({ ...prev, [fileKey]: 0 }));
 
-        const response = await fetch(`/api/classes/${classId}/materials`, {
+        const response = await fetch(`/api/${apiPath}/materials`, {
           method: 'POST',
           body: formData,
         });

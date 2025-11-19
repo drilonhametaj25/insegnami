@@ -14,7 +14,7 @@ import {
   NumberInput,
   MultiSelect,
 } from '@mantine/core';
-import { TimeInput } from '@mantine/dates';
+import { TimeInput, DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 
 interface Class {
@@ -31,6 +31,9 @@ interface Class {
   price?: number;
   isActive: boolean;
   teacherIds?: string[];
+  courseId?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 interface ClassFormProps {
@@ -40,6 +43,7 @@ interface ClassFormProps {
   onSave: (classData: Class) => Promise<void>;
   loading?: boolean;
   teachers?: Array<{ id: string; name: string }>;
+  courses?: Array<{ id: string; name: string; level?: string }>;
 }
 
 export function ClassForm({
@@ -49,8 +53,12 @@ export function ClassForm({
   onSave,
   loading = false,
   teachers = [],
+  courses = [],
 }: ClassFormProps) {
   const [submitLoading, setSubmitLoading] = useState(false);
+
+  // DEBUG: Log props on every render
+  console.log('[ClassForm] Render - teachers:', teachers, 'courses:', courses);
 
   const form = useForm<Class>({
     initialValues: {
@@ -66,9 +74,15 @@ export function ClassForm({
       price: classData?.price || 0,
       isActive: classData?.isActive ?? true,
       teacherIds: classData?.teacherIds || [],
+      courseId: classData?.courseId || '',
+      startDate: classData?.startDate || new Date().toISOString().split('T')[0],
+      endDate: classData?.endDate || '',
     },
     validate: {
       name: (value) => (value.length < 2 ? 'Nome classe troppo corto' : null),
+      courseId: (value) => (!value ? 'Seleziona un corso' : null),
+      teacherIds: (value) => (!value || value.length === 0 ? 'Seleziona almeno un docente' : null),
+      startDate: (value) => (!value ? 'Seleziona la data di inizio' : null),
       maxStudents: (value) => {
         if (value < 1) return 'Numero minimo di studenti: 1';
         if (value > 50) return 'Numero massimo di studenti: 50';
@@ -127,10 +141,30 @@ export function ClassForm({
     { value: 'sunday', label: 'Domenica' },
   ];
 
-  const teacherOptions = teachers.map((teacher) => ({
-    value: teacher.id,
-    label: teacher.name,
-  }));
+  // CACHE BUSTER v3 - Force rebuild - ensure teachers is always an array
+  const teacherOptions = Array.isArray(teachers) 
+    ? teachers.map((teacher) => ({
+        value: teacher.id || '',
+        label: teacher.name || 'Senza nome',
+      }))
+    : [];
+
+  // CACHE BUSTER v3 - Force rebuild - ensure courses is always an array
+  console.log('ClassForm v3: courses =', courses, 'type =', typeof courses);
+  const courseOptions = Array.isArray(courses) 
+    ? courses.map((course) => ({
+        value: course.id || '',
+        label: course.name || 'Senza nome',
+      }))
+    : [];
+
+  console.log('ClassForm v3: courseOptions =', courseOptions);
+
+  // CACHE BUSTER v3 - Ensure levelLabels is defined
+  const levelOptions = levelLabels ? Object.entries(levelLabels).map(([value, label]) => ({
+    value,
+    label,
+  })) : [];
 
   return (
     <Modal
@@ -184,17 +218,49 @@ export function ClassForm({
           <Grid>
             <Grid.Col span={6}>
               <Select
-                label="Livello"
-                placeholder="Seleziona livello"
+                label="Corso"
+                placeholder="Seleziona corso"
                 required
-                data={Object.entries(levelLabels).map(([value, label]) => ({
-                  value,
-                  label,
-                }))}
-                {...form.getInputProps('level')}
+                searchable
+                data={courseOptions}
+                {...form.getInputProps('courseId')}
               />
             </Grid.Col>
             <Grid.Col span={6}>
+              <Select
+                label="Livello"
+                placeholder="Seleziona livello"
+                required
+                data={levelOptions}
+                {...form.getInputProps('level')}
+              />
+            </Grid.Col>
+          </Grid>
+
+          <Grid>
+            <Grid.Col span={6}>
+              <DateInput
+                label="Data Inizio"
+                placeholder="Seleziona data"
+                required
+                value={form.values.startDate ? new Date(form.values.startDate) : null}
+                onChange={(date) => form.setFieldValue('startDate', date ? date.toISOString().split('T')[0] : '')}
+                minDate={new Date()}
+              />
+            </Grid.Col>
+            <Grid.Col span={6}>
+              <DateInput
+                label="Data Fine (Opzionale)"
+                placeholder="Seleziona data"
+                value={form.values.endDate ? new Date(form.values.endDate) : null}
+                onChange={(date) => form.setFieldValue('endDate', date ? date.toISOString().split('T')[0] : '')}
+                minDate={form.values.startDate ? new Date(form.values.startDate) : new Date()}
+              />
+            </Grid.Col>
+          </Grid>
+
+          <Grid>
+            <Grid.Col span={12}>
               <NumberInput
                 label="Numero Massimo Studenti"
                 placeholder="15"
@@ -261,11 +327,15 @@ export function ClassForm({
             <h4 className="text-sm font-medium text-gray-900 mb-3">
               Docenti e Tariffe
             </h4>
-            <MultiSelect
-              label="Docenti Assegnati"
-              placeholder="Seleziona docenti"
+            <Select
+              label="Docente Assegnato"
+              placeholder="Seleziona docente"
+              required
+              searchable
               data={teacherOptions}
-              {...form.getInputProps('teacherIds')}
+              value={form.values.teacherIds?.[0] || ''}
+              onChange={(value) => form.setFieldValue('teacherIds', value ? [value] : [])}
+              error={form.errors.teacherIds}
             />
 
             <NumberInput

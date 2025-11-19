@@ -4,12 +4,13 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
+    container_name: insegnami-postgres
     environment:
       POSTGRES_DB: insegnami_db
       POSTGRES_USER: insegnami_user
       POSTGRES_PASSWORD: insegnami_password
     ports:
-      - "5432:5432"
+      - "5433:5432"  # Porta ESTERNA 5433 per evitare conflitto con PegasoWorld
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
@@ -25,8 +26,9 @@ services:
   # Redis for caching and queues
   redis:
     image: redis:7-alpine
+    container_name: insegnami-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"  # Porta ESTERNA 6380 per evitare conflitto con PegasoWorld
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
@@ -42,9 +44,10 @@ services:
   # MailHog for local email testing
   mailhog:
     image: mailhog/mailhog:latest
+    container_name: insegnami-mailhog
     ports:
-      - "1025:1025"  # SMTP
-      - "8025:8025"  # Web UI
+      - "1026:1025"  # SMTP su porta 1026
+      - "8026:8025"  # Web UI su porta 8026
     networks:
       - insegnami_network
 

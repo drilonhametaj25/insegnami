@@ -61,6 +61,7 @@ import {
   IconPdf,
   IconVideo,
   IconPhoto,
+  IconMapPin,
 } from '@tabler/icons-react';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { DataTable, TableRenderers } from '@/components/tables/DataTable';
@@ -720,7 +721,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
 
                   <div>
                     <Text size="sm" c="dimmed" mb={4}>Posti Disponibili</Text>
-                    <Text size="lg" fw={500}>{maxStudents - totalStudents}</Text>
+                    <Text size="lg" fw={500}>{String(maxStudents - totalStudents)}</Text>
                   </div>
                 </Stack>
               </Paper>
@@ -816,54 +817,203 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
           </Paper>
         </Tabs.Panel>
 
-        {/* Lessons Tab - With Calendar */}
+        {/* Lessons Tab - With Table and Stats */}
         <Tabs.Panel value="lessons">
-          <Paper p="lg" radius="lg" withBorder>
-            <Group justify="space-between" mb="md">
-              <div>
-                <Title order={4}>Calendario Lezioni</Title>
-                <Text size="sm" c="dimmed">
-                  {totalLessons} lezioni programmate • {completedLessons} completate
-                </Text>
-              </div>
-              {canManageClasses && (
-                <Group gap="sm">
-                  <Button
-                    variant="light"
-                    leftSection={<IconCalendarEvent size={16} />}
-                    onClick={() => router.push(`/${locale}/dashboard/lessons/new?classId=${resolvedParams?.id}`)}
-                  >
-                    Nuova Lezione
-                  </Button>
-                  <Button
-                    leftSection={<IconCalendar size={16} />}
-                    onClick={() => router.push(`/${locale}/dashboard/lessons?classId=${resolvedParams?.id}`)}
-                  >
-                    Calendario Completo
-                  </Button>
-                </Group>
-              )}
-            </Group>
-            
-            <div style={{ height: '600px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Paper p="xl" withBorder style={{ textAlign: 'center' }}>
-                <IconCalendarEvent size={48} color="var(--mantine-color-gray-4)" />
-                <Text size="lg" fw={500} mt="md" c="dimmed">
-                  Calendario Avanzato
-                </Text>
-                <Text size="sm" c="dimmed" mb="md">
-                  Il calendario avanzato per la gestione delle lezioni è in fase di implementazione
-                </Text>
+          <Stack gap="md">
+            {/* Lesson Stats */}
+            <Grid>
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <Paper p="md" radius="lg" withBorder>
+                  <Group gap="xs" mb="xs">
+                    <IconCalendarEvent size={18} color="var(--mantine-color-blue-6)" />
+                    <Text size="sm" c="dimmed">Totali</Text>
+                  </Group>
+                  <Text size="xl" fw={700}>{totalLessons}</Text>
+                </Paper>
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <Paper p="md" radius="lg" withBorder>
+                  <Group gap="xs" mb="xs">
+                    <IconCheck size={18} color="var(--mantine-color-green-6)" />
+                    <Text size="sm" c="dimmed">Completate</Text>
+                  </Group>
+                  <Text size="xl" fw={700} c="green">{completedLessons}</Text>
+                </Paper>
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <Paper p="md" radius="lg" withBorder>
+                  <Group gap="xs" mb="xs">
+                    <IconClock size={18} color="var(--mantine-color-orange-6)" />
+                    <Text size="sm" c="dimmed">Programmate</Text>
+                  </Group>
+                  <Text size="xl" fw={700} c="orange">{totalLessons - completedLessons}</Text>
+                </Paper>
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <Paper p="md" radius="lg" withBorder>
+                  <Group gap="xs" mb="xs">
+                    <IconChartBar size={18} color="var(--mantine-color-purple-6)" />
+                    <Text size="sm" c="dimmed">Completamento</Text>
+                  </Group>
+                  <Text size="xl" fw={700} c="purple">
+                    {totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0}%
+                  </Text>
+                </Paper>
+              </Grid.Col>
+            </Grid>
+
+            {/* Lessons Table */}
+            <Paper p="lg" radius="lg" withBorder>
+              <Group justify="space-between" mb="md">
+                <div>
+                  <Title order={4}>Lezioni della Classe</Title>
+                  <Text size="sm" c="dimmed">
+                    Elenco completo delle lezioni programmate e completate
+                  </Text>
+                </div>
                 {canManageClasses && (
-                  <Button
-                    onClick={() => router.push(`/${locale}/dashboard/lessons?classId=${resolvedParams?.id}`)}
-                  >
-                    Gestisci Lezioni
-                  </Button>
+                  <Group gap="sm">
+                    <Button
+                      variant="light"
+                      leftSection={<IconCalendarEvent size={16} />}
+                      onClick={() => {
+                        // TODO: Open create lesson modal with prefilled classId
+                        router.push(`/${locale}/dashboard/lessons?createNew=true&classId=${resolvedParams?.id}`);
+                      }}
+                    >
+                      Nuova Lezione
+                    </Button>
+                    <Button
+                      leftSection={<IconCalendar size={16} />}
+                      onClick={() => router.push(`/${locale}/dashboard/lessons?classId=${resolvedParams?.id}`)}
+                    >
+                      Calendario Completo
+                    </Button>
+                  </Group>
                 )}
-              </Paper>
-            </div>
-          </Paper>
+              </Group>
+              
+              {classData?.lessons && classData.lessons.length > 0 ? (
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Lezione</Table.Th>
+                      <Table.Th>Data e Ora</Table.Th>
+                      <Table.Th>Durata</Table.Th>
+                      <Table.Th>Presenze</Table.Th>
+                      <Table.Th>Stato</Table.Th>
+                      <Table.Th>Azioni</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {classData.lessons.map((lesson: any) => {
+                      const startDate = new Date(lesson.startTime);
+                      const endDate = new Date(lesson.endTime);
+                      const duration = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60));
+                      const attendanceCount = lesson._count?.attendance || 0;
+                      
+                      return (
+                        <Table.Tr key={lesson.id}>
+                          <Table.Td>
+                            <div>
+                              <Text fw={500} size="sm">{lesson.title}</Text>
+                              {lesson.room && (
+                                <Text size="xs" c="dimmed">
+                                  <IconMapPin size={12} style={{ display: 'inline', marginRight: 4 }} />
+                                  {lesson.room}
+                                </Text>
+                              )}
+                            </div>
+                          </Table.Td>
+                          <Table.Td>
+                            <div>
+                              <Text size="sm" fw={500}>
+                                {startDate.toLocaleDateString('it-IT', {
+                                  weekday: 'short',
+                                  day: 'numeric',
+                                  month: 'short',
+                                })}
+                              </Text>
+                              <Text size="xs" c="dimmed">
+                                {startDate.toLocaleTimeString('it-IT', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </Text>
+                            </div>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm">{duration} min</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge 
+                              variant="light" 
+                              color={attendanceCount > 0 ? 'green' : 'gray'}
+                              size="sm"
+                            >
+                              {attendanceCount} presenze
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge
+                              variant="light"
+                              color={
+                                lesson.status === 'COMPLETED' ? 'green' :
+                                lesson.status === 'CANCELLED' ? 'red' : 'blue'
+                              }
+                              size="sm"
+                            >
+                              {lesson.status === 'COMPLETED' ? 'Completata' :
+                               lesson.status === 'CANCELLED' ? 'Annullata' : 'Programmata'}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Group gap={4}>
+                              <ActionIcon
+                                size="sm"
+                                variant="light"
+                                color="blue"
+                                onClick={() => router.push(`/${locale}/dashboard/lessons/${lesson.id}`)}
+                              >
+                                <IconEye size={14} />
+                              </ActionIcon>
+                              {canManageClasses && (
+                                <ActionIcon
+                                  size="sm"
+                                  variant="light"
+                                  color="yellow"
+                                  onClick={() => router.push(`/${locale}/dashboard/lessons/${lesson.id}`)}
+                                >
+                                  <IconEdit size={14} />
+                                </ActionIcon>
+                              )}
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      );
+                    })}
+                  </Table.Tbody>
+                </Table>
+              ) : (
+                <Paper p="xl" withBorder style={{ textAlign: 'center' }}>
+                  <IconCalendarEvent size={48} color="var(--mantine-color-gray-4)" />
+                  <Text size="lg" fw={500} mt="md" c="dimmed">
+                    Nessuna Lezione Programmata
+                  </Text>
+                  <Text size="sm" c="dimmed" mb="md">
+                    Inizia creando la prima lezione per questa classe
+                  </Text>
+                  {canManageClasses && (
+                    <Button
+                      onClick={() => router.push(`/${locale}/dashboard/lessons?createNew=true&classId=${resolvedParams?.id}`)}
+                    >
+                      Crea Prima Lezione
+                    </Button>
+                  )}
+                </Paper>
+              )}
+            </Paper>
+          </Stack>
         </Tabs.Panel>
 
         {/* Attendance Tab - Interactive Grid */}

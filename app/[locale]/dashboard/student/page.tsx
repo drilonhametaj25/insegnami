@@ -41,6 +41,7 @@ import {
 import { useStudentDashboard } from '@/lib/hooks/useDashboard';
 import { StatsCard } from '@/components/cards/StatsCard';
 import { ChangePasswordModal } from '@/components/modals/ChangePasswordModal';
+import { StudentHoursWidget } from '@/components/widgets/StudentHoursWidget';
 
 const localizer = momentLocalizer(moment);
 
@@ -207,6 +208,9 @@ export default function StudentDashboard() {
                   </Grid.Col>
                 ))}
               </Grid>
+
+              {/* Hours Packages Widget */}
+              <StudentHoursWidget />
 
               {/* Upcoming Lessons */}
               <Paper p="md" withBorder>

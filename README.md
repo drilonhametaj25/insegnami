@@ -1,6 +1,65 @@
 # InsegnaMi.pro
 
-Modern School Management & Electronic Register System built with Next.js 15, TypeScript, and Prisma.
+🎓 **Modern School Management & Electronic Register System**
+
+Built with Next.js 15, TypeScript, Prisma, PostgreSQL, Redis, and BullMQ.
+
+---
+
+## 🚀 Quick Start
+
+**📖 Start here**: Read **[READY.md](./READY.md)** for complete setup guide!
+
+### Automated Setup (Recommended)
+```powershell
+.\START.ps1
+```
+
+This script handles everything automatically!
+
+### Manual Setup
+```powershell
+# 1. Start Docker services (PostgreSQL, Redis, MailHog)
+cd docker && docker-compose up -d && cd ..
+
+# 2. Install dependencies
+npm install
+
+# 3. Setup database
+npm run db:push
+npm run db:seed
+
+# 4. Start application
+npm run dev
+```
+
+**App**: http://localhost:3000  
+**Login**: `admin@englishplus.it` / `password`
+
+---
+
+## 🌐 Services (Isolated Ports - No Conflicts!)
+
+| Service | Port | URL/Host |
+|---------|------|----------|
+| **Next.js** | 3000 | http://localhost:3000 |
+| **PostgreSQL** | 5433 | localhost:5433 |
+| **Redis** | 6380 | localhost:6380 |
+| **MailHog Web** | 8026 | http://localhost:8026 |
+| **MailHog SMTP** | 1026 | localhost:1026 |
+
+✅ **Dedicated ports** - works alongside other projects (PegasoWorld, etc.)
+
+---
+
+## 📚 Documentation
+
+- **[READY.md](./READY.md)** - ⭐ Complete setup & first steps
+- **[QUICK_START_GUIDE.md](./QUICK_START_GUIDE.md)** - Detailed instructions
+- **[MODULES_STATUS.md](./MODULES_STATUS.md)** - Feature status & roadmap
+- **[PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md)** - Project overview
+
+---
 
 ## 🚀 Features
 

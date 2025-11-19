@@ -1,654 +1,784 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useLocale } from 'next-intl';
+import {
+  Container,
+  Title,
+  Text,
+  Paper,
+  Button,
+  Group,
+  Grid,
+  Stack,
+  LoadingOverlay,
+  Alert,
+  ActionIcon,
+  TextInput,
+  Select,
+  Badge,
+  Table,
+  ScrollArea,
+  Tabs,
+  Avatar,
+  Tooltip,
+  SegmentedControl,
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
+import {
+  IconPlus,
+  IconSearch,
+  IconRefresh,
+  IconX,
+  IconInfoCircle,
+  IconCalendar,
+  IconList,
+  IconEye,
+  IconEdit,
+  IconUsers,
+  IconClock,
+  IconBook2,
+  IconCheck,
+  IconX as IconXCircle,
+  IconTrendingUp,
+} from '@tabler/icons-react';
 import { Calendar, momentLocalizer, Views } from 'react-big-calendar';
 import moment from 'moment';
 import 'moment/locale/it';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '@/components/calendar/LessonCalendar.css';
-import {
-  Container,
-  Title,
-  Paper,
-  Button,
-  Group,
-  Stack,
-  Modal,
-  Select,
-  TextInput,
-  Textarea,
-  Switch,
-  Grid,
-  Badge,
-  Text,
-  ActionIcon,
-  Alert,
-  LoadingOverlay,
-  Skeleton,
-} from '@mantine/core';
-import { DateTimePicker } from '@mantine/dates';
-import { useForm } from '@mantine/form';
-import { useDisclosure } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
-import { useTranslations } from 'next-intl';
-import {
-  IconPlus,
-  IconEdit,
-  IconTrash,
-  IconCalendar,
-  IconClock,
-  IconUsers,
-  IconMapPin,
-} from '@tabler/icons-react';
-import {
-  useCalendarLessons,
-  useCreateLesson,
-  useUpdateLesson,
-  useDeleteLesson,
-  type Lesson,
-  type CreateLessonData
-} from '@/lib/hooks/useLessons';
-import { useClasses } from '@/lib/hooks/useClasses';
-import { useTeachers } from '@/lib/hooks/useTeachers';
-import { useCourses } from '@/lib/hooks/useCourses';
+import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
+import { ModernModal } from '@/components/modals/ModernModal';
+import { LessonForm } from '@/components/forms/LessonForm';
 
-// Set Italian locale
 moment.locale('it');
 const localizer = momentLocalizer(moment);
 
-interface LessonEvent {
+interface Lesson {
   id: string;
   title: string;
-  start: Date;
-  end: Date;
-  resource: {
-    classId: string;
-    className: string;
-    teacherId: string;
-    teacherName: string;
-    location?: string;
-    maxStudents: number;
-    currentStudents: number;
-    isRecurring: boolean;
-    description?: string;
+  startTime: string;
+  endTime: string;
+  room?: string;
+  status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+  isRecurring: boolean;
+  description?: string;
+  class: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  teacher: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+  course: {
+    id: string;
+    name: string;
+    level: string;
+  };
+  _count?: {
+    attendance: number;
+  };
+  attendance?: Array<{
+    id: string;
     status: string;
-    courseId?: string;
-    courseName?: string;
+  }>;
+}
+
+interface LessonsResponse {
+  lessons: Lesson[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
   };
 }
 
-interface LessonFormData {
-  title: string;
-  classId: string;
-  teacherId: string;
-  courseId: string;
-  start: Date;
-  end: Date;
-  location?: string;
-  description?: string;
-  isRecurring: boolean;
-  recurringFrequency?: 'WEEKLY' | 'MONTHLY';
-  recurringEndDate?: Date;
+interface LessonsStats {
+  total: number;
+  scheduled: number;
+  completed: number;
+  cancelled: number;
+  averageAttendance: number;
+  upcomingToday: number;
 }
 
+interface Teacher {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
+interface Class {
+  id: string;
+  name: string;
+  code: string;
+  teacher: Teacher;
+  course: {
+    id: string;
+    name: string;
+    level: string;
+  };
+}
+
+interface Course {
+  id: string;
+  name: string;
+  level: string;
+}
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const colors = {
+    SCHEDULED: 'blue',
+    COMPLETED: 'green',
+    CANCELLED: 'red',
+  };
+  const labels = {
+    SCHEDULED: 'Programmata',
+    COMPLETED: 'Completata',
+    CANCELLED: 'Annullata',
+  };
+  return (
+    <Badge color={colors[status as keyof typeof colors] || 'gray'} variant="light" size="sm">
+      {labels[status as keyof typeof labels] || status}
+    </Badge>
+  );
+};
+
 export default function LessonsPage() {
-  const t = useTranslations('lessons');
-  
-  const [selectedEvent, setSelectedEvent] = useState<LessonEvent | null>(null);
-  const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
-  const [editingLesson, setEditingLesson] = useState<LessonEvent | null>(null);
+  const { data: session } = useSession();
+  const router = useRouter();
+  const locale = useLocale();
 
-  // TanStack Query hooks
-  const { 
-    data: lessons, 
-    isLoading: lessonsLoading,
-    error: lessonsError
-  } = useCalendarLessons();
-
-  const { 
-    data: classesData, 
-    isLoading: classesLoading 
-  } = useClasses();
-
-  const { 
-    data: teachersData, 
-    isLoading: teachersLoading 
-  } = useTeachers();
-
-  const { 
-    data: coursesData, 
-    isLoading: coursesLoading 
-  } = useCourses();
-
-  const createLesson = useCreateLesson();
-  const updateLesson = useUpdateLesson();
-  const deleteLesson = useDeleteLesson();
-
-  const classes = classesData?.classes || [];
-  const teachers = teachersData?.teachers || [];
-  const courses = coursesData?.courses || [];
-
-  const form = useForm<LessonFormData>({
-    initialValues: {
-      title: '',
-      classId: '',
-      teacherId: '',
-      courseId: '',
-      start: new Date(),
-      end: new Date(Date.now() + 90 * 60 * 1000), // +90 minutes
-      location: '',
-      description: '',
-      isRecurring: false,
-      recurringFrequency: 'WEEKLY',
-      recurringEndDate: undefined,
-    },
-    validate: {
-      title: (value) => (!value ? 'Titolo richiesto' : null),
-      classId: (value) => (!value ? 'Seleziona una classe' : null),
-      teacherId: (value) => (!value ? 'Seleziona un docente' : null),
-      courseId: (value) => (!value ? 'Seleziona un corso' : null),
-      start: (value) => (!value ? 'Data inizio richiesta' : null),
-      end: (value, values) => {
-        if (!value) return 'Data fine richiesta';
-        if (value <= values.start) return 'La data fine deve essere successiva a quella di inizio';
-        return null;
-      },
-    },
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [stats, setStats] = useState<LessonsStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 50,
+    total: 0,
+    totalPages: 0,
   });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [classFilter, setClassFilter] = useState('');
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+
+  const [opened, { open, close }] = useDisclosure(false);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+
+  // Check permissions
+  const canManageLessons = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'TEACHER';
+  const canViewLessons = canManageLessons || session?.user?.role === 'STUDENT';
+
+  // Fetch lessons
+  const fetchLessons = async (
+    page = 1,
+    search = searchTerm,
+    status = statusFilter,
+    classId = classFilter
+  ) => {
+    if (!canViewLessons) return;
+
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pagination.limit.toString(),
+        include: 'class,teacher,course,attendance',
+      });
+
+      if (search) params.append('search', search);
+      if (status) params.append('status', status);
+      if (classId) params.append('classId', classId);
+
+      const response = await fetch(`/api/lessons?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch lessons');
+
+      const data: LessonsResponse = await response.json();
+      setLessons(data.lessons);
+      setPagination(data.pagination);
+    } catch (error) {
+      console.error('Error fetching lessons:', error);
+      notifications.show({
+        id: `fetch-error-${Date.now()}`,
+        title: 'Errore',
+        message: 'Impossibile caricare le lezioni',
+        color: 'red',
+        icon: <IconX size={18} />,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch stats
+  const fetchStats = async () => {
+    if (!canViewLessons) return;
+
+    try {
+      const response = await fetch('/api/lessons/stats');
+      if (!response.ok) throw new Error('Failed to fetch stats');
+
+      const data: LessonsStats = await response.json();
+      setStats(data);
+    } catch (error) {
+      console.error('Error fetching lesson stats:', error);
+    }
+  };
+
+  // Fetch teachers
+  const fetchTeachers = async () => {
+    if (!canManageLessons) return;
+
+    try {
+      const response = await fetch('/api/teachers?limit=100');
+      if (!response.ok) throw new Error('Failed to fetch teachers');
+
+      const data = await response.json();
+      setTeachers(data.teachers || []);
+    } catch (error) {
+      console.error('Error fetching teachers:', error);
+    }
+  };
+
+  // Fetch classes
+  const fetchClasses = async () => {
+    if (!canManageLessons) return;
+
+    try {
+      const response = await fetch('/api/classes?limit=100&include=teacher,course');
+      if (!response.ok) throw new Error('Failed to fetch classes');
+
+      const data = await response.json();
+      setClasses(data.classes || []);
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+    }
+  };
+
+  // Fetch courses
+  const fetchCourses = async () => {
+    if (!canManageLessons) return;
+
+    try {
+      const response = await fetch('/api/courses?limit=100');
+      if (!response.ok) throw new Error('Failed to fetch courses');
+
+      const data = await response.json();
+      setCourses(data.courses || []);
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (canViewLessons) {
+      fetchLessons();
+      fetchStats();
+      fetchTeachers();
+      fetchClasses();
+      fetchCourses();
+    }
+  }, [canViewLessons]);
+
+  // Handlers
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    fetchLessons(1, value, statusFilter, classFilter);
+  };
+
+  const handleStatusFilter = (value: string) => {
+    setStatusFilter(value);
+    fetchLessons(1, searchTerm, value, classFilter);
+  };
+
+  const handleClassFilter = (value: string) => {
+    setClassFilter(value);
+    fetchLessons(1, searchTerm, statusFilter, value);
+  };
+
+  const handleCreate = () => {
+    setEditingLesson(null);
+    open();
+  };
+
+  const handleEdit = (lesson: Lesson) => {
+    setEditingLesson(lesson);
+    open();
+  };
+
+  const handleView = (lesson: Lesson) => {
+    router.push(`/${locale}/dashboard/lessons/${lesson.id}`);
+  };
+
+  const handleFormSubmit = async (formData: any) => {
+    try {
+      setSubmitting(true);
+
+      const url = editingLesson
+        ? `/api/lessons/${editingLesson.id}`
+        : '/api/lessons';
+      const method = editingLesson ? 'PUT' : 'POST';
+
+      notifications.show({
+        id: 'saving-lesson',
+        title: editingLesson ? '⏳ Aggiornamento in corso...' : '⏳ Creazione in corso...',
+        message: editingLesson ? 'Salvataggio modifiche lezione' : 'Creazione nuova lezione',
+        loading: true,
+        autoClose: false,
+        withCloseButton: false,
+      });
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      notifications.hide('saving-lesson');
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save lesson');
+      }
+
+      const responseData = await response.json();
+
+      notifications.show({
+        id: `lesson-success-${Date.now()}`,
+        title: '✅ Successo',
+        message: responseData.message || `Lezione ${editingLesson ? 'aggiornata' : 'creata'} con successo`,
+        color: 'green',
+        icon: <IconCheck size={18} />,
+        autoClose: 4000,
+      });
+
+      close();
+      fetchLessons();
+      fetchStats();
+    } catch (error: any) {
+      notifications.hide('saving-lesson');
+
+      console.error('Error saving lesson:', error);
+      notifications.show({
+        id: `lesson-error-${Date.now()}`,
+        title: '❌ Errore',
+        message: error.message || 'Impossibile salvare la lezione',
+        color: 'red',
+        icon: <IconX size={18} />,
+        autoClose: 6000,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Transform lessons to calendar events
-  const events = useMemo((): LessonEvent[] => {
-    if (!lessons) return [];
-    
-    return lessons.map((lesson: Lesson) => ({
+  const calendarEvents = useMemo(() => {
+    return lessons.map((lesson) => ({
       id: lesson.id,
-      title: `${lesson.class.name} - ${lesson.teacher.firstName} ${lesson.teacher.lastName}`,
+      title: `${lesson.class.name} - ${lesson.title}`,
       start: new Date(lesson.startTime),
       end: new Date(lesson.endTime),
-      resource: {
-        classId: lesson.class.id,
-        className: lesson.class.name,
-        teacherId: lesson.teacher.id,
-        teacherName: `${lesson.teacher.firstName} ${lesson.teacher.lastName}`,
-        location: lesson.room,
-        maxStudents: lesson.class?.students?.length || 0,
-        currentStudents: lesson.attendance?.length || 0,
-        isRecurring: lesson.isRecurring,
-        description: lesson.description,
-        status: lesson.status,
-        courseId: lesson.class?.course?.id,
-        courseName: lesson.class?.course?.name,
-      },
+      resource: lesson,
     }));
   }, [lessons]);
 
-  const handleSaveLesson = (values: LessonFormData) => {
-    const lessonData: CreateLessonData = {
-      title: values.title,
-      classId: values.classId,
-      teacherId: values.teacherId,
-      courseId: values.courseId,
-      startTime: values.start.toISOString(),
-      endTime: values.end.toISOString(),
-      location: values.location,
-      description: values.description,
-      isRecurring: values.isRecurring,
-      recurringPattern: values.isRecurring ? {
-        frequency: values.recurringFrequency || 'WEEKLY',
-        interval: 1,
-        endDate: values.recurringEndDate?.toISOString(),
-      } : undefined,
-    };
-
-    if (editingLesson) {
-      updateLesson.mutate(
-        { id: editingLesson.id, data: lessonData },
+  // Stats cards
+  const statsCards = stats
+    ? [
         {
-          onSuccess: () => {
-            notifications.show({
-              title: t('notifications.success'),
-              message: t('notifications.lessonUpdatedSuccessfully'),
-              color: 'green',
-            });
-            closeModal();
-            form.reset();
+          title: 'Lezioni Totali',
+          value: stats.total.toString(),
+          icon: <IconBook2 size={24} />,
+          gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          change: {
+            value: 12,
+            type: 'increase' as const,
+            period: 'rispetto al mese scorso',
           },
-          onError: (error) => {
-            notifications.show({
-              title: t('notifications.error'),
-              message: error.message || t('notifications.updateLessonError'),
-              color: 'red',
-            });
+        },
+        {
+          title: 'Programmate',
+          value: stats.scheduled.toString(),
+          icon: <IconCalendar size={24} />,
+          gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+          change: {
+            value: 8,
+            type: 'increase' as const,
+            period: 'rispetto al mese scorso',
           },
-        }
-      );
-    } else {
-      createLesson.mutate(lessonData, {
-        onSuccess: () => {
-          notifications.show({
-            title: t('notifications.success'),
-            message: t('notifications.lessonCreatedSuccessfully'),
-            color: 'green',
-          });
-          closeModal();
-          form.reset();
         },
-        onError: (error) => {
-          notifications.show({
-            title: t('notifications.error'),
-            message: error.message || t('notifications.createLessonError'),
-            color: 'red',
-          });
+        {
+          title: 'Completate',
+          value: stats.completed.toString(),
+          icon: <IconCheck size={24} />,
+          gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
         },
-      });
-    }
-  };
+        {
+          title: 'Presenze Media',
+          value: `${stats.averageAttendance.toFixed(1)}%`,
+          icon: <IconUsers size={24} />,
+          gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+        },
+        {
+          title: 'Oggi',
+          value: stats.upcomingToday.toString(),
+          icon: <IconTrendingUp size={24} />,
+          gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+          badge: {
+            text: 'In programma',
+            color: 'blue',
+          },
+        },
+      ]
+    : [];
 
-  const handleNewLesson = () => {
-    setEditingLesson(null);
-    form.reset();
-    openModal();
-  };
-
-  const handleEditLesson = (event: LessonEvent) => {
-    setEditingLesson(event);
-    form.setValues({
-      title: event.title,
-      classId: event.resource.classId,
-      teacherId: event.resource.teacherId,
-      courseId: event.resource.courseId,
-      start: event.start,
-      end: event.end,
-      location: event.resource.location || '',
-      description: event.resource.description || '',
-      isRecurring: event.resource.isRecurring,
-    });
-    openModal();
-  };
-
-  const handleDeleteLesson = (eventId: string) => {
-    if (!confirm(t('confirmDelete'))) return;
-
-    deleteLesson.mutate(eventId, {
-      onSuccess: () => {
-        notifications.show({
-          title: t('notifications.success'),
-          message: t('notifications.lessonDeletedSuccessfully'),
-          color: 'green',
-        });
-      },
-      onError: (error) => {
-        notifications.show({
-          title: t('notifications.error'),
-          message: error.message || t('notifications.deleteLessonError'),
-          color: 'red',
-        });
-      },
-    });
-  };
-
-  // Calendar event components
-  const EventComponent = ({ event }: { event: LessonEvent }) => (
-    <div className="lesson-event">
-      <div className="lesson-title">{event.title}</div>
-      <div className="lesson-info">
-        <IconMapPin size={12} /> {event.resource.location || t('noClassroom')}
-      </div>
-      <div className="lesson-info">
-        <IconUsers size={12} /> {event.resource.currentStudents}/{event.resource.maxStudents}
-      </div>
-    </div>
-  );
-
-  const EventAgenda = ({ event }: { event: LessonEvent }) => (
-    <div>
-      <strong>{event.title}</strong>
-      <br />
-      <Text size="sm" c="dimmed">
-        {event.resource.location && (
-          <>
-            <IconMapPin size={12} /> {event.resource.location} |{' '}
-          </>
-        )}
-        <IconUsers size={12} /> {event.resource.currentStudents}/{event.resource.maxStudents}
-      </Text>
-    </div>
-  );
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'SCHEDULED': return 'blue';
-      case 'IN_PROGRESS': return 'yellow';
-      case 'COMPLETED': return 'green';
-      case 'CANCELLED': return 'red';
-      default: return 'gray';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'SCHEDULED': return 'Programmata';
-      case 'IN_PROGRESS': return 'In corso';
-      case 'COMPLETED': return 'Completata';
-      case 'CANCELLED': return 'Annullata';
-      default: return status;
-    }
-  };
-
-  const isLoading = lessonsLoading || classesLoading || teachersLoading || coursesLoading;
-  const isSaving = createLesson.isPending || updateLesson.isPending || deleteLesson.isPending;
-
-  if (lessonsError) {
+  if (!canViewLessons) {
     return (
-      <Container size="xl" py="md">
-        <Alert color="red" title="Errore">
-          Errore nel caricamento delle lezioni: {lessonsError.message}
+      <Container size="lg" py="xl">
+        <Alert icon={<IconInfoCircle />} color="red">
+          Non hai i permessi per accedere a questa pagina
         </Alert>
       </Container>
     );
   }
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-      padding: '24px'
-    }}>
-      <Container size="xl">
-        <Stack gap="lg">
-          <Group justify="space-between" align="center">
-            <Title 
-              order={1}
-              style={{ 
-                color: 'white',
-                fontSize: '2.5rem',
-                fontWeight: 700,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-              }}
-            >
-              {t('pageTitle')}
-            </Title>
+    <Container size="xl" py="md">
+      <LoadingOverlay visible={loading && lessons.length === 0} />
+
+      {/* Header */}
+      <Group justify="space-between" mb="xl">
+        <div>
+          <Title order={2} mb="xs">
+            Gestione Lezioni
+          </Title>
+          <Text c="dimmed">Organizza e monitora tutte le lezioni</Text>
+        </div>
+        {canManageLessons && (
+          <Button
+            onClick={handleCreate}
+            leftSection={<IconPlus size={18} />}
+            variant="gradient"
+            gradient={{ from: 'indigo', to: 'purple', deg: 45 }}
+            radius="lg"
+          >
+            Nuova Lezione
+          </Button>
+        )}
+      </Group>
+
+      {/* Stats Cards */}
+      {stats && (
+        <Grid mb="xl">
+          {statsCards.map((card, index) => (
+            <Grid.Col key={index} span={{ base: 12, sm: 6, lg: 2.4 }}>
+              <ModernStatsCard {...card} />
+            </Grid.Col>
+          ))}
+        </Grid>
+      )}
+
+      {/* View Mode Toggle */}
+      <Group justify="space-between" mb="md">
+        <SegmentedControl
+          value={viewMode}
+          onChange={(value) => setViewMode(value as 'calendar' | 'list')}
+          data={[
+            {
+              value: 'calendar',
+              label: (
+                <Group gap="xs">
+                  <IconCalendar size={16} />
+                  <span>Calendario</span>
+                </Group>
+              ),
+            },
+            {
+              value: 'list',
+              label: (
+                <Group gap="xs">
+                  <IconList size={16} />
+                  <span>Lista</span>
+                </Group>
+              ),
+            },
+          ]}
+        />
+
+        {viewMode === 'list' && (
+          <Group gap="md">
+            <TextInput
+              placeholder="Cerca lezioni..."
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              leftSection={<IconSearch size={16} />}
+              style={{ flex: 1, minWidth: 200 }}
+            />
+            <Select
+              placeholder="Tutti gli stati"
+              value={statusFilter}
+              onChange={(value) => handleStatusFilter(value || '')}
+              data={[
+                { value: '', label: 'Tutti gli stati' },
+                { value: 'SCHEDULED', label: 'Programmate' },
+                { value: 'COMPLETED', label: 'Completate' },
+                { value: 'CANCELLED', label: 'Annullate' },
+              ]}
+              style={{ minWidth: 150 }}
+            />
+            <Select
+              placeholder="Tutte le classi"
+              value={classFilter}
+              onChange={(value) => handleClassFilter(value || '')}
+              data={[
+                { value: '', label: 'Tutte le classi' },
+                ...classes.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+              style={{ minWidth: 150 }}
+            />
             <Button
-              leftSection={<IconPlus size={16} />}
-              onClick={handleNewLesson}
-              style={{
-                background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                border: 'none',
-                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)'
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('');
+                setClassFilter('');
+                fetchLessons(1, '', '', '');
               }}
+              variant="light"
+              leftSection={<IconRefresh size={16} />}
             >
-              {t('createLesson')}
+              Reset
             </Button>
           </Group>
+        )}
+      </Group>
 
-        <Paper 
-          shadow="lg" 
-          radius="md" 
-          p="lg" 
-          style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '16px'
-          }}
-        >
-          {isLoading ? (
-            <div style={{ height: 600, position: 'relative' }}>
-              <LoadingOverlay visible />
-              <Skeleton height={600} />
-            </div>
-          ) : (
-            <Calendar
-              localizer={localizer}
-              events={events}
-              startAccessor="start"
-              endAccessor="end"
-              style={{ height: 600 }}
-              views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
-              defaultView={Views.WEEK}
-              step={30}
-              timeslots={2}
-              messages={{
-                next: t('calendar.next'),
-                previous: t('calendar.previous'),
-                today: t('calendar.today'),
-                month: t('calendar.month'),
-                week: t('calendar.week'),
-                day: t('calendar.day'),
-                agenda: t('calendar.agenda'),
-                date: t('calendar.date'),
-                time: t('calendar.time'),
-                event: t('calendar.event'),
-                allDay: t('calendar.allDay'),
-                noEventsInRange: t('calendar.noEventsInRange'),
-                showMore: (total) => t('calendar.showMore', { total }),
-              }}
-              formats={{
-                timeGutterFormat: 'HH:mm',
-                eventTimeRangeFormat: ({ start, end }, culture, localizer) =>
-                  localizer?.format(start, 'HH:mm', culture) + ' - ' + localizer?.format(end, 'HH:mm', culture),
-              }}
-              components={{
-                event: EventComponent,
-                agenda: {
-                  event: EventAgenda,
+      {/* Calendar View */}
+      {viewMode === 'calendar' && (
+        <Paper shadow="sm" radius="lg" p="md" mb="md" style={{ minHeight: 600 }}>
+          <Calendar
+            localizer={localizer}
+            events={calendarEvents}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: 600 }}
+            views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
+            defaultView={Views.WEEK}
+            onSelectEvent={(event) => handleView(event.resource)}
+            eventPropGetter={(event) => {
+              const status = event.resource.status;
+              let backgroundColor = '#667eea';
+              if (status === 'COMPLETED') backgroundColor = '#43e97b';
+              if (status === 'CANCELLED') backgroundColor = '#f5576c';
+              return {
+                style: {
+                  backgroundColor,
+                  borderRadius: '5px',
+                  opacity: 0.9,
+                  color: 'white',
+                  border: '0px',
+                  display: 'block',
                 },
-              }}
-              onSelectEvent={(event) => setSelectedEvent(event)}
-              onDoubleClickEvent={(event) => handleEditLesson(event)}
-              dayPropGetter={(date) => ({
-                className: moment(date).isSame(moment(), 'day') ? 'today' : '',
-              })}
-              eventPropGetter={(event) => ({
-                className: `lesson-${event.resource.status.toLowerCase()}`,
-              })}
-            />
+              };
+            }}
+            messages={{
+              next: 'Avanti',
+              previous: 'Indietro',
+              today: 'Oggi',
+              month: 'Mese',
+              week: 'Settimana',
+              day: 'Giorno',
+              agenda: 'Agenda',
+              date: 'Data',
+              time: 'Ora',
+              event: 'Lezione',
+              noEventsInRange: 'Nessuna lezione in questo periodo',
+            }}
+          />
+        </Paper>
+      )}
+
+      {/* List View */}
+      {viewMode === 'list' && (
+        <Paper shadow="sm" radius="lg" p="md" mb="md">
+          <ScrollArea>
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Lezione</Table.Th>
+                  <Table.Th>Classe</Table.Th>
+                  <Table.Th>Docente</Table.Th>
+                  <Table.Th>Data e Ora</Table.Th>
+                  <Table.Th>Aula</Table.Th>
+                  <Table.Th>Presenze</Table.Th>
+                  <Table.Th>Stato</Table.Th>
+                  <Table.Th>Azioni</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {lessons.map((lesson) => (
+                  <Table.Tr key={lesson.id}>
+                    <Table.Td>
+                      <div>
+                        <Text fw={500} size="sm">
+                          {lesson.title}
+                        </Text>
+                        {lesson.isRecurring && (
+                          <Badge size="xs" variant="light" color="purple">
+                            Ricorrente
+                          </Badge>
+                        )}
+                      </div>
+                    </Table.Td>
+                    <Table.Td>
+                      <Group gap="sm">
+                        <Avatar size="sm" color="blue" radius="md">
+                          {lesson.class?.code?.substring(0, 2) || 'CL'}
+                        </Avatar>
+                        <div>
+                          <Text fw={500} size="sm">
+                            {lesson.class?.name || 'N/A'}
+                          </Text>
+                          {lesson.course && (
+                            <Text size="xs" c="dimmed">
+                              {lesson.course.name}
+                            </Text>
+                          )}
+                        </div>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td>
+                      <Group gap="sm">
+                        <Avatar size="sm" color="indigo">
+                          {lesson.teacher.firstName[0]}
+                          {lesson.teacher.lastName[0]}
+                        </Avatar>
+                        <Text size="sm">
+                          {lesson.teacher.firstName} {lesson.teacher.lastName}
+                        </Text>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td>
+                      <div>
+                        <Text fw={500} size="sm">
+                          {new Date(lesson.startTime).toLocaleDateString('it-IT', {
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'short',
+                          })}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {new Date(lesson.startTime).toLocaleTimeString('it-IT', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}{' '}
+                          -{' '}
+                          {new Date(lesson.endTime).toLocaleTimeString('it-IT', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </Text>
+                      </div>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm">{lesson.room || '-'}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm">{lesson._count?.attendance || 0}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <StatusBadge status={lesson.status} />
+                    </Table.Td>
+                    <Table.Td>
+                      <Group gap={4}>
+                        <Tooltip label="Visualizza dettagli">
+                          <ActionIcon
+                            size="sm"
+                            variant="light"
+                            color="blue"
+                            onClick={() => handleView(lesson)}
+                          >
+                            <IconEye size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                        {canManageLessons && (
+                          <Tooltip label="Modifica lezione">
+                            <ActionIcon
+                              size="sm"
+                              variant="light"
+                              color="yellow"
+                              onClick={() => handleEdit(lesson)}
+                            >
+                              <IconEdit size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
+
+          {loading && (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>
+              <Text c="dimmed">Caricamento lezioni...</Text>
+            </div>
+          )}
+
+          {!loading && lessons.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>
+              <Text c="dimmed">Nessuna lezione trovata</Text>
+            </div>
           )}
         </Paper>
+      )}
 
-        {/* Event Details Modal */}
-        {selectedEvent && (
-          <Modal
-            opened={!!selectedEvent}
-            onClose={() => setSelectedEvent(null)}
-            title={t('lessonDetails')}
-            size="md"
-          >
-            <Stack gap="md">
-              <div>
-                <Text fw={500}>{selectedEvent.title}</Text>
-                <Text size="sm" c="dimmed">
-                  {selectedEvent.resource.courseName}
-                </Text>
-              </div>
-
-              <Grid>
-                <Grid.Col span={6}>
-                  <Text size="sm" fw={500}>{t('dateAndTime')}</Text>
-                  <Text size="sm">
-                    {moment(selectedEvent.start).format('DD/MM/YYYY HH:mm')} -{' '}
-                    {moment(selectedEvent.end).format('HH:mm')}
-                  </Text>
-                </Grid.Col>
-                <Grid.Col span={6}>
-                  <Text size="sm" fw={500}>{t('status')}</Text>
-                  <Badge color={getStatusColor(selectedEvent.resource.status)} variant="light">
-                    {getStatusLabel(selectedEvent.resource.status)}
-                  </Badge>
-                </Grid.Col>
-              </Grid>
-
-              <Grid>
-                <Grid.Col span={6}>
-                  <Text size="sm" fw={500}>{t('teacher')}</Text>
-                  <Text size="sm">{selectedEvent.resource.teacherName}</Text>
-                </Grid.Col>
-                <Grid.Col span={6}>
-                  <Text size="sm" fw={500}>{t('classroom')}</Text>
-                  <Text size="sm">{selectedEvent.resource.location || t('notSpecified')}</Text>
-                </Grid.Col>
-              </Grid>
-
-              <div>
-                <Text size="sm" fw={500}>{t('students')}</Text>
-                <Text size="sm">
-                  {selectedEvent.resource.currentStudents} / {selectedEvent.resource.maxStudents}
-                </Text>
-              </div>
-
-              {selectedEvent.resource.description && (
-                <div>
-                  <Text size="sm" fw={500}>{t('description')}</Text>
-                  <Text size="sm">{selectedEvent.resource.description}</Text>
-                </div>
-              )}
-
-              <Group justify="flex-end" mt="md">
-                <ActionIcon
-                  variant="light"
-                  color="blue"
-                  size="lg"
-                  onClick={() => handleEditLesson(selectedEvent)}
-                >
-                  <IconEdit size={18} />
-                </ActionIcon>
-                <ActionIcon
-                  variant="light"
-                  color="red"
-                  size="lg"
-                  onClick={() => {
-                    handleDeleteLesson(selectedEvent.id);
-                    setSelectedEvent(null);
-                  }}
-                >
-                  <IconTrash size={18} />
-                </ActionIcon>
-              </Group>
-            </Stack>
-          </Modal>
-        )}
-
-        {/* Lesson Form Modal */}
-        <Modal
-          opened={modalOpened}
-          onClose={closeModal}
-          title={editingLesson ? t('editLesson') : t('createLesson')}
-          size="lg"
-        >
-          <form onSubmit={form.onSubmit(handleSaveLesson)}>
-            <Stack gap="md">
-              <TextInput
-                label={t('title')}
-                placeholder={t('titlePlaceholder')}
-                {...form.getInputProps('title')}
-              />
-
-              <Grid>
-                <Grid.Col span={6}>
-                  <Select
-                    label={t('course')}
-                    placeholder={t('selectCourse')}
-                    data={courses.map(c => ({
-                      value: c.id,
-                      label: c.name
-                    }))}
-                    {...form.getInputProps('courseId')}
-                    searchable
-                  />
-                </Grid.Col>
-                <Grid.Col span={6}>
-                  <Select
-                    label={t('class')}
-                    placeholder={t('selectClass')}
-                    data={classes.map(c => ({
-                      value: c.id,
-                      label: `${c.name} - ${c.course?.name || t('noCourse')}`
-                    }))}
-                    {...form.getInputProps('classId')}
-                    searchable
-                  />
-                </Grid.Col>
-              </Grid>
-
-              <Select
-                label={t('teacher')}
-                placeholder={t('selectTeacher')}
-                data={teachers.map(t => ({
-                  value: t.id,
-                  label: `${t.firstName} ${t.lastName}`
-                }))}
-                {...form.getInputProps('teacherId')}
-                searchable
-              />
-
-              <Grid>
-                <Grid.Col span={6}>
-                  <DateTimePicker
-                    label={t('startDateTime')}
-                    placeholder={t('selectDateTime')}
-                    {...form.getInputProps('start')}
-                  />
-                </Grid.Col>
-                <Grid.Col span={6}>
-                  <DateTimePicker
-                    label={t('endDateTime')}
-                    placeholder={t('selectDateTime')}
-                    {...form.getInputProps('end')}
-                  />
-                </Grid.Col>
-              </Grid>
-
-              <TextInput
-                label={t('classroom')}
-                placeholder={t('classroomPlaceholder')}
-                {...form.getInputProps('location')}
-              />
-
-              <Textarea
-                label={t('description')}
-                placeholder={t('descriptionPlaceholder')}
-                {...form.getInputProps('description')}
-                minRows={3}
-              />
-
-              <Switch
-                label={t('recurringLesson')}
-                description={t('recurringDescription')}
-                {...form.getInputProps('isRecurring', { type: 'checkbox' })}
-              />
-
-              {form.values.isRecurring && (
-                <>
-                  <Select
-                    label={t('frequency')}
-                    data={[
-                      { value: 'WEEKLY', label: t('frequencies.weekly') },
-                      { value: 'MONTHLY', label: t('frequencies.monthly') },
-                    ]}
-                    {...form.getInputProps('recurringFrequency')}
-                  />
-
-                  <DateTimePicker
-                    label={t('endRecurrenceDate')}
-                    placeholder={t('selectEndDate')}
-                    {...form.getInputProps('recurringEndDate')}
-                  />
-                </>
-              )}
-
-              <Group justify="flex-end" mt="md">
-                <Button variant="light" onClick={closeModal}>
-                  {t('cancel')}
-                </Button>
-                <Button type="submit" loading={isSaving}>
-                  {editingLesson ? t('update') : t('create')}
-                </Button>
-              </Group>
-            </Stack>
-          </form>
-        </Modal>
-      </Stack>
-      </Container>
-    </div>
+      {/* Create/Edit Modal */}
+      <ModernModal
+        opened={opened}
+        onClose={close}
+        title={editingLesson ? 'Modifica Lezione' : 'Nuova Lezione'}
+        size="lg"
+      >
+        <LessonForm
+          opened={opened}
+          onClose={close}
+          lessonData={editingLesson ? {
+            id: editingLesson.id,
+            title: editingLesson.title,
+            classId: editingLesson.class.id,
+            teacherId: editingLesson.teacher.id,
+            courseId: editingLesson.course?.id || '',
+            startTime: editingLesson.startTime,
+            endTime: editingLesson.endTime,
+            room: editingLesson.room,
+            description: editingLesson.description,
+            status: editingLesson.status,
+            isRecurring: editingLesson.isRecurring,
+          } : undefined}
+          onSave={handleFormSubmit}
+          loading={submitting}
+          teachers={teachers}
+          classes={classes}
+          courses={courses}
+        />
+      </ModernModal>
+    </Container>
   );
 }

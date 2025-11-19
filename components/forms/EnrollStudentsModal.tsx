@@ -118,16 +118,21 @@ export function EnrollStudentsModal({
     
     if (newSelection.has(studentId)) {
       newSelection.delete(studentId);
-    } else if (newSelection.size < availableCapacity) {
-      newSelection.add(studentId);
     } else {
-      notifications.show({
-        title: 'Capacità massima raggiunta',
-        message: `Non puoi iscrivere più di ${availableCapacity} studenti`,
-        color: 'orange',
-        icon: <IconInfoCircle size={18} />,
-      });
-      return;
+      // Controlla se c'è spazio disponibile
+      const totalAfterEnrollment = currentCapacity + newSelection.size + 1;
+      
+      if (totalAfterEnrollment > maxCapacity) {
+        notifications.show({
+          title: 'Capacità massima raggiunta',
+          message: `La classe può contenere al massimo ${maxCapacity} studenti. Attualmente ci sono ${currentCapacity} studenti iscritti.`,
+          color: 'orange',
+          icon: <IconInfoCircle size={18} />,
+        });
+        return;
+      }
+      
+      newSelection.add(studentId);
     }
     
     setSelectedStudentIds(newSelection);
@@ -259,57 +264,58 @@ export function EnrollStudentsModal({
             </Paper>
           ) : (
             <Stack gap="sm">
-              {availableStudents.map((student) => (
-                <Paper
-                  key={student.id}
-                  p="sm"
-                  withBorder
-                  style={{
-                    cursor: selectedStudentIds.size >= availableCapacity && !selectedStudentIds.has(student.id) 
-                      ? 'not-allowed' 
-                      : 'pointer',
-                    opacity: selectedStudentIds.size >= availableCapacity && !selectedStudentIds.has(student.id) 
-                      ? 0.5 
-                      : 1,
-                  }}
-                  onClick={() => handleStudentToggle(student.id)}
-                >
-                  <Group justify="space-between">
-                    <Group gap="sm">
-                      <Checkbox
-                        checked={selectedStudentIds.has(student.id)}
-                        onChange={() => handleStudentToggle(student.id)}
-                        disabled={selectedStudentIds.size >= availableCapacity && !selectedStudentIds.has(student.id)}
-                      />
-                      <Avatar size="sm" color="blue">
-                        {student.firstName[0]}{student.lastName[0]}
-                      </Avatar>
-                      <div>
-                        <Text fw={500} size="sm">
-                          {student.firstName} {student.lastName}
-                        </Text>
-                        <Group gap="xs">
-                          {student.studentCode && (
-                            <Badge size="xs" variant="light" color="gray">
-                              #{student.studentCode}
-                            </Badge>
-                          )}
-                          <Group gap={4}>
-                            <IconMail size={12} />
-                            <Text size="xs" c="dimmed">{student.email}</Text>
-                          </Group>
-                          {student.phone && (
+              {availableStudents.map((student) => {
+                const totalAfterEnrollment = currentCapacity + selectedStudentIds.size;
+                const isDisabled = totalAfterEnrollment >= maxCapacity && !selectedStudentIds.has(student.id);
+                
+                return (
+                  <Paper
+                    key={student.id}
+                    p="sm"
+                    withBorder
+                    style={{
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      opacity: isDisabled ? 0.5 : 1,
+                    }}
+                    onClick={() => !isDisabled && handleStudentToggle(student.id)}
+                  >
+                    <Group justify="space-between">
+                      <Group gap="sm">
+                        <Checkbox
+                          checked={selectedStudentIds.has(student.id)}
+                          onChange={() => handleStudentToggle(student.id)}
+                          disabled={isDisabled}
+                        />
+                        <Avatar size="sm" color="blue">
+                          {student.firstName[0]}{student.lastName[0]}
+                        </Avatar>
+                        <div>
+                          <Text fw={500} size="sm">
+                            {student.firstName} {student.lastName}
+                          </Text>
+                          <Group gap="xs">
+                            {student.studentCode && (
+                              <Badge size="xs" variant="light" color="gray">
+                                #{student.studentCode}
+                              </Badge>
+                            )}
                             <Group gap={4}>
-                              <IconPhone size={12} />
-                              <Text size="xs" c="dimmed">{student.phone}</Text>
+                              <IconMail size={12} />
+                              <Text size="xs" c="dimmed">{student.email}</Text>
                             </Group>
-                          )}
-                        </Group>
-                      </div>
+                            {student.phone && (
+                              <Group gap={4}>
+                                <IconPhone size={12} />
+                                <Text size="xs" c="dimmed">{student.phone}</Text>
+                              </Group>
+                            )}
+                          </Group>
+                        </div>
+                      </Group>
                     </Group>
-                  </Group>
-                </Paper>
-              ))}
+                  </Paper>
+                );
+              })}
             </Stack>
           )}
         </ScrollArea>

@@ -55,6 +55,7 @@ export default function LessonDetailPage() {
   const [attendanceEditing, setAttendanceEditing] = useState(false);
   const [notes, setNotes] = useState('');
   const [homework, setHomework] = useState('');
+  const [attendanceData, setAttendanceData] = useState<Record<string, { status: string; hours: number | null }>>({});
 
   const {
     data: lesson,
@@ -78,16 +79,16 @@ export default function LessonDetailPage() {
       }
 
       notifications.show({
-        title: t('success'),
-        message: t('lesson.deleted'),
+        title: t('common.success'),
+        message: t('lessons.notifications.deleted'),
         color: 'green',
       });
 
       router.push('/dashboard/lessons');
     } catch (error) {
       notifications.show({
-        title: t('error'),
-        message: t('lesson.deleteError'),
+        title: t('common.error'),
+        message: t('lessons.notifications.deleteError'),
         color: 'red',
       });
     } finally {
@@ -96,32 +97,62 @@ export default function LessonDetailPage() {
   };
 
   const handleAttendanceChange = async (studentId: string, status: string) => {
-    try {
-      const response = await fetch(`/api/lessons/${lessonId}/attendance`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentId,
-          status,
-        }),
-      });
+    // Update local state
+    setAttendanceData(prev => ({
+      ...prev,
+      [studentId]: {
+        status,
+        hours: prev[studentId]?.hours || durationHours,
+      },
+    }));
+  };
 
-      if (!response.ok) {
-        throw new Error('Failed to update attendance');
+  const handleHoursChange = (studentId: string, hours: number) => {
+    setAttendanceData(prev => ({
+      ...prev,
+      [studentId]: {
+        status: prev[studentId]?.status || 'PRESENT',
+        hours,
+      },
+    }));
+  };
+
+  const handleSaveAttendance = async () => {
+    try {
+      // Save all attendance changes
+      const promises = Object.entries(attendanceData).map(([studentId, data]) =>
+        fetch(`/api/lessons/${lessonId}/attendance`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            studentId,
+            status: data.status,
+            hoursAttended: data.hours,
+          }),
+        })
+      );
+
+      const responses = await Promise.all(promises);
+      const failed = responses.filter(r => !r.ok);
+
+      if (failed.length > 0) {
+        throw new Error('Some attendance updates failed');
       }
 
       notifications.show({
-        title: t('success'),
+        title: t('common.success'),
         message: t('attendance.updated'),
         color: 'green',
       });
 
+      setAttendanceEditing(false);
+      setAttendanceData({});
       refetch();
     } catch (error) {
       notifications.show({
-        title: t('error'),
+        title: t('common.error'),
         message: t('attendance.updateError'),
         color: 'red',
       });
@@ -146,16 +177,16 @@ export default function LessonDetailPage() {
       }
 
       notifications.show({
-        title: t('success'),
-        message: t('lesson.notesSaved'),
+        title: t('common.success'),
+        message: t('lessons.notifications.notesSaved'),
         color: 'green',
       });
 
       refetch();
     } catch (error) {
       notifications.show({
-        title: t('error'),
-        message: t('lesson.saveError'),
+        title: t('common.error'),
+        message: t('lessons.notifications.saveError'),
         color: 'red',
       });
     }
@@ -172,8 +203,8 @@ export default function LessonDetailPage() {
   if (error) {
     return (
       <Container size="xl" py="xl">
-        <Alert icon={<IconAlertCircle size="1rem" />} title={t('error')} color="red">
-          {t('lesson.loadError')}
+        <Alert icon={<IconAlertCircle size="1rem" />} title={t('common.error')} color="red">
+          {t('lessons.loadError')}
         </Alert>
       </Container>
     );
@@ -182,22 +213,25 @@ export default function LessonDetailPage() {
   if (!lesson) {
     return (
       <Container size="xl" py="xl">
-        <Alert icon={<IconAlertCircle size="1rem" />} title={t('notFound')} color="yellow">
-          {t('lesson.notFound')}
+        <Alert icon={<IconAlertCircle size="1rem" />} title={t('common.error')} color="yellow">
+          {t('lessons.loadError')}
         </Alert>
       </Container>
     );
   }
 
   // Calculate stats
-  const totalStudents = lesson.class?.students?.length || 0;
-  const presentStudents = lesson.attendance?.filter(att => att.status === 'PRESENT').length || 0;
-  const absentStudents = lesson.attendance?.filter(att => att.status === 'ABSENT').length || 0;
+  const classStudents = lesson.class?.students?.map((sc: any) => sc.student) || [];
+  const totalStudents = classStudents.length;
+  const presentStudents = lesson.attendance?.filter((att: any) => att.status === 'PRESENT').length || 0;
+  const absentStudents = lesson.attendance?.filter((att: any) => att.status === 'ABSENT').length || 0;
   const attendanceRate = totalStudents > 0 ? Math.round((presentStudents / totalStudents) * 100) : 0;
 
   const duration = lesson.endTime && lesson.startTime
     ? Math.round((new Date(lesson.endTime).getTime() - new Date(lesson.startTime).getTime()) / (1000 * 60))
     : 0;
+  
+  const durationHours = duration / 60;
 
   return (
     <Container size="xl" py="xl">
@@ -378,13 +412,33 @@ export default function LessonDetailPage() {
           <Card withBorder>
             <Group justify="space-between" mb="md">
               <Title order={4}>{t('attendanceTracking')}</Title>
-              <Button
-                size="sm"
-                variant={attendanceEditing ? 'filled' : 'outline'}
-                onClick={() => setAttendanceEditing(!attendanceEditing)}
-              >
-                {attendanceEditing ? t('save') : t('edit')}
-              </Button>
+              <Group>
+                {attendanceEditing && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => {
+                      setAttendanceEditing(false);
+                      setAttendanceData({});
+                    }}
+                  >
+                    {t('cancel')}
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant={attendanceEditing ? 'filled' : 'outline'}
+                  onClick={() => {
+                    if (attendanceEditing) {
+                      handleSaveAttendance();
+                    } else {
+                      setAttendanceEditing(true);
+                    }
+                  }}
+                >
+                  {attendanceEditing ? t('save') : t('edit')}
+                </Button>
+              </Group>
             </Group>
             
             <Table>
@@ -393,13 +447,15 @@ export default function LessonDetailPage() {
                   <Table.Th>{t('student')}</Table.Th>
                   <Table.Th>{t('email')}</Table.Th>
                   <Table.Th>{t('status')}</Table.Th>
+                  <Table.Th>{t('hoursAttended')}</Table.Th>
                   {attendanceEditing && <Table.Th>{t('actions')}</Table.Th>}
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {lesson.class?.students?.map((student: any) => {
+                {classStudents.map((student: any) => {
                   const attendance = lesson.attendance?.find((att: any) => att.studentId === student.id);
-                  const status = attendance?.status || 'UNKNOWN';
+                  const status = attendanceData[student.id]?.status || attendance?.status || 'NOT_MARKED';
+                  const hoursAttended = attendanceData[student.id]?.hours || (attendance as any)?.hoursAttended || null;
                   
                   return (
                     <Table.Tr key={student.id}>
@@ -429,12 +485,32 @@ export default function LessonDetailPage() {
                             color={
                               status === 'PRESENT' ? 'green' : 
                               status === 'LATE' ? 'yellow' : 
-                              status === 'EXCUSED' ? 'blue' : 
+                              status === 'EXCUSED' ? 'blue' :
+                              status === 'NOT_MARKED' ? 'gray' :
                               'red'
                             }
                           >
-                            {t(status.toLowerCase())}
+                            {status === 'NOT_MARKED' ? t('notMarked') : t(status.toLowerCase())}
                           </Badge>
+                        )}
+                      </Table.Td>
+                      <Table.Td>
+                        {attendanceEditing && (status === 'PRESENT' || status === 'LATE') ? (
+                          <NumberInput
+                            size="sm"
+                            value={hoursAttended || durationHours}
+                            onChange={(value) => handleHoursChange(student.id, Number(value))}
+                            min={0}
+                            max={durationHours}
+                            step={0.5}
+                            decimalScale={2}
+                            placeholder={`${durationHours.toFixed(2)} h`}
+                            style={{ width: 100 }}
+                          />
+                        ) : (
+                          <Text size="sm">
+                            {hoursAttended ? `${hoursAttended} h` : '-'}
+                          </Text>
                         )}
                       </Table.Td>
                       {attendanceEditing && (

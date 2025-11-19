@@ -35,6 +35,7 @@ import {
   IconChartBar,
   IconHome,
   IconUserHeart,
+  IconClock,
 } from '@tabler/icons-react';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
@@ -66,9 +67,11 @@ export function Sidebar({ opened }: SidebarProps) {
         { icon: IconUsers, label: t('users'), href: `/${locale}/dashboard/admin/users` },
         { icon: IconUser, label: t('students'), href: `/${locale}/dashboard/students` },
         { icon: IconChalkboard, label: t('teachers'), href: `/${locale}/dashboard/teachers` },
+        { icon: IconSchool, label: t('courses'), href: `/${locale}/dashboard/courses` },
         { icon: IconBook, label: t('classes'), href: `/${locale}/dashboard/classes` },
         { icon: IconCalendar, label: t('lessons'), href: `/${locale}/dashboard/lessons` },
         { icon: IconClipboardList, label: t('attendance'), href: `/${locale}/dashboard/attendance` },
+        { icon: IconClock, label: t('hoursPackages'), href: `/${locale}/dashboard/hours-packages` },
         { icon: IconCash, label: t('payments'), href: `/${locale}/dashboard/payments` },
         { icon: IconBell, label: t('notices'), href: `/${locale}/dashboard/notices` },
         { icon: IconMessage, label: 'Communication', href: `/${locale}/dashboard/communication` },
@@ -77,6 +80,7 @@ export function Sidebar({ opened }: SidebarProps) {
         { icon: IconSettings, label: t('settings'), href: `/${locale}/dashboard/admin/settings` },
       ],
       TEACHER: [
+        { icon: IconSchool, label: t('courses'), href: `/${locale}/dashboard/courses` },
         { icon: IconBook, label: t('classes'), href: `/${locale}/dashboard/classes` },
         { icon: IconCalendar, label: t('lessons'), href: `/${locale}/dashboard/lessons` },
         { icon: IconClipboardList, label: t('attendance'), href: `/${locale}/dashboard/attendance` },

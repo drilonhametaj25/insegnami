@@ -132,6 +132,7 @@ model Tenant {
   analyticsSnapshots AnalyticsSnapshot[]
   dashboardWidgets DashboardWidget[]
   notifications Notification[]
+  hoursPackages HoursPackage[]
   
   @@map("tenants")
 }
@@ -234,12 +235,13 @@ model Student {
   updatedAt DateTime @updatedAt
   
   // Relations
-  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user       User          @relation("StudentUser", fields: [userId], references: [id], onDelete: Cascade)
-  parentUser User?         @relation("ParentUser", fields: [parentUserId], references: [id], onDelete: SetNull)
-  classes    StudentClass[]
-  attendance Attendance[]
-  payments   Payment[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user          User           @relation("StudentUser", fields: [userId], references: [id], onDelete: Cascade)
+  parentUser    User?          @relation("ParentUser", fields: [parentUserId], references: [id], onDelete: SetNull)
+  classes       StudentClass[]
+  attendance    Attendance[]
+  payments      Payment[]
+  hoursPackages HoursPackage[]
   
   @@map("students")
 }
@@ -305,8 +307,9 @@ model Course {
   updatedAt DateTime @updatedAt
   
   // Relations
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  classes Class[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  classes       Class[]
+  hoursPackages HoursPackage[]
   
   @@map("courses")
 }
@@ -360,6 +363,37 @@ model StudentClass {
   @@map("student_classes")
 }
 
+// Hours packages purchased by students for courses
+model HoursPackage {
+  id              String   @id @default(cuid())
+  tenantId        String
+  studentId       String
+  courseId        String
+  
+  // Hours tracking
+  totalHours      Decimal  @db.Decimal(10,2) // Total hours purchased
+  remainingHours  Decimal  @db.Decimal(10,2) // Hours still available
+  
+  // Purchase info
+  purchaseDate    DateTime @default(now())
+  expiryDate      DateTime? // Optional expiration
+  price           Decimal? @db.Decimal(10,2)
+  
+  // Status
+  isActive        Boolean  @default(true)
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  @@map("hours_packages")
+}
+
 model Lesson {
   id        String @id @default(cuid())
   tenantId  String
@@ -410,6 +444,9 @@ model Attendance {
   // Timing
   arrivedAt DateTime?
   leftAt    DateTime?
+  
+  // Hours tracking
+  hoursAttended Decimal? @db.Decimal(10,2) // Actual hours attended (for partial attendance)
   
   // Metadata
   createdAt DateTime @default(now())

@@ -74,9 +74,12 @@ Write-Host "🎉 Setup completed successfully!" -ForegroundColor Green
 Write-Host "================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "🌐 Services Running:" -ForegroundColor White
-Write-Host "  • PostgreSQL: localhost:5432" -ForegroundColor Gray
-Write-Host "  • Redis: localhost:6379" -ForegroundColor Gray
-Write-Host "  • MailHog UI: http://localhost:8025" -ForegroundColor Gray
+Write-Host "  • PostgreSQL: localhost:5433 (dedicated to InsegnaMi)" -ForegroundColor Gray
+Write-Host "  • Redis: localhost:6380 (dedicated to InsegnaMi)" -ForegroundColor Gray
+Write-Host "  • MailHog UI: http://localhost:8026" -ForegroundColor Gray
+Write-Host "  • MailHog SMTP: localhost:1026" -ForegroundColor Gray
+Write-Host ""
+Write-Host "💡 No conflicts with other projects (PegasoWorld, etc.)" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "👥 Login Accounts (password: 'password'):" -ForegroundColor White
 Write-Host "  📧 Admin: admin@englishplus.it" -ForegroundColor Cyan
