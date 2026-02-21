@@ -133,28 +133,17 @@ export default function ParentDashboard() {
     resource: lesson,
   }));
 
-  // Mock communications (keeping for backward compatibility)
-  const communications = [
-    {
-      id: '1',
-      from: 'Sarah Johnson',
-      subject: 'Ottimi progressi',
-      message: 'Suo figlio ha fatto grandi progressi questo mese.',
-      date: new Date(2025, 0, 14),
-      type: 'grade',
-      childId: children[0]?.id,
-      read: false,
-    },
-    {
-      id: '2',
-      from: 'Direzione Scuola',
-      subject: 'Riunione genitori',
-      message: 'Vi informiamo che la riunione genitori si terrà il 20 gennaio.',
-      date: new Date(2025, 0, 13),
-      type: 'general',
-      read: true,
-    },
-  ];
+  // Use real notices data from API as communications
+  const communications = (notices || []).map((notice) => ({
+    id: notice.id,
+    from: 'Scuola',
+    subject: notice.title,
+    message: notice.content,
+    date: new Date(notice.publishAt),
+    type: notice.isUrgent ? 'notice' : 'general' as 'notice' | 'grade' | 'attendance' | 'general',
+    childId: undefined,
+    read: false, // Could be tracked with a separate read status table
+  }));
 
   const dashboardStats = [
     {

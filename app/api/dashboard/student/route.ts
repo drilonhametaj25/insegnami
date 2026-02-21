@@ -163,6 +163,90 @@ export async function GET(request: NextRequest) {
       take: 10,
     });
 
+    // Get homework/assignments for this student
+    const classIds = (student as any).StudentClass?.map((sc: any) => sc.class.id) || [];
+    const homework = await prisma.homework.findMany({
+      where: {
+        tenantId: session.user.tenantId,
+        classId: { in: classIds },
+        isPublished: true,
+      },
+      include: {
+        subject: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        class: {
+          select: {
+            id: true,
+            name: true,
+            course: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        submissions: {
+          where: {
+            studentId: student.id,
+          },
+          select: {
+            id: true,
+            submittedAt: true,
+            grade: true,
+            feedback: true,
+          },
+        },
+      },
+      orderBy: {
+        dueDate: 'asc',
+      },
+      take: 20,
+    });
+
+    // Get total lesson counts per class for progress calculation
+    const lessonCounts = await prisma.lesson.groupBy({
+      by: ['classId'],
+      where: {
+        tenantId: session.user.tenantId,
+        classId: { in: classIds },
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    const lessonCountMap = new Map(lessonCounts.map(lc => [lc.classId, lc._count.id]));
+
+    // Get class-wise attendance from actual attendance records
+    const classAttendance = await prisma.attendance.findMany({
+      where: {
+        studentId: student.id,
+        status: 'PRESENT',
+        lesson: {
+          tenantId: session.user.tenantId,
+        },
+      },
+      include: {
+        lesson: {
+          select: {
+            classId: true,
+          },
+        },
+      },
+    });
+
+    const attendedByClass = new Map<string, number>();
+    for (const att of classAttendance) {
+      const classId = att.lesson?.classId;
+      if (classId) {
+        attendedByClass.set(classId, (attendedByClass.get(classId) || 0) + 1);
+      }
+    }
+
     // Build dashboard data
     const dashboardData = {
       student: {
@@ -188,20 +272,29 @@ export async function GET(request: NextRequest) {
         pendingPayments: payments.filter(p => p.status === 'PENDING').length,
       },
 
-      // Classes and courses
-      classes: (student as any).StudentClass?.map((sc: any) => ({
-        id: sc.class.id,
-        name: sc.class.name,
-        description: sc.class.description,
-        schedule: sc.class.schedule,
-        course: sc.class.course,
-        teacher: {
-          id: sc.class.teacher.id,
-          name: `${sc.class.teacher.user.firstName} ${sc.class.teacher.user.lastName}`,
-          email: sc.class.teacher.user.email,
-        },
-        enrolledAt: sc.enrolledAt,
-      })) || [],
+      // Classes and courses with progress
+      classes: (student as any).StudentClass?.map((sc: any) => {
+        const totalLessons = lessonCountMap.get(sc.class.id) || 0;
+        const attendedLessons = attendedByClass.get(sc.class.id) || 0;
+        const progress = totalLessons > 0 ? Math.round((attendedLessons / totalLessons) * 100) : 0;
+
+        return {
+          id: sc.class.id,
+          name: sc.class.name,
+          description: sc.class.description,
+          schedule: sc.class.schedule,
+          course: sc.class.course,
+          teacher: {
+            id: sc.class.teacher.id,
+            name: `${sc.class.teacher.user.firstName} ${sc.class.teacher.user.lastName}`,
+            email: sc.class.teacher.user.email,
+          },
+          enrolledAt: sc.enrolledAt,
+          progress,
+          totalLessons,
+          attendedLessons,
+        };
+      }) || [],
 
       // Upcoming lessons
       upcomingLessons: upcomingLessons.map((lesson: any) => ({
@@ -259,6 +352,29 @@ export async function GET(request: NextRequest) {
         isPinned: notice.isPinned,
         targetRoles: notice.targetRoles,
       })),
+
+      // Homework/Assignments
+      homework: homework.map((hw: any) => {
+        const submission = hw.submissions[0];
+        let status: 'pending' | 'submitted' | 'graded' = 'pending';
+        if (submission) {
+          status = submission.grade !== null ? 'graded' : 'submitted';
+        }
+        return {
+          id: hw.id,
+          title: hw.title,
+          description: hw.description,
+          course: hw.class?.course?.name || hw.subject?.name || 'N/A',
+          subject: hw.subject?.name,
+          className: hw.class?.name,
+          dueDate: hw.dueDate,
+          assignedDate: hw.assignedDate,
+          status,
+          grade: submission?.grade,
+          feedback: submission?.feedback,
+          submittedAt: submission?.submittedAt,
+        };
+      }),
     };
 
     return NextResponse.json({ success: true, data: dashboardData });

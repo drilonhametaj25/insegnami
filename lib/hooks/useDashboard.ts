@@ -34,6 +34,23 @@ interface StudentDashboardData {
       email: string;
     };
     enrolledAt: string;
+    progress: number;
+    totalLessons: number;
+    attendedLessons: number;
+  }>;
+  homework: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    course: string;
+    subject?: string;
+    className?: string;
+    dueDate: string;
+    assignedDate: string;
+    status: 'pending' | 'submitted' | 'graded';
+    grade?: number;
+    feedback?: string;
+    submittedAt?: string;
   }>;
   upcomingLessons: Array<{
     id: string;

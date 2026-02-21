@@ -164,79 +164,96 @@ export default function AdminDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Mock data - replace with actual API calls
-      setStudents([
-        {
-          id: '1',
-          firstName: 'Marco',
-          lastName: 'Rossi',
-          email: 'marco.rossi@email.com',
-          phone: '+39 123 456 7890',
-          status: 'ACTIVE',
-          enrollmentDate: '2024-01-15',
-          lastActivity: '2024-02-01',
-        },
-        {
-          id: '2',
-          firstName: 'Anna',
-          lastName: 'Bianchi',
-          email: 'anna.bianchi@email.com',
-          status: 'ACTIVE',
-          enrollmentDate: '2024-02-01',
-          lastActivity: '2024-02-05',
-        },
+      // Load real data from APIs
+      const [studentsRes, teachersRes, classesRes, paymentsRes] = await Promise.all([
+        fetch('/api/students?limit=100'),
+        fetch('/api/teachers?limit=100'),
+        fetch('/api/classes?limit=100'),
+        fetch('/api/payments?limit=100'),
       ]);
 
-      setTeachers([
-        {
-          id: '1',
-          firstName: 'Sarah',
-          lastName: 'Johnson',
-          email: 'sarah.johnson@school.com',
-          status: 'ACTIVE',
-          hireDate: new Date('2023-09-01'),
-          specializations: 'Inglese, Conversazione',
-        },
-      ]);
+      if (studentsRes.ok) {
+        const data = await studentsRes.json();
+        setStudents(data.students.map((s: any) => ({
+          id: s.id,
+          firstName: s.firstName,
+          lastName: s.lastName,
+          email: s.email,
+          phone: s.phone,
+          status: s.status,
+          enrollmentDate: s.enrollmentDate,
+          dateOfBirth: s.dateOfBirth,
+          address: s.address,
+          parentName: s.parentName,
+          parentPhone: s.parentPhone,
+          parentEmail: s.parentEmail,
+          emergencyContact: s.emergencyContact,
+          medicalInfo: s.medicalNotes,
+          notes: s.specialNeeds,
+        })));
+      }
 
-      setClasses([
-        {
-          id: '1',
-          name: 'Inglese A1 - Principianti',
-          level: 'BEGINNER',
-          maxStudents: 15,
-          currentStudents: 12,
-          teacher: 'Sarah Johnson',
-          schedule: ['monday', 'wednesday', 'friday'],
+      if (teachersRes.ok) {
+        const data = await teachersRes.json();
+        setTeachers(data.teachers.map((t: any) => ({
+          id: t.id,
+          firstName: t.firstName,
+          lastName: t.lastName,
+          email: t.email,
+          phone: t.phone,
+          address: t.address,
+          teacherCode: t.teacherCode,
+          hireDate: new Date(t.hireDate),
+          status: t.status,
+          qualifications: t.qualifications,
+          specializations: t.specializations,
+          biography: t.biography,
+          hourlyRate: t.hourlyRate,
+          contractType: t.contractType,
+        })));
+      }
+
+      if (classesRes.ok) {
+        const data = await classesRes.json();
+        setClasses(data.classes.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          description: c.course?.description,
+          level: c.course?.level || 'BEGINNER',
+          maxStudents: c.maxStudents,
+          currentStudents: c._count?.students || 0,
+          room: null,
+          schedule: [],
+          startTime: c.startDate,
+          endTime: c.endDate,
           duration: 90,
-          isActive: true,
-        },
-      ]);
+          price: c.course?.price,
+          isActive: c.isActive,
+          teacherIds: c.teacher ? [c.teacher.id] : [],
+          teacher: c.teacher ? `${c.teacher.firstName} ${c.teacher.lastName}` : '',
+        })));
+      }
 
-      setPayments([
-        {
-          id: '1',
-          studentId: '1',
-          student: 'Marco Rossi',
-          amount: 120,
-          paymentMethod: 'CASH',
-          status: 'PAID',
-          dueDate: new Date('2024-02-01'),
-          paidDate: new Date('2024-01-30'),
-          period: 'Febbraio 2024',
-        },
-        {
-          id: '2',
-          studentId: '2',
-          student: 'Anna Bianchi',
-          amount: 120,
-          paymentMethod: 'BANK_TRANSFER',
-          status: 'PENDING',
-          dueDate: new Date('2024-02-01'),
-          period: 'Febbraio 2024',
-        },
-      ]);
+      if (paymentsRes.ok) {
+        const data = await paymentsRes.json();
+        setPayments(data.payments.map((p: any) => ({
+          id: p.id,
+          studentId: p.studentId,
+          student: p.student ? `${p.student.firstName} ${p.student.lastName}` : '',
+          amount: typeof p.amount === 'object' ? parseFloat(p.amount.toString()) : p.amount,
+          paymentMethod: p.paymentMethod || 'OTHER',
+          status: p.status,
+          dueDate: new Date(p.dueDate),
+          paidDate: p.paidDate ? new Date(p.paidDate) : undefined,
+          description: p.description,
+          notes: p.notes,
+          invoiceNumber: p.invoiceNumber,
+          reference: p.reference,
+          period: p.description || '',
+        })));
+      }
     } catch (error) {
+      console.error('Error loading data:', error);
       notifications.show({
         title: 'Errore',
         message: 'Errore nel caricamento dei dati',

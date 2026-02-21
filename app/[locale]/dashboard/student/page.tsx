@@ -95,26 +95,17 @@ export default function StudentDashboard() {
   }
 
   const dashboardData = dashboardResponse.data;
-  const { student, stats, classes, upcomingLessons, recentAttendance, payments, notices } = dashboardData;
+  const { student, stats, classes, upcomingLessons, recentAttendance, payments, notices, homework } = dashboardData;
 
-  // Mock assignments data (keeping for assignments tab - in real app would come from API)
-  const assignments = [
-    {
-      id: '1',
-      title: 'Homework 1',
-      course: classes[0]?.course?.name || 'Course 1',
-      dueDate: new Date(2025, 1, 18),
-      status: 'pending',
-    },
-    {
-      id: '2', 
-      title: 'Assignment 2',
-      course: classes[0]?.course?.name || 'Course 1',
-      dueDate: new Date(2025, 1, 12),
-      status: 'graded',
-      grade: 8.5,
-    },
-  ];
+  // Use real homework data from API
+  const assignments = (homework || []).map((hw) => ({
+    id: hw.id,
+    title: hw.title,
+    course: hw.course,
+    dueDate: new Date(hw.dueDate),
+    status: hw.status,
+    grade: hw.grade,
+  }));
 
   const dashboardStats = [
     {
@@ -332,10 +323,10 @@ export default function StudentDashboard() {
               ) : (
                 <Grid>
                   {classes.map((classItem) => {
-                    // Mock progress calculation
-                    const progress = Math.floor(Math.random() * 100);
-                    const totalLessons = 24;
-                    const attendedLessons = Math.floor((progress / 100) * totalLessons);
+                    // Use real progress data from API
+                    const progress = classItem.progress || 0;
+                    const totalLessons = classItem.totalLessons || 0;
+                    const attendedLessons = classItem.attendedLessons || 0;
 
                     return (
                       <Grid.Col span={{ base: 12, md: 6 }} key={classItem.id}>
@@ -349,19 +340,19 @@ export default function StudentDashboard() {
                                 </Badge>
                               </div>
                             </Group>
-                            
+
                             <Text size="sm" c="dimmed">
                               Descrizione: {classItem.description || 'Nessuna descrizione disponibile'}
                             </Text>
-                            
+
                             <Text size="sm" c="dimmed">
                               Corso: {classItem.course?.name || 'N/A'}
                             </Text>
-                            
+
                             <Text size="sm" c="dimmed">
                               Insegnante: {classItem.teacher.name}
                             </Text>
-                            
+
                             <div>
                               <Group justify="space-between" mb="xs">
                                 <Text size="sm">Progresso</Text>
@@ -369,13 +360,13 @@ export default function StudentDashboard() {
                               </Group>
                               <Progress value={progress} color="blue" />
                             </div>
-                            
+
                             <Group justify="space-between">
                               <Text size="sm" c="dimmed">
                                 Lezioni: {attendedLessons}/{totalLessons}
                               </Text>
                             </Group>
-                            
+
                             <Button variant="light" fullWidth>
                               Dettagli Corso
                             </Button>

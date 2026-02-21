@@ -57,9 +57,6 @@ export function ClassForm({
 }: ClassFormProps) {
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  // DEBUG: Log props on every render
-  console.log('[ClassForm] Render - teachers:', teachers, 'courses:', courses);
-
   const form = useForm<Class>({
     initialValues: {
       name: classData?.name || '',
@@ -141,30 +138,24 @@ export function ClassForm({
     { value: 'sunday', label: 'Domenica' },
   ];
 
-  // CACHE BUSTER v3 - Force rebuild - ensure teachers is always an array
-  const teacherOptions = Array.isArray(teachers) 
+  const teacherOptions = Array.isArray(teachers)
     ? teachers.map((teacher) => ({
         value: teacher.id || '',
         label: teacher.name || 'Senza nome',
       }))
     : [];
 
-  // CACHE BUSTER v3 - Force rebuild - ensure courses is always an array
-  console.log('ClassForm v3: courses =', courses, 'type =', typeof courses);
-  const courseOptions = Array.isArray(courses) 
+  const courseOptions = Array.isArray(courses)
     ? courses.map((course) => ({
         value: course.id || '',
         label: course.name || 'Senza nome',
       }))
     : [];
 
-  console.log('ClassForm v3: courseOptions =', courseOptions);
-
-  // CACHE BUSTER v3 - Ensure levelLabels is defined
-  const levelOptions = levelLabels ? Object.entries(levelLabels).map(([value, label]) => ({
+  const levelOptions = Object.entries(levelLabels).map(([value, label]) => ({
     value,
     label,
-  })) : [];
+  }));
 
   return (
     <Modal
