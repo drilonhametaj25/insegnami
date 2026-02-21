@@ -7,7 +7,7 @@ import { existsSync } from 'fs';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getAuth();
@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
 
-    const lessonId = params.id;
+    const { id: lessonId } = await params;
 
     // Verify lesson access
     const lesson = await prisma.lesson.findUnique({
@@ -46,7 +46,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getAuth();
@@ -63,7 +63,7 @@ export async function POST(
       return NextResponse.json({ error: 'Permessi insufficienti' }, { status: 403 });
     }
 
-    const lessonId = params.id;
+    const { id: lessonId } = await params;
 
     // Verify lesson exists and user has access
     const lesson = await prisma.lesson.findUnique({
@@ -134,7 +134,7 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getAuth();
@@ -158,7 +158,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'ID materiale richiesto' }, { status: 400 });
     }
 
-    const lessonId = params.id;
+    const { id: lessonId } = await params;
 
     // TODO: Verify material belongs to this lesson and tenant
     // Requires Material model in schema

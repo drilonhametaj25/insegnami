@@ -36,6 +36,13 @@ import {
   IconHome,
   IconUserHeart,
   IconClock,
+  IconBooks,
+  IconCalendarTime,
+  IconWriting,
+  IconAlertTriangle,
+  IconNotebook,
+  IconFileDescription,
+  IconCalendarEvent,
 } from '@tabler/icons-react';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
@@ -69,6 +76,13 @@ export function Sidebar({ opened }: SidebarProps) {
         { icon: IconChalkboard, label: t('teachers'), href: `/${locale}/dashboard/teachers` },
         { icon: IconSchool, label: t('courses'), href: `/${locale}/dashboard/courses` },
         { icon: IconBook, label: t('classes'), href: `/${locale}/dashboard/classes` },
+        { icon: IconBooks, label: t('subjects'), href: `/${locale}/dashboard/subjects` },
+        { icon: IconCalendarTime, label: t('academicYears'), href: `/${locale}/dashboard/academic-years` },
+        { icon: IconWriting, label: t('grades'), href: `/${locale}/dashboard/grades` },
+        { icon: IconFileDescription, label: t('reportCards'), href: `/${locale}/dashboard/report-cards` },
+        { icon: IconAlertTriangle, label: t('disciplinary'), href: `/${locale}/dashboard/disciplinary` },
+        { icon: IconNotebook, label: t('homework'), href: `/${locale}/dashboard/homework` },
+        { icon: IconCalendarEvent, label: t('meetings'), href: `/${locale}/dashboard/meetings` },
         { icon: IconCalendar, label: t('lessons'), href: `/${locale}/dashboard/lessons` },
         { icon: IconClipboardList, label: t('attendance'), href: `/${locale}/dashboard/attendance` },
         { icon: IconClock, label: t('hoursPackages'), href: `/${locale}/dashboard/hours-packages` },
@@ -82,6 +96,11 @@ export function Sidebar({ opened }: SidebarProps) {
       TEACHER: [
         { icon: IconSchool, label: t('courses'), href: `/${locale}/dashboard/courses` },
         { icon: IconBook, label: t('classes'), href: `/${locale}/dashboard/classes` },
+        { icon: IconWriting, label: t('grades'), href: `/${locale}/dashboard/grades` },
+        { icon: IconFileDescription, label: t('reportCards'), href: `/${locale}/dashboard/report-cards` },
+        { icon: IconAlertTriangle, label: t('disciplinary'), href: `/${locale}/dashboard/disciplinary` },
+        { icon: IconNotebook, label: t('homework'), href: `/${locale}/dashboard/homework` },
+        { icon: IconCalendarEvent, label: t('meetings'), href: `/${locale}/dashboard/meetings` },
         { icon: IconCalendar, label: t('lessons'), href: `/${locale}/dashboard/lessons` },
         { icon: IconClipboardList, label: t('attendance'), href: `/${locale}/dashboard/attendance` },
         { icon: IconBell, label: t('notices'), href: `/${locale}/dashboard/notices` },
@@ -98,6 +117,7 @@ export function Sidebar({ opened }: SidebarProps) {
       PARENT: [
         { icon: IconUserHeart, label: 'My Children', href: `/${locale}/dashboard/students` },
         { icon: IconClipboardList, label: t('attendance'), href: `/${locale}/dashboard/attendance` },
+        { icon: IconCalendarEvent, label: t('meetings'), href: `/${locale}/dashboard/meetings` },
         { icon: IconCash, label: t('payments'), href: `/${locale}/dashboard/payments` },
         { icon: IconBell, label: t('notices'), href: `/${locale}/dashboard/notices` },
         { icon: IconUserCircle, label: 'Profile', href: `/${locale}/dashboard/parent` },
