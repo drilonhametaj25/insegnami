@@ -93,6 +93,61 @@ enum NotificationType {
   CALENDAR
   ANNOUNCEMENT
   REMINDER
+  GRADE           // New: for grade notifications
+  DISCIPLINARY    // New: for disciplinary notes
+  HOMEWORK        // New: for homework notifications
+  REPORT_CARD     // New: for report card notifications
+  MEETING         // New: for parent meeting notifications
+}
+
+// ========================================
+// NUOVI ENUM PER REGISTRO ELETTRONICO
+// ========================================
+
+enum GradeType {
+  ORAL        // Interrogazione
+  WRITTEN     // Compito in classe / Verifica
+  PRACTICAL   // Laboratorio / Pratica
+  HOMEWORK    // Compiti a casa
+  PROJECT     // Progetto
+  TEST        // Test rapido
+  BEHAVIOR    // Voto di condotta (se numerico)
+}
+
+enum ReportCardStatus {
+  DRAFT       // Bozza
+  IN_REVIEW   // Allo scrutinio
+  APPROVED    // Approvata dal consiglio
+  PUBLISHED   // Visibile a studente/genitore
+  ARCHIVED    // Archiviata
+}
+
+enum DisciplinaryType {
+  NOTE        // Nota sul registro
+  WARNING     // Ammonizione
+  SUSPENSION  // Sospensione
+  POSITIVE    // Nota positiva/merito
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum PeriodType {
+  TRIMESTRE
+  QUADRIMESTRE
+  SEMESTRE
+  PENTAMESTRE
+}
+
+enum MeetingStatus {
+  REQUESTED   // Richiesto dal genitore
+  CONFIRMED   // Confermato dal docente
+  CANCELLED   // Cancellato
+  COMPLETED   // Completato
 }
 
 // Core Models
@@ -133,7 +188,17 @@ model Tenant {
   dashboardWidgets DashboardWidget[]
   notifications Notification[]
   hoursPackages HoursPackage[]
-  
+
+  // New: School Core Relations
+  subjects          Subject[]
+  academicYears     AcademicYear[]
+  grades            Grade[]
+  reportCards       ReportCard[]
+  disciplinaryNotes DisciplinaryNote[]
+  homework          Homework[]
+  parentMeetings    ParentMeeting[]
+  auditLogs         AuditLog[]
+
   @@map("tenants")
 }
 
@@ -242,7 +307,14 @@ model Student {
   attendance    Attendance[]
   payments      Payment[]
   hoursPackages HoursPackage[]
-  
+
+  // New: School Core Relations
+  grades              Grade[]
+  reportCards         ReportCard[]
+  disciplinaryNotes   DisciplinaryNote[]
+  homeworkSubmissions HomeworkSubmission[]
+  parentMeetings      ParentMeeting[]
+
   @@map("students")
 }
 
@@ -279,7 +351,15 @@ model Teacher {
   tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   classes Class[]
   lessons Lesson[]
-  
+
+  // New: School Core Relations
+  subjects          TeacherSubject[]
+  classSubjects     ClassSubject[]
+  grades            Grade[]
+  disciplinaryNotes DisciplinaryNote[]
+  homework          Homework[]
+  parentMeetings    ParentMeeting[]
+
   @@map("teachers")
 }
 
@@ -342,7 +422,14 @@ model Class {
   students StudentClass[]
   lessons  Lesson[]
   payments Payment[]
-  
+
+  // New: School Core Relations
+  classSubjects     ClassSubject[]
+  grades            Grade[]
+  reportCards       ReportCard[]
+  disciplinaryNotes DisciplinaryNote[]
+  homework          Homework[]
+
   @@map("classes")
 }
 
@@ -429,7 +516,10 @@ model Lesson {
   class      Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
   teacher    Teacher      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
   attendance Attendance[]
-  
+
+  // New: School Core Relations
+  homeworkAssignments Homework[]
+
   @@map("lessons")
 }
 
@@ -925,4 +1015,395 @@ model NotificationPreferences {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("notification_preferences")
+}
+
+// ========================================
+// ANNO SCOLASTICO
+// ========================================
+
+model AcademicYear {
+  id        String   @id @default(cuid())
+  tenantId  String
+
+  name      String   // "2024/2025"
+  startDate DateTime
+  endDate   DateTime
+  isCurrent Boolean  @default(false)
+
+  // Trimestri/Quadrimestri
+  periods   AcademicPeriod[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@map("academic_years")
+}
+
+model AcademicPeriod {
+  id              String   @id @default(cuid())
+  academicYearId  String
+
+  name            String   // "1° Quadrimestre", "2° Quadrimestre"
+  type            PeriodType @default(QUADRIMESTRE)
+  startDate       DateTime
+  endDate         DateTime
+  orderIndex      Int      @default(0)
+
+  grades          Grade[]
+  reportCards     ReportCard[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  academicYear    AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@map("academic_periods")
+}
+
+// ========================================
+// MATERIE
+// ========================================
+
+model Subject {
+  id        String   @id @default(cuid())
+  tenantId  String
+
+  name      String   // "Matematica", "Italiano"
+  code      String   // "MAT", "ITA"
+  color     String?  @default("#3b82f6")
+  icon      String?
+
+  // Ore settimanali previste (utile per orario)
+  weeklyHours Int?
+
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teachers         TeacherSubject[]
+  grades           Grade[]
+  homework         Homework[]
+  classSubjects    ClassSubject[]
+  reportCardEntries ReportCardEntry[]
+
+  @@unique([tenantId, code])
+  @@map("subjects")
+}
+
+model TeacherSubject {
+  id        String @id @default(cuid())
+  teacherId String
+  subjectId String
+
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, subjectId])
+  @@map("teacher_subjects")
+}
+
+model ClassSubject {
+  id        String @id @default(cuid())
+  classId   String
+  subjectId String
+  teacherId String // Il docente che insegna questa materia in questa classe
+
+  weeklyHours Int @default(1)
+
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+
+  @@unique([classId, subjectId])
+  @@map("class_subjects")
+}
+
+// ========================================
+// VOTI / VALUTAZIONI
+// ========================================
+
+model Grade {
+  id          String    @id @default(cuid())
+  tenantId    String
+  studentId   String
+  subjectId   String
+  teacherId   String
+  classId     String
+  periodId    String?   // Collegato al periodo accademico
+
+  // Voto
+  value       Decimal   @db.Decimal(4,2) // 6.50, 7.00, ecc.
+  valueText   String?   // "Sufficiente", "Buono" (per scuola primaria)
+  weight      Decimal   @default(1.0) @db.Decimal(3,1) // Peso del voto
+
+  // Tipo
+  type        GradeType @default(WRITTEN)
+
+  // Dettagli
+  description String?   // "Verifica equazioni 2° grado"
+  date        DateTime
+
+  // Visibilità
+  isVisible   Boolean   @default(true) // Visibile a studente/genitore
+
+  notes       String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher     Teacher   @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  class       Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  period      AcademicPeriod? @relation(fields: [periodId], references: [id])
+
+  @@index([studentId, subjectId])
+  @@index([classId, subjectId])
+  @@index([tenantId, date])
+  @@map("grades")
+}
+
+// ========================================
+// PAGELLE / REPORT CARD
+// ========================================
+
+model ReportCard {
+  id          String   @id @default(cuid())
+  tenantId    String
+  studentId   String
+  classId     String
+  periodId    String
+
+  // Stato
+  status      ReportCardStatus @default(DRAFT)
+
+  // Voti finali per materia
+  entries     ReportCardEntry[]
+
+  // Giudizio globale
+  overallComment String?
+  behaviorGrade  String? // Voto condotta
+
+  // Firme
+  approvedBy     String? // ID del dirigente/coordinatore
+  approvedAt     DateTime?
+
+  // PDF generato
+  pdfUrl         String?
+  generatedAt    DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student     Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class       Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  period      AcademicPeriod @relation(fields: [periodId], references: [id])
+
+  @@unique([studentId, classId, periodId])
+  @@map("report_cards")
+}
+
+model ReportCardEntry {
+  id            String @id @default(cuid())
+  reportCardId  String
+  subjectId     String
+
+  // Voto finale
+  finalGrade    Decimal @db.Decimal(4,2)
+  finalGradeText String? // Per primaria
+
+  // Medie calcolate (snapshot)
+  averageOral      Decimal? @db.Decimal(4,2)
+  averageWritten   Decimal? @db.Decimal(4,2)
+  averagePractical Decimal? @db.Decimal(4,2)
+  overallAverage   Decimal? @db.Decimal(4,2)
+
+  // Giudizio docente
+  teacherComment  String?
+
+  // Assenze per materia
+  absenceCount    Int @default(0)
+
+  reportCard      ReportCard @relation(fields: [reportCardId], references: [id], onDelete: Cascade)
+  subject         Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  @@unique([reportCardId, subjectId])
+  @@map("report_card_entries")
+}
+
+// ========================================
+// NOTE DISCIPLINARI
+// ========================================
+
+model DisciplinaryNote {
+  id          String   @id @default(cuid())
+  tenantId    String
+  studentId   String
+  teacherId   String
+  classId     String
+
+  type        DisciplinaryType @default(NOTE)
+  severity    Severity         @default(MEDIUM)
+
+  title       String
+  description String
+  date        DateTime
+
+  // Notifica genitore
+  parentNotified    Boolean  @default(false)
+  parentNotifiedAt  DateTime?
+
+  // Risoluzione
+  resolved      Boolean  @default(false)
+  resolvedAt    DateTime?
+  resolvedBy    String?
+  resolution    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, studentId])
+  @@index([tenantId, date])
+  @@map("disciplinary_notes")
+}
+
+// ========================================
+// COMPITI A CASA
+// ========================================
+
+model Homework {
+  id          String   @id @default(cuid())
+  tenantId    String
+  classId     String
+  subjectId   String
+  teacherId   String
+  lessonId    String?  // Opzionale: collegato a lezione
+
+  title       String
+  description String
+
+  assignedDate DateTime
+  dueDate      DateTime
+
+  // Attachments (URL o riferimenti file)
+  attachments  Json?   @default("[]")
+
+  // Stato
+  isPublished Boolean @default(true)
+
+  // Submissions degli studenti
+  submissions HomeworkSubmission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  lesson    Lesson? @relation(fields: [lessonId], references: [id])
+
+  @@index([tenantId, classId])
+  @@index([tenantId, dueDate])
+  @@map("homework")
+}
+
+model HomeworkSubmission {
+  id          String   @id @default(cuid())
+  homeworkId  String
+  studentId   String
+
+  content     String?
+  attachments Json?    @default("[]")
+
+  submittedAt DateTime @default(now())
+
+  // Valutazione docente
+  grade       Decimal? @db.Decimal(4,2)
+  feedback    String?
+  gradedAt    DateTime?
+
+  homework    Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([homeworkId, studentId])
+  @@map("homework_submissions")
+}
+
+// ========================================
+// COLLOQUI GENITORI
+// ========================================
+
+model ParentMeeting {
+  id          String   @id @default(cuid())
+  tenantId    String
+  teacherId   String
+  parentId    String   // User ID del genitore
+  studentId   String
+
+  // Scheduling
+  date        DateTime
+  duration    Int      @default(15) // minuti
+  room        String?
+
+  // Stato
+  status      MeetingStatus @default(REQUESTED)
+
+  // Note
+  teacherNotes String?
+  parentNotes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, teacherId])
+  @@index([tenantId, date])
+  @@map("parent_meetings")
+}
+
+// ========================================
+// AUDIT LOG
+// ========================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+
+  action    String   // "CREATE", "UPDATE", "DELETE", "STATE_CHANGE"
+  entity    String   // "Student", "Grade", "Attendance"
+  entityId  String
+
+  // Dati prima/dopo (JSON)
+  oldData   Json?
+  newData   Json?
+
+  // Metadata
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, entity, entityId])
+  @@index([tenantId, userId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

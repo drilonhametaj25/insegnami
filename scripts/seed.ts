@@ -1,4 +1,4 @@
-import { PrismaClient, Role, UserStatus, NoticeType } from '@prisma/client';
+import { PrismaClient, Role, UserStatus, NoticeType, PeriodType, GradeType, DisciplinaryType, Severity } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -664,6 +664,266 @@ async function main() {
   console.log('✅ Created payment records with realistic status distribution');
   console.log('✅ Created additional notices for different user types');
 
+  // ========================================
+  // 📚 SCHOOL CORE DATA - Materie italiane
+  // ========================================
+  console.log('Creating subjects (materie italiane)...');
+
+  const subjectsData = [
+    { name: 'Italiano', code: 'ITA', color: '#3b82f6', weeklyHours: 6 },
+    { name: 'Matematica', code: 'MAT', color: '#ef4444', weeklyHours: 5 },
+    { name: 'Storia', code: 'STO', color: '#f59e0b', weeklyHours: 2 },
+    { name: 'Geografia', code: 'GEO', color: '#10b981', weeklyHours: 2 },
+    { name: 'Scienze', code: 'SCI', color: '#8b5cf6', weeklyHours: 2 },
+    { name: 'Inglese', code: 'ING', color: '#ec4899', weeklyHours: 3 },
+    { name: 'Arte e Immagine', code: 'ART', color: '#06b6d4', weeklyHours: 2 },
+    { name: 'Musica', code: 'MUS', color: '#84cc16', weeklyHours: 2 },
+    { name: 'Educazione Fisica', code: 'EDF', color: '#f97316', weeklyHours: 2 },
+    { name: 'Tecnologia', code: 'TEC', color: '#6366f1', weeklyHours: 2 },
+    { name: 'Religione/Alternativa', code: 'REL', color: '#78716c', weeklyHours: 1 },
+  ];
+
+  const subjects: any[] = [];
+  for (const subjectData of subjectsData) {
+    const subject = await prisma.subject.upsert({
+      where: {
+        tenantId_code: {
+          tenantId: tenant.id,
+          code: subjectData.code,
+        },
+      },
+      update: {},
+      create: {
+        ...subjectData,
+        tenantId: tenant.id,
+        isActive: true,
+      },
+    });
+    subjects.push(subject);
+  }
+  console.log('✅ Created 11 Italian subjects');
+
+  // ========================================
+  // 📅 ACADEMIC YEAR - Anno Scolastico
+  // ========================================
+  console.log('Creating academic year 2024/2025...');
+
+  const academicYear = await prisma.academicYear.upsert({
+    where: {
+      tenantId_name: {
+        tenantId: tenant.id,
+        name: '2024/2025',
+      },
+    },
+    update: {},
+    create: {
+      name: '2024/2025',
+      startDate: new Date('2024-09-11'),
+      endDate: new Date('2025-06-07'),
+      isCurrent: true,
+      tenantId: tenant.id,
+    },
+  });
+
+  // Create periods (quadrimestri)
+  const period1 = await prisma.academicPeriod.create({
+    data: {
+      name: '1° Quadrimestre',
+      type: PeriodType.QUADRIMESTRE,
+      startDate: new Date('2024-09-11'),
+      endDate: new Date('2025-01-31'),
+      orderIndex: 1,
+      academicYearId: academicYear.id,
+    },
+  });
+
+  const period2 = await prisma.academicPeriod.create({
+    data: {
+      name: '2° Quadrimestre',
+      type: PeriodType.QUADRIMESTRE,
+      startDate: new Date('2025-02-01'),
+      endDate: new Date('2025-06-07'),
+      orderIndex: 2,
+      academicYearId: academicYear.id,
+    },
+  });
+
+  console.log('✅ Created academic year 2024/2025 with 2 quadrimesters');
+
+  // ========================================
+  // 📝 SAMPLE GRADES - Voti di esempio
+  // ========================================
+  console.log('Creating sample grades...');
+
+  // Assign subjects to teacher
+  await prisma.teacherSubject.upsert({
+    where: {
+      teacherId_subjectId: {
+        teacherId: teacher.id,
+        subjectId: subjects[5].id, // Inglese
+      },
+    },
+    update: {},
+    create: {
+      teacherId: teacher.id,
+      subjectId: subjects[5].id,
+    },
+  });
+
+  // Create sample grades for the first student
+  const gradeTypes = [GradeType.WRITTEN, GradeType.ORAL, GradeType.PRACTICAL];
+  const gradeDescriptions = [
+    'Verifica di grammatica',
+    'Interrogazione orale',
+    'Esercizio pratico in classe',
+    'Compito in classe',
+    'Presentazione orale',
+  ];
+
+  for (let i = 0; i < 5; i++) {
+    const gradeValue = 5 + Math.random() * 5; // Random grade between 5 and 10
+    await prisma.grade.create({
+      data: {
+        tenantId: tenant.id,
+        studentId: student.id,
+        subjectId: subjects[5].id, // Inglese
+        teacherId: teacher.id,
+        classId: classRecord.id,
+        periodId: period1.id,
+        value: Math.round(gradeValue * 2) / 2, // Round to nearest 0.5
+        type: gradeTypes[i % 3],
+        description: gradeDescriptions[i],
+        date: new Date(Date.now() - (i * 7 * 24 * 60 * 60 * 1000)), // Each grade 1 week apart
+        weight: gradeTypes[i % 3] === GradeType.ORAL ? 0.8 : 1.0,
+        isVisible: true,
+      },
+    });
+  }
+
+  // Create grades for other students too
+  for (const studentRecord of students.slice(0, 3)) {
+    for (let i = 0; i < 3; i++) {
+      const gradeValue = 5 + Math.random() * 5;
+      await prisma.grade.create({
+        data: {
+          tenantId: tenant.id,
+          studentId: studentRecord.id,
+          subjectId: subjects[5].id,
+          teacherId: teacher.id,
+          classId: classRecord.id,
+          periodId: period1.id,
+          value: Math.round(gradeValue * 2) / 2,
+          type: gradeTypes[i % 3],
+          description: gradeDescriptions[i],
+          date: new Date(Date.now() - (i * 7 * 24 * 60 * 60 * 1000)),
+          weight: 1.0,
+          isVisible: true,
+        },
+      });
+    }
+  }
+
+  console.log('✅ Created sample grades for students');
+
+  // ========================================
+  // 📋 SAMPLE DISCIPLINARY NOTES
+  // ========================================
+  console.log('Creating sample disciplinary notes...');
+
+  await prisma.disciplinaryNote.create({
+    data: {
+      tenantId: tenant.id,
+      studentId: students[0].id,
+      teacherId: teacher.id,
+      classId: classRecord.id,
+      type: DisciplinaryType.NOTE,
+      severity: Severity.LOW,
+      title: 'Ritardo in classe',
+      description: 'Lo studente è arrivato con 15 minuti di ritardo alla lezione.',
+      date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      parentNotified: true,
+      parentNotifiedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+      resolved: true,
+      resolvedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      resolution: 'Discusso con lo studente e il genitore',
+    },
+  });
+
+  await prisma.disciplinaryNote.create({
+    data: {
+      tenantId: tenant.id,
+      studentId: students[1].id,
+      teacherId: teacher.id,
+      classId: classRecord.id,
+      type: DisciplinaryType.POSITIVE,
+      severity: Severity.LOW,
+      title: 'Eccellente partecipazione',
+      description: 'Lo studente ha mostrato un eccellente impegno durante la lezione e ha aiutato i compagni.',
+      date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      parentNotified: true,
+      parentNotifiedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  console.log('✅ Created sample disciplinary notes');
+
+  // ========================================
+  // 📖 SAMPLE HOMEWORK
+  // ========================================
+  console.log('Creating sample homework...');
+
+  const homework1 = await prisma.homework.create({
+    data: {
+      tenantId: tenant.id,
+      classId: classRecord.id,
+      subjectId: subjects[5].id, // Inglese
+      teacherId: teacher.id,
+      title: 'Reading Comprehension Exercise',
+      description: 'Complete the reading comprehension exercise on pages 45-48 of the textbook. Answer all questions in full sentences.',
+      assignedDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      isPublished: true,
+    },
+  });
+
+  const homework2 = await prisma.homework.create({
+    data: {
+      tenantId: tenant.id,
+      classId: classRecord.id,
+      subjectId: subjects[5].id,
+      teacherId: teacher.id,
+      title: 'Vocabulary Practice',
+      description: 'Learn the vocabulary from Unit 5 and write 10 sentences using the new words.',
+      assignedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      dueDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
+      isPublished: true,
+    },
+  });
+
+  // Create some homework submissions
+  await prisma.homeworkSubmission.create({
+    data: {
+      homeworkId: homework1.id,
+      studentId: student.id,
+      content: 'Completed all exercises. Answers attached.',
+      submittedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      grade: 8.5,
+      feedback: 'Good work! Some minor grammar mistakes.',
+      gradedAt: new Date(),
+    },
+  });
+
+  await prisma.homeworkSubmission.create({
+    data: {
+      homeworkId: homework1.id,
+      studentId: students[0].id,
+      content: 'All questions answered.',
+      submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  console.log('✅ Created sample homework and submissions');
+
   // 📢 Create sample notifications
   console.log('Creating sample notifications...');
   
@@ -781,6 +1041,11 @@ async function main() {
   console.log('  - Multiple lessons with attendance tracking');
   console.log('  - Payment records with various statuses');
   console.log('  - Notices for different user roles');
+  console.log('  - 11 Italian subjects (Italiano, Matematica, Storia, etc.)');
+  console.log('  - Academic year 2024/2025 with 2 quadrimesters');
+  console.log('  - Sample grades for students');
+  console.log('  - Disciplinary notes (positive and negative)');
+  console.log('  - Homework with submissions');
   console.log('');
   console.log('🌐 You can now start the application and log in with any of these accounts.');
 }
