@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { checkClassLimit } from '@/lib/plan-limits';
 
 // GET /api/classes - Get classes
 export async function GET(request: NextRequest) {
@@ -248,6 +249,22 @@ export async function POST(request: NextRequest) {
     // Only ADMIN can create classes
     if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Check plan limits (skip for SUPERADMIN)
+    if (session.user.role !== 'SUPERADMIN') {
+      const limitCheck = await checkClassLimit(session.user.tenantId);
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          {
+            error: limitCheck.message,
+            limitReached: true,
+            current: limitCheck.current,
+            limit: limitCheck.limit,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const body = await request.json();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { EmailNotificationService } from '@/lib/email-queue';
 
 export async function POST(
   request: NextRequest,
@@ -103,23 +104,42 @@ export async function POST(
       });
     }
 
-    // TODO: Queue message for actual delivery
-    // - Add to email queue if sendEmail is true
-    // - Add to SMS queue if sendSms is true
-    // - Send push notification if sendPush is true
-    
-    // Example of what you'd do with BullMQ:
-    /*
-    if (message.sendEmail) {
-      await emailQueue.add('sendMessage', {
-        messageId: id,
-        recipients: message.recipients.map(r => r.user.email),
-        subject: message.emailSubject,
-        content: message.content,
-        template: message.emailTemplate,
-      });
+    // Queue message for actual delivery
+    if (message.sendEmail && message.recipients.length > 0) {
+      try {
+        // Send email to all recipients
+        const recipientEmails = message.recipients
+          .map(r => r.user.email)
+          .filter((email): email is string => !!email);
+
+        if (recipientEmails.length > 0) {
+          await EmailNotificationService.sendGenericEmail({
+            to: recipientEmails,
+            subject: message.emailSubject || message.title || 'Messaggio da InsegnaMi.pro',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #3b82f6;">${message.title || 'Messaggio'}</h2>
+                <div style="margin: 20px 0; line-height: 1.6;">
+                  ${message.content.replace(/\n/g, '<br>')}
+                </div>
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+                <p style="color: #6b7280; font-size: 12px;">
+                  Questo messaggio è stato inviato tramite InsegnaMi.pro
+                </p>
+              </div>
+            `,
+            text: message.content,
+          });
+        }
+      } catch (emailError) {
+        console.error('Error queueing email:', emailError);
+        // Don't fail the entire request, just log the error
+      }
     }
-    */
+
+    // TODO: Implement SMS and Push notifications when services are available
+    // if (message.sendSms) { ... }
+    // if (message.sendPush) { ... }
 
     return NextResponse.json(updatedMessage);
   } catch (error) {

@@ -1,9 +1,11 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Container, Title, Grid, Space, Group, Text, Badge, LoadingOverlay, Skeleton } from '@mantine/core';
 import { IconDashboard } from '@tabler/icons-react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import DashboardStats from '@/components/cards/DashboardStats';
 import { LessonCalendar } from '@/components/calendar/LessonCalendar';
 import RecentActivity from '@/components/tables/RecentActivity';
@@ -17,6 +19,39 @@ import { useNotices } from '@/lib/hooks/useNotices';
 export default function DashboardPage() {
   const { data: session } = useSession();
   const t = useTranslations('dashboard');
+  const locale = useLocale();
+  const router = useRouter();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+
+  // Check onboarding status for admin roles
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      if (!session?.user?.id) return;
+
+      // Only check for admin roles
+      const adminRoles = ['ADMIN', 'SUPERADMIN', 'DIRECTOR', 'SECRETARY'];
+      if (!adminRoles.includes(session.user.role)) {
+        setOnboardingChecked(true);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/onboarding');
+        if (response.ok) {
+          const data = await response.json();
+          if (!data.isComplete) {
+            router.push(`/${locale}/onboarding`);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Onboarding check error:', error);
+      }
+      setOnboardingChecked(true);
+    };
+
+    checkOnboarding();
+  }, [session, router, locale]);
   
   // TanStack Query hooks for dashboard data
   const { 
@@ -50,10 +85,10 @@ export default function DashboardPage() {
     isLoading: noticesLoading 
   } = useNotices(1, 5, { status: 'PUBLISHED' }); // Recent published notices
 
-  if (!session?.user) {
+  if (!session?.user || !onboardingChecked) {
     return (
-      <Container 
-        size="xl" 
+      <Container
+        size="xl"
         py="md"
         style={{
           background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',

@@ -127,6 +127,12 @@ export function useTrendStats(period: string = '30') {
 }
 
 // Reports Hooks
+interface ReportsResponse {
+  reports: Report[];
+  totalCount: number;
+  hasMore: boolean;
+}
+
 export function useReports() {
   return useQuery<Report[]>({
     queryKey: ['reports'],
@@ -135,7 +141,8 @@ export function useReports() {
       if (!response.ok) {
         throw new Error('Failed to fetch reports');
       }
-      return response.json();
+      const data: ReportsResponse = await response.json();
+      return data.reports;
     },
   });
 }

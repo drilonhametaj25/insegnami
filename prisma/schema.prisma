@@ -14,6 +14,8 @@ datasource db {
 enum Role {
   SUPERADMIN // Only in SaaS mode
   ADMIN
+  DIRECTOR   // School Director/Principal
+  SECRETARY  // Administrative staff
   TEACHER
   STUDENT
   PARENT
@@ -150,6 +152,24 @@ enum MeetingStatus {
   COMPLETED   // Completato
 }
 
+// ========================================
+// ENUMS PER SISTEMA ABBONAMENTI SAAS
+// ========================================
+
+enum SubscriptionStatus {
+  TRIALING    // In prova gratuita
+  ACTIVE      // Abbonamento attivo
+  PAST_DUE    // Pagamento in ritardo
+  CANCELLED   // Cancellato
+  UNPAID      // Non pagato
+  PAUSED      // In pausa
+}
+
+enum PlanInterval {
+  MONTHLY
+  YEARLY
+}
+
 // Core Models
 
 model Tenant {
@@ -157,14 +177,21 @@ model Tenant {
   name      String
   slug      String   @unique
   domain    String?  @unique // For subdomain support in SaaS
-  plan      String   @default("basic")
-  
+  plan      String   @default("basic") // Legacy field, use subscription instead
+
   // Feature flags
   featureFlags Json @default("{}")
-  
+
+  // Stripe Integration
+  stripeCustomerId String?  @unique
+
   // Trial and billing (SaaS mode)
   trialUntil DateTime?
   isActive   Boolean  @default(true)
+
+  // Onboarding Setup
+  setupStage       String   @default("INITIAL") // INITIAL, SCHOOL, TEAM, TEACHERS, CLASSES, COMPLETE
+  setupCompletedAt DateTime?
   
   // Metadata
   createdAt DateTime @default(now())
@@ -188,6 +215,7 @@ model Tenant {
   dashboardWidgets DashboardWidget[]
   notifications Notification[]
   hoursPackages HoursPackage[]
+  materials     Material[]
 
   // New: School Core Relations
   subjects          Subject[]
@@ -199,7 +227,83 @@ model Tenant {
   parentMeetings    ParentMeeting[]
   auditLogs         AuditLog[]
 
+  // Subscription relation (SaaS billing)
+  subscription      Subscription?
+
   @@map("tenants")
+}
+
+// ========================================
+// MODELLI SISTEMA ABBONAMENTI SAAS
+// ========================================
+
+model Plan {
+  id            String       @id @default(cuid())
+  name          String       // Starter, Professional, Enterprise
+  slug          String       @unique // starter, professional, enterprise
+  stripePriceId String       @unique // Stripe Price ID (price_xxx)
+  price         Decimal      @db.Decimal(10, 2)
+  interval      PlanInterval @default(MONTHLY)
+
+  // Limits
+  maxStudents   Int?         // null = unlimited
+  maxTeachers   Int?         // null = unlimited
+  maxClasses    Int?         // null = unlimited
+
+  // Features (JSON for flexibility)
+  features      Json         @default("{}") // { sms: true, analytics: true, etc }
+
+  // Display
+  description   String?
+  isPopular     Boolean      @default(false)
+  sortOrder     Int          @default(0)
+
+  // Status
+  isActive      Boolean      @default(true)
+
+  // Metadata
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  tenantId             String             @unique
+  tenant               Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  planId               String
+  plan                 Plan               @relation(fields: [planId], references: [id])
+
+  // Stripe IDs
+  stripeSubscriptionId String             @unique
+  stripeCustomerId     String
+
+  // Status
+  status               SubscriptionStatus @default(TRIALING)
+
+  // Billing period
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+
+  // Trial
+  trialStart           DateTime?
+  trialEnd             DateTime?
+
+  // Cancellation
+  cancelAtPeriodEnd    Boolean            @default(false)
+  cancelledAt          DateTime?
+
+  // Metadata
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([stripeCustomerId])
+  @@index([status])
+  @@map("subscriptions")
 }
 
 model User {
@@ -516,6 +620,7 @@ model Lesson {
   class      Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
   teacher    Teacher      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
   attendance Attendance[]
+  lessonMaterials Material[]
 
   // New: School Core Relations
   homeworkAssignments Homework[]
@@ -1406,4 +1511,40 @@ model AuditLog {
   @@index([tenantId, userId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ========================================
+// MATERIALS (Lesson Materials)
+// ========================================
+
+model Material {
+  id        String @id @default(cuid())
+  tenantId  String
+  lessonId  String
+
+  name      String
+  type      MaterialType @default(FILE)
+  url       String       // File URL or external link
+  size      Int?         // File size in bytes
+  mimeType  String?      // MIME type for files
+
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lesson    Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, lessonId])
+  @@map("materials")
+}
+
+enum MaterialType {
+  FILE
+  LINK
+  VIDEO
+  IMAGE
+  DOCUMENT
+  PRESENTATION
 }

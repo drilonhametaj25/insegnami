@@ -92,95 +92,94 @@ export default function LessonAttendancePage() {
   const loadLessonAttendance = async () => {
     try {
       setLoading(true);
-      
-      // Mock data - replace with actual API call
-      const mockData: LessonAttendance = {
+
+      // Fetch lesson details with attendance from API
+      const response = await fetch(`/api/lessons/${lessonId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch lesson data');
+      }
+
+      const lesson = await response.json();
+
+      // Get enrolled students from class
+      const enrolledStudents = lesson.class?.students || [];
+
+      // Define attendance record type
+      interface AttendanceRecord {
+        studentId?: string;
+        student?: { id: string };
+        status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
+        arrivalTime?: string;
+        notes?: string;
+      }
+
+      // Map attendance records by student ID for quick lookup
+      const attendanceMap = new Map<string, AttendanceRecord>(
+        (lesson.attendance || []).map((a: AttendanceRecord) => [a.studentId || a.student?.id || '', a])
+      );
+
+      // Build attendance array with all enrolled students
+      const attendanceList = enrolledStudents.map((enrollment: any) => {
+        const student = enrollment.student;
+        const record = attendanceMap.get(student.id);
+
+        return {
+          student: {
+            id: student.id,
+            firstName: student.firstName,
+            lastName: student.lastName,
+            email: student.email || '',
+          },
+          status: record?.status || 'ABSENT',
+          arrivalTime: record?.arrivalTime || undefined,
+          notes: record?.notes || undefined,
+        };
+      });
+
+      // Calculate stats
+      const totalStudents = attendanceList.length;
+      const present = attendanceList.filter((a: any) => a.status === 'PRESENT').length;
+      const late = attendanceList.filter((a: any) => a.status === 'LATE').length;
+      const absent = attendanceList.filter((a: any) => a.status === 'ABSENT').length;
+      const excused = attendanceList.filter((a: any) => a.status === 'EXCUSED').length;
+      const attendanceRate = totalStudents > 0
+        ? Math.round(((present + late) / totalStudents) * 1000) / 10
+        : 0;
+
+      const data: LessonAttendance = {
         lesson: {
-          id: lessonId,
-          date: date || '2024-02-14',
-          startTime: '10:00',
-          endTime: '11:30',
-          topic: 'Present Simple - Affirmative and Negative Forms',
-          notes: 'Lezione introduttiva sul presente semplice con esercizi pratici.',
+          id: lesson.id,
+          date: new Date(lesson.startTime).toISOString().split('T')[0],
+          startTime: new Date(lesson.startTime).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+          endTime: new Date(lesson.endTime).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+          topic: lesson.title || lesson.description,
+          notes: lesson.notes,
           class: {
-            id: 'class1',
-            name: 'Inglese A1 - Principianti',
-            level: 'A1',
+            id: lesson.class?.id || '',
+            name: lesson.class?.name || lesson.class?.course?.name || 'Classe',
+            level: lesson.class?.course?.level || '',
           },
           teacher: {
-            id: 'teacher1',
-            firstName: 'Sarah',
-            lastName: 'Johnson',
+            id: lesson.teacher?.id || '',
+            firstName: lesson.teacher?.firstName || '',
+            lastName: lesson.teacher?.lastName || '',
           },
-          room: 'Aula 1',
+          room: lesson.room || 'N/A',
         },
-        attendance: [
-          {
-            student: {
-              id: 'student1',
-              firstName: 'Marco',
-              lastName: 'Rossi',
-              email: 'marco.rossi@email.com',
-            },
-            status: 'PRESENT',
-            arrivalTime: '10:00',
-          },
-          {
-            student: {
-              id: 'student2',
-              firstName: 'Elena',
-              lastName: 'Bianchi',
-              email: 'elena.bianchi@email.com',
-            },
-            status: 'PRESENT',
-            arrivalTime: '10:05',
-          },
-          {
-            student: {
-              id: 'student3',
-              firstName: 'Luca',
-              lastName: 'Verde',
-              email: 'luca.verde@email.com',
-            },
-            status: 'LATE',
-            arrivalTime: '10:15',
-            notes: 'Arrivato in ritardo per traffico',
-          },
-          {
-            student: {
-              id: 'student4',
-              firstName: 'Anna',
-              lastName: 'Gialli',
-              email: 'anna.gialli@email.com',
-            },
-            status: 'ABSENT',
-            notes: 'Malata - giustificata',
-          },
-          {
-            student: {
-              id: 'student5',
-              firstName: 'Paolo',
-              lastName: 'Blu',
-              email: 'paolo.blu@email.com',
-            },
-            status: 'EXCUSED',
-            notes: 'Viaggio di lavoro comunicato in anticipo',
-          },
-        ],
+        attendance: attendanceList,
         stats: {
-          totalStudents: 15,
-          present: 11,
-          absent: 2,
-          late: 1,
-          excused: 1,
-          attendanceRate: 86.7,
+          totalStudents,
+          present,
+          absent,
+          late,
+          excused,
+          attendanceRate,
         },
       };
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setAttendanceData(mockData);
+      setAttendanceData(data);
     } catch (error) {
+      console.error('Error loading lesson attendance:', error);
       notifications.show({
         title: 'Errore',
         message: 'Impossibile caricare i dettagli della presenza',

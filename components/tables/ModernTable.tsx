@@ -12,17 +12,19 @@ interface ModernTableProps {
   totalPages?: number;
   loading?: boolean;
   emptyMessage?: string;
+  emptyState?: ReactNode;
 }
 
-export function ModernTable({ 
-  headers, 
-  data, 
-  renderRow, 
+export function ModernTable({
+  headers,
+  data,
+  renderRow,
   onPageChange,
   currentPage = 1,
   totalPages = 1,
   loading = false,
-  emptyMessage = 'Nessun elemento trovato'
+  emptyMessage = 'Nessun elemento trovato',
+  emptyState
 }: ModernTableProps) {
   return (
     <div style={{
@@ -80,12 +82,12 @@ export function ModernTable({
                 colSpan={headers?.length || 1}
                 style={{
                   textAlign: 'center',
-                  padding: '40px',
+                  padding: emptyState ? '20px' : '40px',
                   color: 'rgba(255, 255, 255, 0.6)',
                   fontSize: '16px'
                 }}
               >
-                {emptyMessage}
+                {emptyState || emptyMessage}
               </Table.Td>
             </Table.Tr>
           ) : (

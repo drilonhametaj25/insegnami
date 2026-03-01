@@ -1,84 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { z } from 'zod';
 
-type ReportType = 'ATTENDANCE' | 'FINANCIAL' | 'PROGRESS' | 'OVERVIEW' | 'CLASS_ANALYTICS' | 'TEACHER_PERFORMANCE';
-type ReportPeriod = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM';
+const createReportSchema = z.object({
+  title: z.string().min(1, 'Titolo richiesto'),
+  type: z.enum(['ATTENDANCE', 'FINANCIAL', 'PROGRESS', 'OVERVIEW', 'CLASS_ANALYTICS', 'TEACHER_PERFORMANCE']),
+  period: z.enum(['WEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY', 'CUSTOM']),
+  startDate: z.string().datetime(),
+  endDate: z.string().datetime(),
+  filters: z.record(z.any()).optional(),
+  data: z.record(z.any()).optional(),
+});
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
+    const session = await getAuth();
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type') as ReportType | null;
-    const period = searchParams.get('period') as ReportPeriod | null;
+    const type = searchParams.get('type');
+    const period = searchParams.get('period');
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Get tenant ID (in production, get from session or middleware)
-    const tenantId = '1'; // For demo purposes
+    // Build query filters
+    const where: any = {
+      tenantId: session.user.tenantId,
+    };
 
-    // For now, return mock data since the Report model is not fully ready
-    const mockReports = [
-      {
-        id: '1',
-        tenantId,
-        title: 'Monthly Attendance Report',
-        type: 'ATTENDANCE',
-        period: 'MONTHLY',
-        startDate: new Date(2024, 11, 1),
-        endDate: new Date(2024, 11, 31),
-        data: { attendanceRate: 92.5, totalStudents: 150 },
-        filters: {},
-        generatedBy: session.user.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        user: {
-          firstName: session.user.firstName || 'Admin',
-          lastName: session.user.lastName || 'User',
-          email: session.user.email || 'admin@example.com',
-        },
-      },
-      {
-        id: '2',
-        tenantId,
-        title: 'Financial Overview Q4',
-        type: 'FINANCIAL',
-        period: 'QUARTERLY',
-        startDate: new Date(2024, 9, 1),
-        endDate: new Date(2024, 11, 31),
-        data: { totalRevenue: 15000, overduePayments: 3 },
-        filters: {},
-        generatedBy: session.user.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        user: {
-          firstName: session.user.firstName || 'Admin',
-          lastName: session.user.lastName || 'User',
-          email: session.user.email || 'admin@example.com',
-        },
-      },
-    ];
-
-    // Filter by type and period if specified
-    let filteredReports = mockReports;
     if (type) {
-      filteredReports = filteredReports.filter(report => report.type === type);
-    }
-    if (period) {
-      filteredReports = filteredReports.filter(report => report.period === period);
+      where.type = type;
     }
 
-    // Apply pagination
-    const paginatedReports = filteredReports.slice(offset, offset + limit);
+    if (period) {
+      where.period = period;
+    }
+
+    // Get reports from database
+    const [reports, totalCount] = await Promise.all([
+      prisma.report.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: offset,
+        take: limit,
+      }),
+      prisma.report.count({ where }),
+    ]);
 
     return NextResponse.json({
-      reports: paginatedReports,
-      totalCount: filteredReports.length,
-      hasMore: offset + paginatedReports.length < filteredReports.length,
+      reports,
+      totalCount,
+      hasMore: offset + reports.length < totalCount,
     });
   } catch (error) {
     console.error('Reports API error:', error);
@@ -88,45 +75,55 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const session = await getAuth();
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { title, type, period, startDate, endDate, filters, data } = body;
-
-    if (!title || !type || !period || !startDate || !endDate) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    // Only admin can create reports
+    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+      return NextResponse.json({ error: 'Permessi insufficienti' }, { status: 403 });
     }
 
-    // Get tenant ID (in production, get from session or middleware)
-    const tenantId = '1'; // For demo purposes
+    const userId = session.user.id;
 
-    // For now, return mock created report
-    const mockReport = {
-      id: Date.now().toString(),
-      tenantId,
-      title,
-      type,
-      period,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      data: data || {},
-      filters: filters || {},
-      generatedBy: session.user.id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      user: {
-        firstName: session.user.firstName || 'Admin',
-        lastName: session.user.lastName || 'User',
-        email: session.user.email || 'admin@example.com',
+    const body = await request.json();
+    const validatedData = createReportSchema.parse(body);
+
+    // Create report in database
+    const report = await prisma.report.create({
+      data: {
+        tenantId: session.user.tenantId,
+        title: validatedData.title,
+        type: validatedData.type as any,
+        period: validatedData.period as any,
+        startDate: new Date(validatedData.startDate),
+        endDate: new Date(validatedData.endDate),
+        data: validatedData.data || {},
+        filters: validatedData.filters || {},
+        generatedBy: userId,
       },
-    };
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
 
-    return NextResponse.json(mockReport, { status: 201 });
+    return NextResponse.json(report, { status: 201 });
   } catch (error) {
     console.error('Create report error:', error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Dati non validi', details: error.errors },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

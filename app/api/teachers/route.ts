@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { checkTeacherLimit } from '@/lib/plan-limits';
 
 // GET /api/teachers - List teachers with pagination and filtering
 export async function GET(request: NextRequest) {
@@ -117,6 +118,22 @@ export async function POST(request: NextRequest) {
     // Only ADMIN can create teachers
     if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Check plan limits (skip for SUPERADMIN)
+    if (session.user.role !== 'SUPERADMIN') {
+      const limitCheck = await checkTeacherLimit(session.user.tenantId);
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          {
+            error: limitCheck.message,
+            limitReached: true,
+            current: limitCheck.current,
+            limit: limitCheck.limit,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const body = await request.json();

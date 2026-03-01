@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Container,
@@ -69,8 +69,6 @@ import {
   useDeleteMessage,
   type CreateMessageData,
 } from '@/lib/hooks/useMessages';
-  // const { data: usersData } = useUsers({ limit: 100 }); // Get users for recipient selection
-  const usersData = { users: [] }; // Temporary placeholder
 import { StatsCard } from '@/components/cards/StatsCard';
 
 export default function CommunicationPage() {
@@ -81,6 +79,29 @@ export default function CommunicationPage() {
   const [newMessageOpened, { open: openNewMessage, close: closeNewMessage }] = useDisclosure(false);
   const [newTemplateOpened, { open: openNewTemplate, close: closeNewTemplate }] = useDisclosure(false);
   const [newGroupOpened, { open: openNewGroup, close: closeNewGroup }] = useDisclosure(false);
+
+  // Users state for recipient selection
+  const [usersData, setUsersData] = useState<{ users: any[] }>({ users: [] });
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  // Fetch users for recipient dropdown
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setUsersLoading(true);
+        const response = await fetch('/api/users?limit=200');
+        if (response.ok) {
+          const data = await response.json();
+          setUsersData({ users: data.users || [] });
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   // Query hooks
   const { data: messagesData, isLoading: messagesLoading } = useMessages({
@@ -94,7 +115,6 @@ export default function CommunicationPage() {
 
   const { data: templates, isLoading: templatesLoading } = useMessageTemplates();
   const { data: groups, isLoading: groupsLoading } = useCommunicationGroups();
-  // const { data: usersData } = useUsers({ limit: 100 }); // Get users for recipient selection
 
   // Mutation hooks
   const createMessageMutation = useCreateMessage();
@@ -549,14 +569,26 @@ export default function CommunicationPage() {
                 label={t('communication.channels.email')}
                 {...messageForm.getInputProps('sendEmail', { type: 'checkbox' })}
               />
-              <Switch
-                label={t('communication.channels.sms')}
-                {...messageForm.getInputProps('sendSms', { type: 'checkbox' })}
-              />
-              <Switch
-                label={t('communication.channels.push')}
-                {...messageForm.getInputProps('sendPush', { type: 'checkbox' })}
-              />
+              <Tooltip label="Funzionalità in arrivo" position="top">
+                <Group gap={4}>
+                  <Switch
+                    label={t('communication.channels.sms')}
+                    disabled
+                    checked={false}
+                  />
+                  <Badge size="xs" color="gray" variant="light">Coming Soon</Badge>
+                </Group>
+              </Tooltip>
+              <Tooltip label="Funzionalità in arrivo" position="top">
+                <Group gap={4}>
+                  <Switch
+                    label={t('communication.channels.push')}
+                    disabled
+                    checked={false}
+                  />
+                  <Badge size="xs" color="gray" variant="light">Coming Soon</Badge>
+                </Group>
+              </Tooltip>
             </Group>
 
             <Group>

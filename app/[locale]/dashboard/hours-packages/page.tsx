@@ -311,10 +311,13 @@ export default function HoursPackagesPage() {
             </Table.Thead>
             <Table.Tbody>
               {filteredPackages.map((pkg) => {
-                const usedHours = parseFloat(pkg.totalHours.toString()) - parseFloat(pkg.remainingHours.toString());
-                const usagePercent = (usedHours / parseFloat(pkg.totalHours.toString())) * 100;
+                const totalHours = parseFloat(pkg.totalHours.toString());
+                const remainingHours = parseFloat(pkg.remainingHours.toString());
+                const usedHours = totalHours - remainingHours;
+                const usagePercent = totalHours > 0 ? (usedHours / totalHours) * 100 : 0;
                 const isExpired = pkg.expiryDate && new Date(pkg.expiryDate) < new Date();
-                const isLowHours = usagePercent > 80;
+                // Low hours when 20% or less remaining (consistent with hours-package-service.ts)
+                const isLowHours = remainingHours <= totalHours * 0.2 && remainingHours > 0;
 
                 return (
                   <Table.Tr key={pkg.id}>

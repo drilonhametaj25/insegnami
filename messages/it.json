@@ -1546,5 +1546,20 @@
   "overview": "Panoramica",
   "content": "Contenuto",
   "homework": "Compiti",
-  "recurring": "Ricorrente"
+  "recurring": "Ricorrente",
+  "Blog": {
+    "title": "Blog | InsegnaMi.pro",
+    "description": "Articoli, guide e consigli per la gestione della tua scuola. Scopri le ultime novità sul mondo della formazione.",
+    "readMore": "Leggi di più",
+    "relatedPosts": "Articoli correlati",
+    "categories": "Categorie",
+    "tags": "Tag",
+    "author": "Autore",
+    "publishedOn": "Pubblicato il",
+    "readingTime": "Tempo di lettura",
+    "backToBlog": "Torna al blog",
+    "noArticles": "Nessun articolo disponibile al momento.",
+    "tryFree": "Prova InsegnaMi.pro gratuitamente",
+    "tryFreeDescription": "Scopri come InsegnaMi.pro può semplificare la gestione della tua scuola. 14 giorni di prova gratuita."
+  }
 }

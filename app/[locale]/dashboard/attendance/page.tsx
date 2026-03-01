@@ -58,7 +58,7 @@ import {
   type StudentAttendanceSummary,
   type CreateAttendanceData
 } from '@/lib/hooks/useAttendance';
-import { useLessons } from '@/lib/hooks/useLessons';
+import { useLessons, useLessonById } from '@/lib/hooks/useLessons';
 import { useClasses } from '@/lib/hooks/useClasses';
 
 interface AttendanceFormData {
@@ -79,7 +79,18 @@ export default function AttendancePage() {
   const [selectedLessonId, setSelectedLessonId] = useState<string>('');
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [attendanceModalOpened, { open: openAttendanceModal, close: closeAttendanceModal }] = useDisclosure(false);
+  const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false);
+  const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Edit form state
+  const [editStatus, setEditStatus] = useState<'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED'>('PRESENT');
+  const [editNotes, setEditNotes] = useState('');
+
+  // Registration form state - map of studentId -> { status, notes }
+  const [studentAttendanceMap, setStudentAttendanceMap] = useState<
+    Record<string, { status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED'; notes: string }>
+  >({});
 
   // TanStack Query hooks
   const {
@@ -127,10 +138,36 @@ export default function AttendancePage() {
     },
   });
 
+  // Get lesson details for the registration modal (must be after form declaration)
+  const {
+    data: selectedLessonDetails,
+    isLoading: selectedLessonDetailsLoading,
+  } = useLessonById(form.values.lessonId);
+
+  // Initialize student attendance map when lesson changes
+  const initializeStudentMap = () => {
+    if (selectedLessonDetails?.class?.students) {
+      const initialMap: Record<string, { status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED'; notes: string }> = {};
+      selectedLessonDetails.class.students.forEach((enrollment: any) => {
+        if (enrollment.student) {
+          initialMap[enrollment.student.id] = { status: 'PRESENT', notes: '' };
+        }
+      });
+      setStudentAttendanceMap(initialMap);
+    }
+  };
+
   const handleRecordAttendance = (values: AttendanceFormData) => {
+    // Build attendance array from studentAttendanceMap
+    const attendanceArray = Object.entries(studentAttendanceMap).map(([studentId, data]) => ({
+      studentId,
+      status: data.status,
+      notes: data.notes || undefined,
+    }));
+
     const attendanceData: CreateAttendanceData = {
       lessonId: values.lessonId,
-      attendance: values.attendance,
+      attendance: attendanceArray,
     };
 
     recordAttendance.mutate(attendanceData, {
@@ -142,6 +179,7 @@ export default function AttendancePage() {
         });
         closeAttendanceModal();
         form.reset();
+        setStudentAttendanceMap({});
       },
       onError: (error) => {
         notifications.show({
@@ -150,6 +188,30 @@ export default function AttendancePage() {
           color: 'red',
         });
       },
+    });
+  };
+
+  const updateStudentStatus = (studentId: string, status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED') => {
+    setStudentAttendanceMap((prev) => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], status },
+    }));
+  };
+
+  const updateStudentNotes = (studentId: string, notes: string) => {
+    setStudentAttendanceMap((prev) => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], notes },
+    }));
+  };
+
+  const setAllStudentsStatus = (status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED') => {
+    setStudentAttendanceMap((prev) => {
+      const newMap: typeof prev = {};
+      Object.keys(prev).forEach((studentId) => {
+        newMap[studentId] = { ...prev[studentId], status };
+      });
+      return newMap;
     });
   };
 
@@ -180,6 +242,21 @@ export default function AttendancePage() {
         },
       }
     );
+  };
+
+  const handleOpenEditModal = (record: AttendanceRecord) => {
+    setEditingRecord(record);
+    setEditStatus(record.status);
+    setEditNotes(record.notes || '');
+    openEditModal();
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingRecord) return;
+
+    handleUpdateAttendanceRecord(editingRecord.id, editStatus, editNotes);
+    closeEditModal();
+    setEditingRecord(null);
   };
 
   const handleExportAttendance = (format: 'csv' | 'xlsx' | 'pdf') => {
@@ -598,9 +675,8 @@ export default function AttendancePage() {
                                 variant="light"
                                 color="blue"
                                 size="sm"
-                                onClick={() => {
-                                  // TODO: Implement edit attendance modal
-                                }}
+                                onClick={() => handleOpenEditModal(record)}
+                                title="Modifica presenza"
                               >
                                 <IconEdit size={14} />
                               </ActionIcon>
@@ -855,28 +931,158 @@ export default function AttendancePage() {
             />
 
             {form.values.lessonId && (
-              <Paper 
-                p="md" 
+              <Paper
+                p="md"
                 style={{
                   background: 'rgba(59, 130, 246, 0.1)',
                   border: '1px solid rgba(59, 130, 246, 0.2)',
                   borderRadius: '12px'
                 }}
               >
-                <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.8)' }} mb="md">
-                  Seleziona lo stato di presenza per ogni studente
-                </Text>
-                
-                <Alert 
-                  color="blue"
-                  style={{
-                    background: 'rgba(59, 130, 246, 0.1)',
-                    border: '1px solid rgba(59, 130, 246, 0.2)',
-                    color: '#60a5fa'
-                  }}
-                >
-                  Implementazione del form di presenza per studenti in corso...
-                </Alert>
+                {selectedLessonDetailsLoading ? (
+                  <Stack gap="sm">
+                    <Skeleton height={40} />
+                    <Skeleton height={40} />
+                    <Skeleton height={40} />
+                  </Stack>
+                ) : selectedLessonDetails?.class?.students && selectedLessonDetails.class.students.length > 0 ? (
+                  <Stack gap="md">
+                    <Group justify="space-between" align="center">
+                      <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                        Seleziona lo stato di presenza per ogni studente ({selectedLessonDetails.class.students.length} studenti)
+                      </Text>
+                      <Group gap="xs">
+                        <Button
+                          size="xs"
+                          variant="light"
+                          color="green"
+                          onClick={() => {
+                            initializeStudentMap();
+                            setAllStudentsStatus('PRESENT');
+                          }}
+                          style={{ background: 'rgba(34, 197, 94, 0.2)', border: 'none' }}
+                        >
+                          Tutti Presenti
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="light"
+                          color="red"
+                          onClick={() => {
+                            initializeStudentMap();
+                            setAllStudentsStatus('ABSENT');
+                          }}
+                          style={{ background: 'rgba(239, 68, 68, 0.2)', border: 'none' }}
+                        >
+                          Tutti Assenti
+                        </Button>
+                      </Group>
+                    </Group>
+
+                    <div style={{
+                      background: 'rgba(0, 0, 0, 0.2)',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      maxHeight: '400px',
+                      overflowY: 'auto'
+                    }}>
+                      <Table>
+                        <Table.Thead style={{ background: 'rgba(255, 255, 255, 0.05)', position: 'sticky', top: 0 }}>
+                          <Table.Tr>
+                            <Table.Th style={{ color: 'white', fontWeight: 600 }}>Studente</Table.Th>
+                            <Table.Th style={{ color: 'white', fontWeight: 600 }}>Stato</Table.Th>
+                            <Table.Th style={{ color: 'white', fontWeight: 600 }}>Note</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {selectedLessonDetails.class.students.map((enrollment: any) => {
+                            const student = enrollment.student;
+                            if (!student) return null;
+
+                            // Initialize student in map if not present
+                            if (!studentAttendanceMap[student.id]) {
+                              initializeStudentMap();
+                            }
+
+                            return (
+                              <Table.Tr key={student.id}>
+                                <Table.Td>
+                                  <div>
+                                    <Text size="sm" fw={500} style={{ color: 'white' }}>
+                                      {student.firstName} {student.lastName}
+                                    </Text>
+                                    <Text size="xs" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                                      {student.email}
+                                    </Text>
+                                  </div>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Select
+                                    value={studentAttendanceMap[student.id]?.status || 'PRESENT'}
+                                    onChange={(value) => value && updateStudentStatus(student.id, value as any)}
+                                    data={[
+                                      { value: 'PRESENT', label: 'Presente' },
+                                      { value: 'ABSENT', label: 'Assente' },
+                                      { value: 'LATE', label: 'In Ritardo' },
+                                      { value: 'EXCUSED', label: 'Giustificato' },
+                                    ]}
+                                    size="xs"
+                                    styles={{
+                                      input: {
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        color: 'white',
+                                        minWidth: '120px',
+                                      },
+                                      dropdown: {
+                                        background: '#1e293b',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                      },
+                                      option: {
+                                        color: 'white',
+                                        '&[data-selected]': {
+                                          background: 'rgba(59, 130, 246, 0.3)',
+                                        },
+                                      },
+                                    }}
+                                  />
+                                </Table.Td>
+                                <Table.Td>
+                                  <TextInput
+                                    placeholder="Note..."
+                                    value={studentAttendanceMap[student.id]?.notes || ''}
+                                    onChange={(e) => updateStudentNotes(student.id, e.currentTarget.value)}
+                                    size="xs"
+                                    styles={{
+                                      input: {
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        color: 'white',
+                                        '&::placeholder': { color: 'rgba(255, 255, 255, 0.4)' },
+                                      },
+                                    }}
+                                  />
+                                </Table.Td>
+                              </Table.Tr>
+                            );
+                          })}
+                        </Table.Tbody>
+                      </Table>
+                    </div>
+                  </Stack>
+                ) : (
+                  <Alert
+                    color="yellow"
+                    style={{
+                      background: 'rgba(234, 179, 8, 0.1)',
+                      border: '1px solid rgba(234, 179, 8, 0.2)',
+                      color: '#fbbf24'
+                    }}
+                  >
+                    Nessuno studente iscritto a questa classe. Verifica che la classe abbia studenti associati.
+                  </Alert>
+                )}
               </Paper>
             )}
 
@@ -905,6 +1111,129 @@ export default function AttendancePage() {
             </Group>
           </Stack>
         </form>
+      </Modal>
+
+      {/* Edit Attendance Modal */}
+      <Modal
+        opened={editModalOpened}
+        onClose={() => {
+          closeEditModal();
+          setEditingRecord(null);
+        }}
+        title="Modifica Presenza"
+        size="md"
+        styles={{
+          content: {
+            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+          },
+          header: {
+            background: 'transparent',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          },
+          title: {
+            color: 'white',
+            fontSize: '1.25rem',
+            fontWeight: 600,
+          },
+        }}
+      >
+        {editingRecord && (
+          <Stack gap="md">
+            <Paper
+              p="md"
+              style={{
+                background: 'rgba(59, 130, 246, 0.1)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                borderRadius: '12px',
+              }}
+            >
+              <Text size="sm" fw={500} style={{ color: 'white' }}>
+                {editingRecord.student.firstName} {editingRecord.student.lastName}
+              </Text>
+              <Text size="xs" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                {editingRecord.student.email}
+              </Text>
+              <Text size="xs" style={{ color: 'rgba(255, 255, 255, 0.5)', marginTop: '8px' }}>
+                Lezione: {editingRecord.lesson.title} - {dayjs(editingRecord.lesson.startTime).format('DD/MM/YYYY HH:mm')}
+              </Text>
+            </Paper>
+
+            <Select
+              label="Stato Presenza"
+              value={editStatus}
+              onChange={(value) => value && setEditStatus(value as 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED')}
+              data={[
+                { value: 'PRESENT', label: 'Presente' },
+                { value: 'ABSENT', label: 'Assente' },
+                { value: 'LATE', label: 'In Ritardo' },
+                { value: 'EXCUSED', label: 'Giustificato' },
+              ]}
+              styles={{
+                label: { color: 'white', fontWeight: 500 },
+                input: {
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                },
+                dropdown: {
+                  background: '#1e293b',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                },
+                option: {
+                  color: 'white',
+                  '&[data-selected]': {
+                    background: 'rgba(59, 130, 246, 0.3)',
+                  },
+                },
+              }}
+            />
+
+            <Textarea
+              label="Note"
+              placeholder="Aggiungi note opzionali..."
+              value={editNotes}
+              onChange={(event) => setEditNotes(event.currentTarget.value)}
+              minRows={3}
+              styles={{
+                label: { color: 'white', fontWeight: 500 },
+                input: {
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  '&::placeholder': { color: 'rgba(255, 255, 255, 0.5)' },
+                },
+              }}
+            />
+
+            <Group justify="flex-end" mt="md">
+              <Button
+                variant="light"
+                onClick={() => {
+                  closeEditModal();
+                  setEditingRecord(null);
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  border: 'none',
+                }}
+              >
+                Annulla
+              </Button>
+              <Button
+                onClick={handleSaveEdit}
+                loading={updateAttendance.isPending}
+                style={{
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                  border: 'none',
+                }}
+              >
+                Salva Modifiche
+              </Button>
+            </Group>
+          </Stack>
+        )}
       </Modal>
       </Container>
     </div>

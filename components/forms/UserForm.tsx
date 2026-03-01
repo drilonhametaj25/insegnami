@@ -47,6 +47,8 @@ const defaultRoles = [
 const roleColors: Record<Role, string> = {
   SUPERADMIN: 'violet',
   ADMIN: 'red',
+  DIRECTOR: 'grape',
+  SECRETARY: 'pink',
   TEACHER: 'blue',
   STUDENT: 'green',
   PARENT: 'orange',

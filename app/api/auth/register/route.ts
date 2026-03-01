@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: user.id,
         tenantId: tenant.id,
-        role: role === 'director' ? 'ADMIN' : role === 'secretary' ? 'ADMIN' : 'ADMIN',
+        role: role === 'director' ? 'DIRECTOR' : role === 'secretary' ? 'SECRETARY' : 'ADMIN',
         permissions: {},
       },
     });

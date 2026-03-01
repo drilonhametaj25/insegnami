@@ -62,7 +62,7 @@ describe('/api/analytics', () => {
 
       const { req } = createMocks({
         method: 'GET',
-        url: '/api/analytics?type=overview&period=30',
+        url: 'http://localhost:3000/api/analytics?type=overview&period=30',
       })
 
       const response = await GET(req as any)
@@ -94,7 +94,7 @@ describe('/api/analytics', () => {
 
       const { req } = createMocks({
         method: 'GET',
-        url: '/api/analytics?type=attendance&period=30',
+        url: 'http://localhost:3000/api/analytics?type=attendance&period=30',
       })
 
       const response = await GET(req as any)
@@ -113,7 +113,7 @@ describe('/api/analytics', () => {
 
       const { req } = createMocks({
         method: 'GET',
-        url: '/api/analytics?type=overview',
+        url: 'http://localhost:3000/api/analytics?type=overview',
       })
 
       const response = await GET(req as any)
@@ -126,7 +126,7 @@ describe('/api/analytics', () => {
     it('handles invalid type parameter', async () => {
       const { req } = createMocks({
         method: 'GET',
-        url: '/api/analytics?type=invalid',
+        url: 'http://localhost:3000/api/analytics?type=invalid',
       })
 
       const response = await GET(req as any)
@@ -149,7 +149,7 @@ describe('/api/analytics', () => {
 
       const { req } = createMocks({
         method: 'GET',
-        url: '/api/analytics', // No period specified
+        url: 'http://localhost:3000/api/analytics', // No period specified
       })
 
       const response = await GET(req as any)

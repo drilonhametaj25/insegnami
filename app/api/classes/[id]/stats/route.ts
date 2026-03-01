@@ -151,15 +151,40 @@ export async function GET(
       })
     );
 
-    // Calculate performance trends (mock data for now)
-    const performanceTrend = [
-      { period: '6 months ago', value: 85 },
-      { period: '5 months ago', value: 87 },
-      { period: '4 months ago', value: 89 },
-      { period: '3 months ago', value: 91 },
-      { period: '2 months ago', value: 88 },
-      { period: 'Last month', value: averageAttendanceRate },
-    ];
+    // Calculate performance trends from real attendance data (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const monthlyAttendance = await prisma.attendance.groupBy({
+      by: ['status'],
+      where: {
+        lesson: {
+          classId: id,
+          startTime: { gte: sixMonthsAgo },
+        },
+      },
+      _count: { id: true },
+    });
+
+    // Get attendance by month for trend
+    const attendanceByMonth = await prisma.$queryRaw<Array<{ month: string; total: number; present: number }>>`
+      SELECT
+        TO_CHAR(l."startTime", 'YYYY-MM') as month,
+        COUNT(a.id)::int as total,
+        COUNT(CASE WHEN a.status = 'PRESENT' OR a.status = 'LATE' THEN 1 END)::int as present
+      FROM "attendances" a
+      JOIN "lessons" l ON a."lessonId" = l.id
+      WHERE l."classId" = ${id}
+        AND l."startTime" >= ${sixMonthsAgo}
+      GROUP BY TO_CHAR(l."startTime", 'YYYY-MM')
+      ORDER BY month ASC
+      LIMIT 6
+    `;
+
+    const performanceTrend = attendanceByMonth.map((month) => ({
+      period: month.month,
+      value: month.total > 0 ? Math.round((month.present / month.total) * 100) : 0,
+    }));
 
     // Get upcoming lessons (next 7 days)
     const nextWeek = new Date();
@@ -188,25 +213,56 @@ export async function GET(
       take: 5,
     });
 
-    // Activity timeline (recent events)
+    // Activity timeline (real recent events)
+    const recentLessons = await prisma.lesson.findMany({
+      where: {
+        classId: id,
+        status: 'COMPLETED',
+      },
+      orderBy: { endTime: 'desc' },
+      take: 3,
+      select: {
+        id: true,
+        title: true,
+        endTime: true,
+      },
+    });
+
+    const recentEnrollments = await prisma.studentClass.findMany({
+      where: {
+        classId: id,
+        isActive: true,
+      },
+      orderBy: { enrolledAt: 'desc' },
+      take: 3,
+      include: {
+        student: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
     const recentActivity = [
-      {
-        id: '1',
+      ...recentLessons.map((lesson) => ({
+        id: lesson.id,
         type: 'lesson',
         title: 'Lezione completata',
-        description: 'Present Continuous Tense',
-        date: new Date().toISOString(),
+        description: lesson.title || 'Lezione',
+        date: lesson.endTime.toISOString(),
         icon: 'lesson',
-      },
-      {
-        id: '2',
+      })),
+      ...recentEnrollments.map((enrollment) => ({
+        id: enrollment.id,
         type: 'enrollment',
-        title: 'Nuovo studente iscritto',
-        description: 'Mario Rossi si è iscritto al corso',
-        date: new Date(Date.now() - 86400000).toISOString(),
+        title: 'Studente iscritto',
+        description: `${enrollment.student.firstName} ${enrollment.student.lastName}`,
+        date: enrollment.enrolledAt.toISOString(),
         icon: 'user-plus',
-      },
-    ];
+      })),
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
     const stats = {
       // Basic info

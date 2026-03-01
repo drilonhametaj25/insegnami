@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useLocale } from 'next-intl';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -515,7 +516,13 @@ export default function TeacherDetailPage() {
                         {classItem.students || 0} studenti
                       </Text>
                     </Group>
-                    <Button variant="light" size="xs" fullWidth>
+                    <Button
+                      component={Link}
+                      href={`/${locale}/dashboard/classes/${classItem.id}`}
+                      variant="light"
+                      size="xs"
+                      fullWidth
+                    >
                       Visualizza Classe
                     </Button>
                   </Stack>

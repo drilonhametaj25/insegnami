@@ -279,6 +279,44 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  const handleExportRegister = () => {
+    if (!classData || !attendance || attendance.length === 0) {
+      notifications.show({
+        title: 'Nessun dato',
+        message: 'Non ci sono dati di presenza da esportare',
+        color: 'orange',
+      });
+      return;
+    }
+
+    // Create CSV content
+    const headers = ['Data', 'Lezione', 'Studente', 'Stato'];
+    const rows = attendance.map((record) => [
+      new Date(record.lesson.startTime).toLocaleDateString('it-IT'),
+      record.lesson.title || 'N/A',
+      `${record.student.firstName} ${record.student.lastName}`,
+      record.status,
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    // Download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `registro_${classData.name}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+
+    notifications.show({
+      title: 'Export completato',
+      message: 'Il registro è stato scaricato',
+      color: 'green',
+    });
+  };
+
   const handleCommunicate = async (data: { subject: string; message: string; recipients: string }) => {
     if (!resolvedParams?.id) return;
 
@@ -486,7 +524,10 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                   </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
-                  <Menu.Item leftSection={<IconDownload size="1rem" />}>
+                  <Menu.Item
+                    leftSection={<IconDownload size="1rem" />}
+                    onClick={handleExportRegister}
+                  >
                     Export Registro
                   </Menu.Item>
                   {canManageClasses && (

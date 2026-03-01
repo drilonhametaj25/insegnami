@@ -207,6 +207,27 @@ export async function GET(request: NextRequest) {
       take: 20,
     });
 
+    // Get student's hours packages
+    const hoursPackages = await prisma.hoursPackage.findMany({
+      where: {
+        tenantId: session.user.tenantId,
+        studentId: student.id,
+        isActive: true,
+      },
+      include: {
+        course: {
+          select: {
+            id: true,
+            name: true,
+            level: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
     // Get total lesson counts per class for progress calculation
     const lessonCounts = await prisma.lesson.groupBy({
       by: ['classId'],
@@ -373,6 +394,29 @@ export async function GET(request: NextRequest) {
           grade: submission?.grade,
           feedback: submission?.feedback,
           submittedAt: submission?.submittedAt,
+        };
+      }),
+
+      // Hours Packages
+      hoursPackages: hoursPackages.map((pkg: any) => {
+        const usedPercentage = pkg.totalHours > 0
+          ? Math.round((pkg.usedHours / pkg.totalHours) * 100)
+          : 0;
+        const remainingHours = pkg.totalHours - pkg.usedHours;
+        const isLow = remainingHours <= pkg.totalHours * 0.2; // 20% threshold
+
+        return {
+          id: pkg.id,
+          name: pkg.name,
+          course: pkg.course,
+          totalHours: pkg.totalHours,
+          usedHours: pkg.usedHours,
+          remainingHours,
+          usedPercentage,
+          isLow,
+          expiresAt: pkg.expiresAt,
+          status: pkg.status,
+          purchaseDate: pkg.createdAt,
         };
       }),
     };

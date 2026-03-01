@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { checkStudentLimit } from '@/lib/plan-limits';
 
 // Generate temporary password
 function generateTempPassword(): string {
@@ -178,6 +179,22 @@ export async function POST(request: NextRequest) {
     // Only ADMIN can create students
     if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Check plan limits (skip for SUPERADMIN)
+    if (session.user.role !== 'SUPERADMIN') {
+      const limitCheck = await checkStudentLimit(session.user.tenantId);
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          {
+            error: limitCheck.message,
+            limitReached: true,
+            current: limitCheck.current,
+            limit: limitCheck.limit,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const data = await request.json();

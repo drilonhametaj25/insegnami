@@ -1,15 +1,72 @@
 import '@testing-library/jest-dom'
 import { server } from './tests/mocks/server'
+import React from 'react'
+
+// Mock next/server before any imports that might use it
+jest.mock('next/server', () => {
+  // Create a mock NextRequest class
+  class MockNextRequest {
+    url: string
+    method: string
+    headers: Map<string, string>
+    body: any
+
+    constructor(input: string | URL, init?: any) {
+      this.url = typeof input === 'string' ? input : input.toString()
+      this.method = init?.method || 'GET'
+      this.headers = new Map(Object.entries(init?.headers || {}))
+      this.body = init?.body
+    }
+
+    json() {
+      return Promise.resolve(this.body ? JSON.parse(this.body) : {})
+    }
+  }
+
+  // Create a mock NextResponse class
+  class MockNextResponse {
+    status: number
+    _data: any
+    headers: Map<string, string>
+
+    constructor(data: any, init?: any) {
+      this._data = data
+      this.status = init?.status || 200
+      this.headers = new Map()
+    }
+
+    json() {
+      return Promise.resolve(this._data)
+    }
+
+    static json(data: any, init?: { status?: number; headers?: Record<string, string> }) {
+      const response = new MockNextResponse(data, init)
+      return response
+    }
+
+    static redirect(url: string, status = 307) {
+      const response = new MockNextResponse(null, { status })
+      response.headers.set('Location', url)
+      return response
+    }
+  }
+
+  return {
+    NextRequest: MockNextRequest,
+    NextResponse: MockNextResponse,
+  }
+})
 
 // Setup MSW
 beforeAll(() => server.listen())
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
-// Mock next-intl
+// Mock next-intl with NextIntlClientProvider
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
   useLocale: () => 'it',
+  NextIntlClientProvider: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
 }))
 
 // Mock next-auth
@@ -48,14 +105,8 @@ jest.mock('@mantine/notifications', () => ({
   hideNotification: jest.fn(),
 }))
 
-// Mock React Query
-jest.mock('@tanstack/react-query', () => ({
-  useQuery: jest.fn(),
-  useMutation: jest.fn(),
-  useQueryClient: jest.fn(),
-  QueryClient: jest.fn(),
-  QueryClientProvider: ({ children }: { children: React.ReactNode }) => children,
-}))
+// Note: React Query is NOT mocked - tests use real QueryClient/QueryClientProvider
+// This allows proper testing of data fetching hooks
 
 // Global test utilities
 global.ResizeObserver = jest.fn().mockImplementation(() => ({

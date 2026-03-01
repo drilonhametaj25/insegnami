@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { EmailNotificationService } from '@/lib/email-queue';
 
 export async function GET(request: NextRequest) {
   try {
@@ -135,6 +136,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get the target user's email for sending notifications
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { email: true, firstName: true, lastName: true }
+    });
+
     const notification = await prisma.notification.create({
       data: {
         tenantId: targetUserTenant.tenantId,
@@ -149,18 +156,49 @@ export async function POST(request: NextRequest) {
         sourceId,
         scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
-        emailSent: !sendEmail, // Se non vogliamo email, marchiamo come già inviata
-        pushSent: !sendPush,   // Se non vogliamo push, marchiamo come già inviata
+        emailSent: false,
+        pushSent: !sendPush,   // Push notification not implemented yet
       }
     });
 
-    // TODO: Aggiungere alla queue per email/push se richiesti
-    // if (sendEmail) {
-    //   await addEmailNotificationJob(notification);
-    // }
-    // if (sendPush) {
-    //   await addPushNotificationJob(notification);
-    // }
+    // Send email notification if requested and user has email
+    if (sendEmail && targetUser?.email) {
+      try {
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">${title}</h2>
+            <div style="padding: 20px; background: #f5f5f5; border-radius: 8px; margin: 20px 0;">
+              <p style="color: #555; line-height: 1.6;">${content}</p>
+            </div>
+            ${actionUrl ? `<p><a href="${actionUrl}" style="display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 6px;">${actionLabel || 'Visualizza'}</a></p>` : ''}
+            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+            <p style="color: #999; font-size: 12px;">Questa notifica è stata inviata da InsegnaMi.pro</p>
+          </div>
+        `;
+
+        await EmailNotificationService.sendGenericEmail({
+          to: targetUser.email,
+          subject: `[InsegnaMi] ${title}`,
+          html: emailHtml,
+          text: `${title}\n\n${content}${actionUrl ? `\n\n${actionLabel || 'Visualizza'}: ${actionUrl}` : ''}`,
+        });
+
+        // Update notification to mark email as sent
+        await prisma.notification.update({
+          where: { id: notification.id },
+          data: { emailSent: true }
+        });
+      } catch (emailError) {
+        console.error('Failed to send notification email:', emailError);
+        // Don't fail the request, just log the error - notification is still created
+      }
+    } else if (!sendEmail) {
+      // If email not requested, mark as already sent
+      await prisma.notification.update({
+        where: { id: notification.id },
+        data: { emailSent: true }
+      });
+    }
 
     return NextResponse.json(notification, { status: 201 });
 

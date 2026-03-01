@@ -140,7 +140,7 @@ function StatCard({ title, value, icon, color, change, progress, badge }: StatCa
 }
 
 interface DashboardStatsProps {
-  role: 'ADMIN' | 'TEACHER' | 'STUDENT' | 'PARENT';
+  role: 'ADMIN' | 'DIRECTOR' | 'SECRETARY' | 'TEACHER' | 'STUDENT' | 'PARENT';
   data?: {
     students?: number;
     teachers?: number;
@@ -171,6 +171,8 @@ export default function DashboardStats({ role, data }: DashboardStatsProps) {
   const getStatsForRole = () => {
     switch (role) {
       case 'ADMIN':
+      case 'DIRECTOR':
+      case 'SECRETARY':
         return [
           {
             title: 'Studenti Attivi',

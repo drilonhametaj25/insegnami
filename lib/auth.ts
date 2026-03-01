@@ -150,3 +150,19 @@ export async function getAuth() {
     throw error;
   }
 }
+
+// Role helper constants for permission checks
+// ADMIN_ROLES: All roles that have full administrative access
+export const ADMIN_ROLES: Role[] = ['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY'];
+
+// Helper function to check if a role has admin access
+export function isAdminRole(role: string | undefined): boolean {
+  if (!role) return false;
+  return ADMIN_ROLES.includes(role as Role);
+}
+
+// Helper function to check if a role can manage (admin + teacher)
+export function canManage(role: string | undefined): boolean {
+  if (!role) return false;
+  return [...ADMIN_ROLES, 'TEACHER'].includes(role as Role);
+}
