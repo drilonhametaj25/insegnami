@@ -50,6 +50,20 @@ sleep 10
 echo "Running database migrations..."
 docker compose -f $COMPOSE_FILE exec -T app node_modules/prisma/build/index.js migrate deploy
 
+# Database seed (only first time - checks if demo user exists)
+echo "Checking if database seed is needed..."
+DEMO_EXISTS=$(docker compose -f $COMPOSE_FILE exec -T postgres psql -U insegnami -d insegnami -tAc "SELECT COUNT(*) FROM \"User\" WHERE email='demo@insegnami.pro'" 2>/dev/null || echo "0")
+
+if [ "$DEMO_EXISTS" = "0" ] || [ -z "$DEMO_EXISTS" ]; then
+    echo "Running database seed (first time setup)..."
+    docker compose -f $COMPOSE_FILE exec -T app node_modules/prisma/build/index.js db seed || {
+        echo "Warning: Database seed failed (non-critical, continuing...)"
+    }
+    echo "Database seed completed"
+else
+    echo "Database already seeded (demo user exists), skipping..."
+fi
+
 # Health check
 echo "Running health check..."
 sleep 5
