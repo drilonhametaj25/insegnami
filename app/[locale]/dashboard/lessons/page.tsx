@@ -13,6 +13,7 @@ import {
   Group,
   Grid,
   Stack,
+  Center,
   LoadingOverlay,
   Alert,
   ActionIcon,
@@ -35,6 +36,7 @@ import {
   IconX,
   IconInfoCircle,
   IconCalendar,
+  IconCalendarOff,
   IconList,
   IconEye,
   IconEdit,
@@ -593,8 +595,31 @@ export default function LessonsPage() {
 
       {/* Calendar View */}
       {viewMode === 'calendar' && (
-        <Paper shadow="sm" radius="lg" p="md" mb="md" style={{ minHeight: 600 }}>
-          <Calendar
+        <>
+          {/* BUG-055 fix: Show empty state in calendar view */}
+          {!loading && lessons.length === 0 && (
+            <Paper shadow="sm" radius="lg" p="xl" mb="md">
+              <Center>
+                <Stack align="center" gap="md">
+                  <IconCalendarOff size={48} color="gray" />
+                  <Text size="lg" c="dimmed" fw={500}>
+                    Nessuna lezione trovata
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    Aggiungi una nuova lezione per iniziare
+                  </Text>
+                  {canManageLessons && (
+                    <Button leftSection={<IconPlus size={16} />} onClick={open}>
+                      Nuova lezione
+                    </Button>
+                  )}
+                </Stack>
+              </Center>
+            </Paper>
+          )}
+          {lessons.length > 0 && (
+            <Paper shadow="sm" radius="lg" p="md" mb="md" style={{ minHeight: 600 }}>
+              <Calendar
             localizer={localizer}
             events={calendarEvents}
             startAccessor="start"
@@ -632,8 +657,10 @@ export default function LessonsPage() {
               event: 'Lezione',
               noEventsInRange: 'Nessuna lezione in questo periodo',
             }}
-          />
-        </Paper>
+              />
+            </Paper>
+          )}
+        </>
       )}
 
       {/* List View */}

@@ -38,7 +38,8 @@ export default function GradesPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const params = useParams();
-  const locale = params.locale as string;
+  // BUG-052 fix: Safe cast with fallback for useParams
+  const locale = typeof params?.locale === 'string' ? params.locale : 'it';
   const t = useTranslations('grades');
   const tCommon = useTranslations('common');
 

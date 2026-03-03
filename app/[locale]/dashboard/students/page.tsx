@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useTranslations, useLocale } from 'next-intl';
@@ -150,11 +150,11 @@ export default function StudentsPage() {
     }
   }, [pagination.page, searchQuery, statusFilter, canManageStudents]);
 
-  // Handle search
-  const handleSearch = (query: string) => {
+  // BUG-053 fix: Use useCallback for handleSearch
+  const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
     setPagination(prev => ({ ...prev, page: 1 }));
-  };
+  }, []);
 
   // Handle filter
   const handleFilter = (filter: string) => {

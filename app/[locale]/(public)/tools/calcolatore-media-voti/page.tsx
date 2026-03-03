@@ -33,14 +33,18 @@ interface Grade {
   weight: number;
 }
 
+// BUG-054 fix: Extract initial grades constant outside component
+const INITIAL_GRADES: Grade[] = [
+  { id: '1', subject: '', grade: '', weight: 1 },
+];
+
 export default function CalcolatoreMediaVotiPage() {
   // BUG-034/035 fix: Get locale from params for dynamic links
   const params = useParams();
-  const locale = (params?.locale as string) || 'it';
+  // BUG-052 fix: Safe cast with fallback
+  const locale = typeof params?.locale === 'string' ? params.locale : 'it';
 
-  const [grades, setGrades] = useState<Grade[]>([
-    { id: '1', subject: '', grade: '', weight: 1 },
-  ]);
+  const [grades, setGrades] = useState<Grade[]>(INITIAL_GRADES);
   const [result, setResult] = useState<{ average: number; totalWeight: number } | null>(null);
 
   const addGrade = () => {
@@ -83,8 +87,9 @@ export default function CalcolatoreMediaVotiPage() {
     });
   };
 
+  // BUG-054 fix: Use cloned INITIAL_GRADES to avoid mutations
   const reset = () => {
-    setGrades([{ id: '1', subject: '', grade: '', weight: 1 }]);
+    setGrades([...INITIAL_GRADES]);
     setResult(null);
   };
 

@@ -57,9 +57,10 @@ import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 export default function ClassGradesPage() {
   const { data: session } = useSession();
   const params = useParams();
-  const locale = params.locale as string;
-  const classId = params.classId as string;
-  const subjectId = params.subjectId as string;
+  // BUG-052 fix: Safe cast with fallback for useParams
+  const locale = typeof params?.locale === 'string' ? params.locale : 'it';
+  const classId = typeof params?.classId === 'string' ? params.classId : '';
+  const subjectId = typeof params?.subjectId === 'string' ? params.subjectId : '';
   const t = useTranslations('grades');
   const tCommon = useTranslations('common');
 

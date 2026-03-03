@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { checkTeacherLimit } from '@/lib/plan-limits';
+import { getPublicErrorMessage } from '@/lib/api-middleware';
 
 // GET /api/teachers - List teachers with pagination and filtering
 export async function GET(request: NextRequest) {
@@ -201,10 +202,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // BUG-049 fix: Generic error message to prevent user enumeration
     if (existingTeacher) {
       return NextResponse.json(
-        { error: 'A teacher with this email already exists' },
-        { status: 409 }
+        { error: 'Impossibile creare insegnante. Verifica i dati e riprova.' },
+        { status: 400 }
       );
     }
 
@@ -292,9 +294,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Teachers POST error:', error);
+    // BUG-050 fix: Use generic error message to prevent info disclosure
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: getPublicErrorMessage(error, 'Errore durante la creazione dell\'insegnante') },
       { status: 500 }
     );
   }

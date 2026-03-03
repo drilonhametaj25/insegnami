@@ -214,10 +214,11 @@ export async function POST(request: NextRequest) {
       where: { email },
     });
 
+    // BUG-049 fix: Generic error message to prevent user enumeration
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User already exists with this email' },
-        { status: 409 }
+        { error: 'Impossibile creare utente. Verifica i dati e riprova.' },
+        { status: 400 }
       );
     }
 

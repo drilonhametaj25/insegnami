@@ -42,6 +42,23 @@ export function sanitizeError(error: unknown): { message: string; name: string }
 }
 
 /**
+ * Get a public-safe error message for API responses
+ * BUG-050 fix: Prevent verbose error messages from leaking internal info
+ *
+ * Logs the full error server-side, returns generic message to client
+ */
+export function getPublicErrorMessage(
+  error: unknown,
+  fallback: string = 'Si è verificato un errore. Riprova.'
+): string {
+  // Log full error server-side for debugging
+  console.error('[INTERNAL ERROR]', error instanceof Error ? error.stack : error);
+
+  // Return generic message to client
+  return fallback;
+}
+
+/**
  * Escape HTML to prevent XSS in email templates
  * BUG-032 fix: XSS prevention
  */

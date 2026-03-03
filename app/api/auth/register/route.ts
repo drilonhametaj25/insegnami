@@ -53,14 +53,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
+    // BUG-049 fix: Generic error message to prevent user enumeration
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { error: 'Un utente con questa email è già registrato' },
-        { status: 409 }
+        { error: 'Impossibile completare la registrazione. Verifica i dati e riprova.' },
+        { status: 400 }
       );
     }
 

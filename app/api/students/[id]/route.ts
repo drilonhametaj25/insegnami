@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { getPublicErrorMessage } from '@/lib/api-middleware';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -515,9 +516,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     });
 
   } catch (error) {
-    console.error('Error updating student:', error);
+    // BUG-050 fix: Use generic error message to prevent info disclosure
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: getPublicErrorMessage(error, 'Errore durante l\'aggiornamento dello studente') },
       { status: 500 }
     );
   }

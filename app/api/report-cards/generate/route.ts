@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { getPublicErrorMessage } from '@/lib/api-middleware';
 
 const generateSchema = z.object({
   classId: z.string().min(1),
@@ -216,11 +217,12 @@ export async function POST(request: NextRequest) {
         });
       } catch (error) {
         results.errors++;
+        // BUG-050 fix: Use generic error message to prevent info disclosure
         results.details.push({
           studentId: student.id,
           studentName: `${student.lastName} ${student.firstName}`,
           status: 'error',
-          error: error instanceof Error ? error.message : 'Errore sconosciuto',
+          error: getPublicErrorMessage(error, 'Errore durante la generazione'),
         });
       }
     }

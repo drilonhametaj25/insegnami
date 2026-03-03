@@ -50,8 +50,9 @@ export default function ReportCardDetailPage() {
   const { data: session } = useSession();
   const params = useParams();
   const router = useRouter();
-  const locale = params.locale as string;
-  const reportCardId = params.id as string;
+  // BUG-052 fix: Safe cast with fallback for useParams
+  const locale = typeof params?.locale === 'string' ? params.locale : 'it';
+  const reportCardId = typeof params?.id === 'string' ? params.id : '';
   const t = useTranslations('reportCards');
   const tCommon = useTranslations('common');
 

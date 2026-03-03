@@ -58,7 +58,8 @@ import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 export default function HomeworkPage() {
   const { data: session } = useSession();
   const params = useParams();
-  const locale = params.locale as string;
+  // BUG-052 fix: Safe cast with fallback for useParams
+  const locale = typeof params?.locale === 'string' ? params.locale : 'it';
   const t = useTranslations('homework');
   const tCommon = useTranslations('common');
 
