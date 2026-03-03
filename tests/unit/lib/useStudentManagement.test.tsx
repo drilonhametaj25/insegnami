@@ -76,7 +76,7 @@ describe('Student Management Hooks', () => {
       })
 
       expect(result.current.data?.students).toEqual(mockResponse.students)
-      expect(fetch).toHaveBeenCalledWith('/api/students?page=1&limit=20', expect.any(Object))
+      expect(fetch).toHaveBeenCalledWith('/api/students?page=1&limit=20')
     })
 
     it('handles API errors gracefully', async () => {
@@ -111,8 +111,7 @@ describe('Student Management Hooks', () => {
 
       await waitFor(() => {
         expect(fetch).toHaveBeenCalledWith(
-          '/api/students?page=2&limit=10&status=ACTIVE&search=Mario',
-          expect.any(Object)
+          '/api/students?page=2&limit=10&status=ACTIVE&search=Mario'
         )
       })
     })

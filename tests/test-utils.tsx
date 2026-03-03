@@ -21,10 +21,16 @@ const messages = {
   },
   Analytics: {
     title: 'Analytics & Reports',
+    subtitle: 'Comprehensive analytics and reporting dashboard',
     totalStudents: 'Total Students',
     totalTeachers: 'Total Teachers',
     totalClasses: 'Total Classes',
-    totalLessons: 'Total Lessons',
+    totalLessons: 'Lessons This Period',
+    '7days': '7 Days',
+    '30days': '30 Days',
+    '90days': '90 Days',
+    '1year': '1 Year',
+    refresh: 'Refresh Data',
   }
 }
 
