@@ -74,8 +74,8 @@ export default async function CheckoutCancelPage({
                   <Group gap="xs">
                     <IconMail size={16} color="var(--mantine-color-dimmed)" />
                     <Text size="sm" c="dimmed">
-                      <Text component="a" href="mailto:info@insegnami.pro" c="blue" inherit>
-                        info@insegnami.pro
+                      <Text component="a" href="mailto:info@drilonhametaj.it" c="blue" inherit>
+                        info@drilonhametaj.it
                       </Text>
                     </Text>
                   </Group>

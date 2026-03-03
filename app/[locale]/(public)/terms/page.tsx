@@ -182,7 +182,7 @@ export default async function TermsPage({
             <Text fw={500}>6.1 Esercizio del Recesso</Text>
             <Text>
               Per esercitare il diritto di recesso, invia una comunicazione scritta a{' '}
-              <Anchor href="mailto:info@insegnami.pro">info@insegnami.pro</Anchor> entro 14 giorni
+              <Anchor href="mailto:info@drilonhametaj.it">info@drilonhametaj.it</Anchor> entro 14 giorni
               dalla sottoscrizione dell'abbonamento.
             </Text>
 
@@ -327,7 +327,7 @@ export default async function TermsPage({
           <Paper p="md" radius="md" bg="gray.0">
             <Text><strong>InsegnaMi.pro</strong></Text>
             <Text>P.IVA: 07327360488</Text>
-            <Text>Email: <Anchor href="mailto:info@insegnami.pro">info@insegnami.pro</Anchor></Text>
+            <Text>Email: <Anchor href="mailto:info@drilonhametaj.it">info@drilonhametaj.it</Anchor></Text>
           </Paper>
         </Paper>
 

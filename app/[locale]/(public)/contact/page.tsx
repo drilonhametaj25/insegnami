@@ -3,10 +3,20 @@
 import { Container, Title, Text, Stack, Paper, TextInput, Textarea, Button, Group, ThemeIcon, Box, SimpleGrid, Alert, Anchor } from '@mantine/core';
 import { IconMail, IconPhone, IconMapPin, IconSend, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { notifications } from '@mantine/notifications';
 
+// Subject mapping for query params
+const SUBJECT_MAP: Record<string, string> = {
+  'enterprise': 'Richiesta informazioni Piano Enterprise',
+  'full-installation': 'Richiesta preventivo Installazione Full',
+  'demo': 'Richiesta demo personalizzata',
+  'support': 'Richiesta supporto',
+};
+
 export default function ContactPage() {
+  const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -25,6 +35,14 @@ export default function ContactPage() {
       message: (value) => (value.trim().length < 10 ? 'Il messaggio deve avere almeno 10 caratteri' : null),
     },
   });
+
+  // Pre-fill subject based on query param
+  useEffect(() => {
+    const subjectParam = searchParams.get('subject');
+    if (subjectParam && SUBJECT_MAP[subjectParam]) {
+      form.setFieldValue('subject', SUBJECT_MAP[subjectParam]);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (values: typeof form.values) => {
     setIsSubmitting(true);
@@ -85,7 +103,7 @@ export default function ContactPage() {
                   </ThemeIcon>
                   <div>
                     <Text size="sm" c="dimmed">Email</Text>
-                    <Anchor href="mailto:info@insegnami.pro" fw={500}>info@insegnami.pro</Anchor>
+                    <Anchor href="mailto:info@drilonhametaj.it" fw={500}>info@drilonhametaj.it</Anchor>
                   </div>
                 </Group>
 
@@ -118,8 +136,8 @@ export default function ContactPage() {
                 Per problemi tecnici o assistenza sull'utilizzo della piattaforma,
                 i clienti attivi possono contattare il supporto dedicato.
               </Text>
-              <Anchor href="mailto:support@insegnami.pro" size="sm">
-                support@insegnami.pro
+              <Anchor href="mailto:info@drilonhametaj.it" size="sm">
+                info@drilonhametaj.it
               </Anchor>
             </Paper>
 
@@ -129,8 +147,8 @@ export default function ContactPage() {
                 Vuoi vedere InsegnaMi.pro in azione? Richiedi una demo personalizzata
                 e ti mostreremo tutte le funzionalità.
               </Text>
-              <Anchor href="mailto:demo@insegnami.pro" size="sm">
-                demo@insegnami.pro
+              <Anchor href="mailto:info@drilonhametaj.it" size="sm">
+                info@drilonhametaj.it
               </Anchor>
             </Paper>
           </Stack>

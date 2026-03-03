@@ -27,15 +27,16 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { 
-  IconAlertCircle, 
-  IconSchool, 
-  IconMail, 
+import {
+  IconAlertCircle,
+  IconSchool,
+  IconMail,
   IconLock,
   IconArrowRight,
   IconShield,
   IconUsers,
   IconCalendar,
+  IconTestPipe,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { isSaaSMode } from '@/lib/config';
@@ -55,6 +56,19 @@ function LoginForm() {
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const verified = searchParams.get('verified');
   const errorParam = searchParams.get('error');
+  const showDemo = searchParams.get('demo') === 'true';
+
+  // Demo credentials
+  const DEMO_EMAIL = 'demo@insegnami.pro';
+  const DEMO_PASSWORD = 'Demo123!';
+
+  const fillDemoCredentials = () => {
+    form.setValues({
+      ...form.values,
+      email: DEMO_EMAIL,
+      password: DEMO_PASSWORD,
+    });
+  };
 
   const form = useForm<LoginForm>({
     initialValues: {
@@ -219,6 +233,32 @@ function LoginForm() {
                     Inserisci le tue credenziali per continuare
                   </Text>
                 </div>
+
+                {/* Demo Credentials Box */}
+                {showDemo && (
+                  <Paper p="md" radius="md" bg="blue.0" withBorder style={{ borderColor: 'var(--mantine-color-blue-3)' }}>
+                    <Group gap="md" wrap="nowrap">
+                      <ThemeIcon size="lg" color="blue" variant="light" radius="xl">
+                        <IconTestPipe size={20} />
+                      </ThemeIcon>
+                      <div style={{ flex: 1 }}>
+                        <Text fw={600} size="sm">Prova la Demo</Text>
+                        <Text size="xs" c="dimmed">Email: {DEMO_EMAIL}</Text>
+                        <Text size="xs" c="dimmed">Password: {DEMO_PASSWORD}</Text>
+                      </div>
+                    </Group>
+                    <Button
+                      variant="light"
+                      color="blue"
+                      size="xs"
+                      mt="sm"
+                      fullWidth
+                      onClick={fillDemoCredentials}
+                    >
+                      Usa credenziali demo
+                    </Button>
+                  </Paper>
+                )}
 
                 <form onSubmit={form.onSubmit(handleSubmit)}>
                   <Stack gap="md">

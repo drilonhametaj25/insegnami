@@ -300,7 +300,7 @@ export default async function PrivacyPage({
           <Text mb="md">Per domande sulla privacy o per esercitare i tuoi diritti:</Text>
           <Paper p="md" radius="md" bg="gray.0">
             <Text>Email: <Anchor href="mailto:privacy@insegnami.pro">privacy@insegnami.pro</Anchor></Text>
-            <Text>Supporto: <Anchor href="mailto:info@insegnami.pro">info@insegnami.pro</Anchor></Text>
+            <Text>Supporto: <Anchor href="mailto:info@drilonhametaj.it">info@drilonhametaj.it</Anchor></Text>
           </Paper>
         </Paper>
 

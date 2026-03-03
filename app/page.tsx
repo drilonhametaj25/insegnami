@@ -198,10 +198,10 @@ export default function LandingPage() {
                 >
                   Inizia Gratis
                 </Button>
-                <Button 
+                <Button
                   component={Link}
-                  href="/it/dashboard"
-                  variant="outline" 
+                  href="/it/auth/login?demo=true"
+                  variant="outline"
                   size="xl"
                   radius="xl"
                   style={{
@@ -352,7 +352,15 @@ export default function LandingPage() {
                     <Text c="dimmed">/mese</Text>
                   </Group>
                   <Text c="dimmed" size="sm" mb="lg">Fino a 50 studenti</Text>
-                  <Button fullWidth radius="xl" variant="light" color="blue" mb="lg">
+                  <Button
+                    component={Link}
+                    href="/it/pricing?plan=starter"
+                    fullWidth
+                    radius="xl"
+                    variant="light"
+                    color="blue"
+                    mb="lg"
+                  >
                     Inizia Ora
                   </Button>
                   <Stack gap="xs">
@@ -389,7 +397,14 @@ export default function LandingPage() {
                     <Text c="dimmed">/mese</Text>
                   </Group>
                   <Text c="dimmed" size="sm" mb="lg">Fino a 200 studenti</Text>
-                  <Button fullWidth radius="xl" color="green" mb="lg">
+                  <Button
+                    component={Link}
+                    href="/it/pricing?plan=professional"
+                    fullWidth
+                    radius="xl"
+                    color="green"
+                    mb="lg"
+                  >
                     Inizia Ora
                   </Button>
                   <Stack gap="xs">
@@ -416,7 +431,15 @@ export default function LandingPage() {
                     <Text c="dimmed">/mese</Text>
                   </Group>
                   <Text c="dimmed" size="sm" mb="lg">Studenti illimitati</Text>
-                  <Button fullWidth radius="xl" variant="light" color="violet" mb="lg">
+                  <Button
+                    component={Link}
+                    href="/it/contact?subject=enterprise"
+                    fullWidth
+                    radius="xl"
+                    variant="light"
+                    color="violet"
+                    mb="lg"
+                  >
                     Contattaci
                   </Button>
                   <Stack gap="xs">
@@ -522,8 +545,8 @@ export default function LandingPage() {
                     ))}
                   </SimpleGrid>
 
-                  <Button 
-                    size="xl" 
+                  <Button
+                    size="xl"
                     fullWidth
                     radius="xl"
                     mt="md"
@@ -532,8 +555,8 @@ export default function LandingPage() {
                       color: '#d97706',
                       fontWeight: 700
                     }}
-                    component="a"
-                    href="mailto:info@insegnami.pro"
+                    component={Link}
+                    href="/it/contact?subject=full-installation"
                     rightSection={<IconArrowRight size={20} />}
                   >
                     Richiedi Preventivo
@@ -617,7 +640,7 @@ export default function LandingPage() {
                 <ThemeIcon size="lg" radius="xl" variant="light">
                   <IconMail size={18} />
                 </ThemeIcon>
-                <Text size="sm" c="white">info@insegnami.pro</Text>
+                <Text size="sm" c="white">info@drilonhametaj.it</Text>
               </Group>
             </Grid.Col>
             <Grid.Col span={{ base: 12, md: 7 }}>

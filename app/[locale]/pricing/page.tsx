@@ -33,7 +33,7 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Plan {
   id: string;
@@ -82,15 +82,36 @@ const planFeatures: Record<string, string[]> = {
 export default function PricingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
+  const [highlightedPlan, setHighlightedPlan] = useState<string | null>(null);
+
+  // Get preselected plan from query params
+  const preselectedPlan = searchParams.get('plan');
 
   useEffect(() => {
     fetchPlans();
   }, []);
+
+  // Scroll to and highlight preselected plan
+  useEffect(() => {
+    if (preselectedPlan && !loading && plans.length > 0) {
+      setHighlightedPlan(preselectedPlan);
+      const planElement = document.getElementById(`plan-${preselectedPlan}`);
+      if (planElement) {
+        setTimeout(() => {
+          planElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
+      // Remove highlight after 3 seconds
+      const timer = setTimeout(() => setHighlightedPlan(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [preselectedPlan, loading, plans]);
 
   const fetchPlans = async () => {
     try {
@@ -215,14 +236,23 @@ export default function PricingPage() {
                     return (
                       <Card
                         key={plan.id}
+                        id={`plan-${plan.slug}`}
                         padding="xl"
                         radius="xl"
                         shadow="md"
                         style={{
                           position: 'relative',
                           transform: plan.isPopular ? 'scale(1.05)' : 'scale(1)',
-                          border: plan.isPopular ? `2px solid var(--mantine-color-${color}-6)` : '1px solid #e2e8f0',
-                          zIndex: plan.isPopular ? 1 : 0
+                          border: highlightedPlan === plan.slug
+                            ? `3px solid var(--mantine-color-yellow-5)`
+                            : plan.isPopular
+                            ? `2px solid var(--mantine-color-${color}-6)`
+                            : '1px solid #e2e8f0',
+                          zIndex: plan.isPopular ? 1 : 0,
+                          boxShadow: highlightedPlan === plan.slug
+                            ? '0 0 20px rgba(255, 193, 7, 0.4)'
+                            : undefined,
+                          transition: 'border 0.3s ease, box-shadow 0.3s ease'
                         }}
                       >
                         {plan.isPopular && (
@@ -374,8 +404,8 @@ export default function PricingPage() {
                         color: '#d97706',
                         fontWeight: 700
                       }}
-                      component="a"
-                      href="mailto:info@insegnami.pro?subject=Richiesta%20Installazione%20Full"
+                      component={Link}
+                      href="/it/contact?subject=full-installation"
                       rightSection={<IconArrowRight size={20} />}
                     >
                       Richiedi Preventivo
@@ -490,7 +520,7 @@ export default function PricingPage() {
               <ThemeIcon size="md" radius="xl" variant="light">
                 <IconMail size={16} />
               </ThemeIcon>
-              <Text size="sm" c="dimmed">info@insegnami.pro</Text>
+              <Text size="sm" c="dimmed">info@drilonhametaj.it</Text>
             </Group>
           </Group>
           <Divider my="lg" color="rgba(255,255,255,0.1)" />

@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     // Send email to support
     const result = await emailService.sendEmail({
-      to: 'info@insegnami.pro',
+      to: 'info@drilonhametaj.it',
       subject: `[Contatti] ${subject}`,
       html: htmlContent,
       replyTo: email,

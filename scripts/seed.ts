@@ -76,6 +76,54 @@ async function main() {
 
   console.log('✅ Created admin user: admin@englishplus.it / password');
 
+  // ========================================
+  // 🎭 DEMO USER - For public demo access
+  // ========================================
+  const demoPassword = await bcrypt.hash('Demo123!', 12);
+
+  const demoUser = await prisma.user.upsert({
+    where: { email: 'demo@insegnami.pro' },
+    update: {},
+    create: {
+      email: 'demo@insegnami.pro',
+      password: demoPassword,
+      firstName: 'Utente',
+      lastName: 'Demo',
+      phone: '+39 000 0000000',
+      status: UserStatus.ACTIVE,
+      emailVerified: new Date(),
+    },
+  });
+
+  // Assign demo user admin role (full access for demo)
+  await prisma.userTenant.upsert({
+    where: {
+      userId_tenantId: {
+        userId: demoUser.id,
+        tenantId: tenant.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: demoUser.id,
+      tenantId: tenant.id,
+      role: Role.ADMIN,
+      permissions: JSON.stringify({
+        users: { create: true, read: true, update: true, delete: true },
+        students: { create: true, read: true, update: true, delete: true },
+        teachers: { create: true, read: true, update: true, delete: true },
+        classes: { create: true, read: true, update: true, delete: true },
+        lessons: { create: true, read: true, update: true, delete: true },
+        attendance: { create: true, read: true, update: true, delete: true },
+        payments: { create: true, read: true, update: true, delete: true },
+        notices: { create: true, read: true, update: true, delete: true },
+        reports: { create: true, read: true, update: true, delete: true },
+      }),
+    },
+  });
+
+  console.log('✅ Created demo user: demo@insegnami.pro / Demo123!');
+
   // Create teacher user
   const teacherUser = await prisma.user.upsert({
     where: { email: 'teacher@englishplus.it' },
@@ -1131,13 +1179,14 @@ async function main() {
   console.log('');
   console.log('🌱 Database seeding completed successfully!');
   console.log('');
-  console.log('🔐 All users have password: "password"');
+  console.log('🔐 Login credentials:');
   console.log('');
   console.log('👥 Available login accounts:');
-  console.log('📧 Admin: admin@englishplus.it');
-  console.log('🏫 Teacher: teacher@englishplus.it, teacher2@englishplus.it');
-  console.log('🎓 Student: student@englishplus.it, giulia.romano@email.it, luca.ferrari@email.it, chiara.esposito@email.it, andrea.conti@email.it, sofia.ricci@email.it');
-  console.log('👨‍👩‍👧‍👦 Parent: parent@englishplus.it, + 5 additional parent accounts');
+  console.log('🎭 DEMO:    demo@insegnami.pro / Demo123!');
+  console.log('📧 Admin:   admin@englishplus.it / password');
+  console.log('🏫 Teacher: teacher@englishplus.it / password, teacher2@englishplus.it / password');
+  console.log('🎓 Student: student@englishplus.it / password + 5 additional student accounts');
+  console.log('👨‍👩‍👧‍👦 Parent:  parent@englishplus.it / password + 5 additional parent accounts');
   console.log('');
   console.log('📊 Sample data includes:');
   console.log('  - 3 courses (Beginner, Intermediate, Advanced Business)');
