@@ -15,6 +15,64 @@ echo "=========================================="
 
 cd "$APP_DIR"
 
+# ========================================
+# VERIFY ENVIRONMENT VARIABLES
+# ========================================
+echo "Verifying environment variables..."
+
+# Load .env if exists
+if [ -f "$APP_DIR/.env" ]; then
+    set -a
+    source "$APP_DIR/.env"
+    set +a
+    echo "Loaded .env file"
+else
+    echo "WARNING: No .env file found at $APP_DIR/.env"
+fi
+
+# Check critical variables
+ERRORS=0
+
+if [ -z "$NEXTAUTH_SECRET" ]; then
+    echo "ERROR: NEXTAUTH_SECRET is not set"
+    ERRORS=$((ERRORS + 1))
+elif [ ${#NEXTAUTH_SECRET} -lt 32 ]; then
+    echo "ERROR: NEXTAUTH_SECRET must be at least 32 characters (current: ${#NEXTAUTH_SECRET})"
+    ERRORS=$((ERRORS + 1))
+fi
+
+if [ -z "$NEXTAUTH_URL" ]; then
+    echo "ERROR: NEXTAUTH_URL is not set"
+    ERRORS=$((ERRORS + 1))
+fi
+
+if [ -z "$POSTGRES_PASSWORD" ]; then
+    echo "ERROR: POSTGRES_PASSWORD is not set"
+    ERRORS=$((ERRORS + 1))
+fi
+
+if [ $ERRORS -gt 0 ]; then
+    echo ""
+    echo "==========================================="
+    echo "DEPLOYMENT ABORTED: Missing environment variables"
+    echo "==========================================="
+    echo ""
+    echo "Please create $APP_DIR/.env with the following:"
+    echo ""
+    echo "  POSTGRES_USER=insegnami"
+    echo "  POSTGRES_PASSWORD=<your-secure-password>"
+    echo "  POSTGRES_DB=insegnami"
+    echo "  NEXTAUTH_URL=https://insegnami.pro"
+    echo "  NEXTAUTH_SECRET=<generate-with-openssl-rand-base64-32>"
+    echo ""
+    echo "Generate a secure secret with:"
+    echo "  openssl rand -base64 32"
+    echo ""
+    exit 1
+fi
+
+echo "Environment variables OK"
+
 # Create backup directory if not exists
 mkdir -p "$BACKUP_DIR"
 
