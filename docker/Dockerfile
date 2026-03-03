@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine AS deps
+FROM node:18-alpine3.18 AS deps
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY prisma ./prisma/
 RUN npm ci
 
 # Builder stage
-FROM node:18-alpine AS builder
+FROM node:18-alpine3.18 AS builder
 
 WORKDIR /app
 
@@ -38,7 +38,7 @@ ARG NEXTAUTH_URL="http://localhost:3000"
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine AS runner
+FROM node:18-alpine3.18 AS runner
 
 WORKDIR /app
 
