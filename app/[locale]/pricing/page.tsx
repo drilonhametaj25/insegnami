@@ -495,7 +495,7 @@ export default function PricingPage() {
           </Group>
           <Divider my="lg" color="rgba(255,255,255,0.1)" />
           <Text size="sm" c="dimmed" ta="center">
-            © 2025 InsegnaMi.pro. Tutti i diritti riservati.
+            © {new Date().getFullYear()} InsegnaMi.pro. Tutti i diritti riservati. | P.IVA: 07327360488
           </Text>
         </Container>
       </Box>

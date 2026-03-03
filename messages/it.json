@@ -1561,5 +1561,59 @@
     "noArticles": "Nessun articolo disponibile al momento.",
     "tryFree": "Prova InsegnaMi.pro gratuitamente",
     "tryFreeDescription": "Scopri come InsegnaMi.pro può semplificare la gestione della tua scuola. 14 giorni di prova gratuita."
+  },
+  "legal": {
+    "privacy": {
+      "title": "Privacy Policy",
+      "description": "Informativa sulla privacy e trattamento dei dati personali",
+      "lastUpdated": "Ultimo aggiornamento"
+    },
+    "terms": {
+      "title": "Termini di Servizio",
+      "description": "Termini e condizioni di utilizzo della piattaforma",
+      "lastUpdated": "Ultimo aggiornamento"
+    },
+    "cookies": {
+      "title": "Cookie Policy",
+      "description": "Informativa sui cookie utilizzati dal sito",
+      "lastUpdated": "Ultimo aggiornamento"
+    }
+  },
+  "contact": {
+    "title": "Contattaci",
+    "description": "Hai domande? Siamo qui per aiutarti",
+    "form": {
+      "name": "Nome e Cognome",
+      "email": "Email",
+      "subject": "Oggetto",
+      "message": "Messaggio",
+      "submit": "Invia Messaggio",
+      "success": "Messaggio inviato con successo!",
+      "error": "Errore nell'invio del messaggio"
+    },
+    "info": {
+      "email": "Email",
+      "support": "Supporto",
+      "location": "Sede"
+    }
+  },
+  "checkout": {
+    "success": {
+      "title": "Pagamento Completato!",
+      "description": "Grazie per aver scelto InsegnaMi.pro",
+      "activated": "Abbonamento attivato",
+      "fullAccess": "Accesso completo a tutte le funzionalità",
+      "emailConfirmation": "Riceverai una email di conferma",
+      "goToDashboard": "Vai alla Dashboard",
+      "viewBilling": "Visualizza Fatturazione"
+    },
+    "cancel": {
+      "title": "Pagamento Annullato",
+      "description": "Il processo di pagamento è stato annullato",
+      "noCharge": "Non ti è stato addebitato nulla",
+      "tryAgain": "Puoi riprovare in qualsiasi momento",
+      "backToPlans": "Torna ai Piani",
+      "backToHome": "Torna alla Home"
+    }
   }
 }

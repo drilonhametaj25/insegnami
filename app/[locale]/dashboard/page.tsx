@@ -51,7 +51,8 @@ export default function DashboardPage() {
     };
 
     checkOnboarding();
-  }, [session, router, locale]);
+    // BUG-018 fix: Only depend on stable values to prevent infinite loops
+  }, [session?.user?.id, session?.user?.role]);
   
   // TanStack Query hooks for dashboard data
   const { 

@@ -1038,5 +1038,59 @@
       "classSaved": "Class saved successfully",
       "paymentSaved": "Payment saved successfully"
     }
+  },
+  "legal": {
+    "privacy": {
+      "title": "Privacy Policy",
+      "description": "Privacy and personal data processing information",
+      "lastUpdated": "Last updated"
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "description": "Terms and conditions for using the platform",
+      "lastUpdated": "Last updated"
+    },
+    "cookies": {
+      "title": "Cookie Policy",
+      "description": "Information about cookies used on the site",
+      "lastUpdated": "Last updated"
+    }
+  },
+  "contact": {
+    "title": "Contact Us",
+    "description": "Have questions? We're here to help",
+    "form": {
+      "name": "Full Name",
+      "email": "Email",
+      "subject": "Subject",
+      "message": "Message",
+      "submit": "Send Message",
+      "success": "Message sent successfully!",
+      "error": "Error sending message"
+    },
+    "info": {
+      "email": "Email",
+      "support": "Support",
+      "location": "Location"
+    }
+  },
+  "checkout": {
+    "success": {
+      "title": "Payment Complete!",
+      "description": "Thank you for choosing InsegnaMi.pro",
+      "activated": "Subscription activated",
+      "fullAccess": "Full access to all features",
+      "emailConfirmation": "You will receive a confirmation email",
+      "goToDashboard": "Go to Dashboard",
+      "viewBilling": "View Billing"
+    },
+    "cancel": {
+      "title": "Payment Cancelled",
+      "description": "The payment process was cancelled",
+      "noCharge": "You have not been charged",
+      "tryAgain": "You can try again anytime",
+      "backToPlans": "Back to Plans",
+      "backToHome": "Back to Home"
+    }
   }
 }

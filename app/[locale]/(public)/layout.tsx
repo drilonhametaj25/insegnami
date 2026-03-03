@@ -120,14 +120,8 @@ async function PublicFooter({ locale }: { locale: string }) {
             <Text fw={500} mb="xs">
               Azienda
             </Text>
-            <Anchor component={Link} href={`/${locale}/about`} c="dimmed" size="sm">
-              Chi siamo
-            </Anchor>
             <Anchor component={Link} href={`/${locale}/contact`} c="dimmed" size="sm">
               Contatti
-            </Anchor>
-            <Anchor component={Link} href={`/${locale}/careers`} c="dimmed" size="sm">
-              Lavora con noi
             </Anchor>
           </Stack>
 
@@ -152,7 +146,7 @@ async function PublicFooter({ locale }: { locale: string }) {
 
         <Group justify="space-between">
           <Text size="sm" c="dimmed">
-            &copy; {currentYear} InsegnaMi.pro. Tutti i diritti riservati.
+            &copy; {currentYear} InsegnaMi.pro. Tutti i diritti riservati. | P.IVA: 07327360488
           </Text>
           <Group gap="xs">
             <Anchor component={Link} href={`/it`} c="dimmed" size="sm">

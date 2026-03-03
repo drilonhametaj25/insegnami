@@ -164,6 +164,11 @@ export default function BillingPage() {
         fetch('/api/classes?page=1&limit=1')
       ]);
 
+      // BUG-017 fix: Check response.ok before parsing JSON
+      if (!studentsRes.ok || !teachersRes.ok || !classesRes.ok) {
+        throw new Error('Failed to fetch usage statistics');
+      }
+
       const studentsData = await studentsRes.json();
       const teachersData = await teachersRes.json();
       const classesData = await classesRes.json();
@@ -174,6 +179,13 @@ export default function BillingPage() {
         classes: classesData.total || 0
       });
     } catch (err) {
+      // BUG-021 fix: Show error to user instead of silent console.error
+      notifications.show({
+        title: 'Errore',
+        message: 'Impossibile caricare le statistiche di utilizzo',
+        color: 'red',
+        icon: <IconAlertTriangle size={18} />
+      });
       console.error('Error fetching usage:', err);
     }
   };
@@ -191,8 +203,8 @@ export default function BillingPage() {
         throw new Error(result.error || 'Errore nell\'apertura del portale');
       }
 
-      // Redirect to Stripe Customer Portal
-      window.location.href = result.url;
+      // BUG-022 fix: Open in new tab instead of hard redirect to preserve app state
+      window.open(result.url, '_blank');
     } catch (err) {
       notifications.show({
         title: 'Errore',

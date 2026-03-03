@@ -1024,6 +1024,110 @@ async function main() {
 
   console.log('✅ Created sample notifications');
 
+  // ========================================
+  // 💳 SUBSCRIPTION PLANS - Piani abbonamento SaaS
+  // ========================================
+  console.log('Creating subscription plans...');
+
+  const starterPlan = await prisma.plan.upsert({
+    where: { slug: 'starter' },
+    update: {},
+    create: {
+      name: 'Starter',
+      slug: 'starter',
+      stripePriceId: process.env.STRIPE_STARTER_PRICE_ID || 'price_starter_placeholder',
+      price: 29,
+      interval: 'MONTHLY',
+      maxStudents: 50,
+      maxTeachers: 5,
+      maxClasses: 10,
+      features: JSON.stringify({
+        attendance: true,
+        payments: true,
+        communications: true,
+        calendar: true,
+        reports: true,
+        parentPortal: true,
+        analytics: false,
+        integrations: false,
+        advancedReporting: false,
+      }),
+      description: 'Ideale per piccole scuole',
+      isPopular: false,
+      sortOrder: 1,
+      isActive: true,
+    },
+  });
+
+  const professionalPlan = await prisma.plan.upsert({
+    where: { slug: 'professional' },
+    update: {},
+    create: {
+      name: 'Professional',
+      slug: 'professional',
+      stripePriceId: process.env.STRIPE_PROFESSIONAL_PRICE_ID || 'price_professional_placeholder',
+      price: 79,
+      interval: 'MONTHLY',
+      maxStudents: 200,
+      maxTeachers: 20,
+      maxClasses: 50,
+      features: JSON.stringify({
+        attendance: true,
+        payments: true,
+        communications: true,
+        calendar: true,
+        reports: true,
+        parentPortal: true,
+        analytics: true,
+        integrations: true,
+        advancedReporting: false,
+        whiteLabel: true,
+      }),
+      description: 'Per scuole in crescita',
+      isPopular: true,
+      sortOrder: 2,
+      isActive: true,
+    },
+  });
+
+  const enterprisePlan = await prisma.plan.upsert({
+    where: { slug: 'enterprise' },
+    update: {},
+    create: {
+      name: 'Enterprise',
+      slug: 'enterprise',
+      stripePriceId: process.env.STRIPE_ENTERPRISE_PRICE_ID || 'price_enterprise_placeholder',
+      price: 199,
+      interval: 'MONTHLY',
+      maxStudents: null, // unlimited
+      maxTeachers: null, // unlimited
+      maxClasses: null, // unlimited
+      features: JSON.stringify({
+        attendance: true,
+        payments: true,
+        communications: true,
+        calendar: true,
+        reports: true,
+        parentPortal: true,
+        analytics: true,
+        integrations: true,
+        advancedReporting: true,
+        whiteLabel: true,
+        multiCampus: true,
+        slaGuarantee: true,
+        dedicatedSupport: true,
+        customIntegrations: true,
+      }),
+      description: 'Soluzioni personalizzate per grandi istituti',
+      isPopular: false,
+      sortOrder: 3,
+      isActive: true,
+    },
+  });
+
+  console.log('✅ Created subscription plans (Starter, Professional, Enterprise)');
+  console.log('⚠️  IMPORTANT: Update STRIPE_STARTER_PRICE_ID, STRIPE_PROFESSIONAL_PRICE_ID, STRIPE_ENTERPRISE_PRICE_ID in .env with your Stripe Price IDs');
+
   console.log('');
   console.log('🌱 Database seeding completed successfully!');
   console.log('');

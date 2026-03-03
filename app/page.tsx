@@ -630,15 +630,13 @@ export default function LandingPage() {
                 </Stack>
                 <Stack gap="xs">
                   <Text fw={700} c="white" mb="xs">Azienda</Text>
-                  <Anchor size="sm" c="dimmed" href="mailto:info@insegnami.pro">Contatti</Anchor>
-                  <Anchor size="sm" c="dimmed" href="#about">Chi Siamo</Anchor>
-                  <Anchor size="sm" c="dimmed" href="#support">Supporto</Anchor>
+                  <Anchor size="sm" c="dimmed" href="/it/contact">Contatti</Anchor>
                 </Stack>
                 <Stack gap="xs">
                   <Text fw={700} c="white" mb="xs">Legale</Text>
-                  <Anchor size="sm" c="dimmed" href="/privacy">Privacy</Anchor>
-                  <Anchor size="sm" c="dimmed" href="/terms">Termini</Anchor>
-                  <Anchor size="sm" c="dimmed" href="/gdpr">GDPR</Anchor>
+                  <Anchor size="sm" c="dimmed" href="/it/privacy">Privacy Policy</Anchor>
+                  <Anchor size="sm" c="dimmed" href="/it/terms">Termini di Servizio</Anchor>
+                  <Anchor size="sm" c="dimmed" href="/it/cookies">Cookie Policy</Anchor>
                 </Stack>
               </SimpleGrid>
             </Grid.Col>
@@ -646,7 +644,7 @@ export default function LandingPage() {
           <Divider my="xl" color="rgba(255,255,255,0.1)" />
           <Group justify="space-between">
             <Text size="sm" c="dimmed">
-              © 2025 InsegnaMi.pro. Tutti i diritti riservati.
+              © {new Date().getFullYear()} InsegnaMi.pro. Tutti i diritti riservati. | P.IVA: 07327360488
             </Text>
             <Group gap="lg">
               <Text size="sm" c="dimmed">Made with ❤️ in Italy</Text>
