@@ -172,11 +172,11 @@ jobs:
           ssh $USER@$HOST "
             cd /opt/insegnami
             if [ ! -d .git ]; then
-              git clone https://github.com/${{ github.repository }} .
-            else
-              git fetch origin main
-              git reset --hard origin/main
+              git init
+              git remote add origin https://github.com/${{ github.repository }}
             fi
+            git fetch origin main
+            git reset --hard origin/main
           "
 
           # Run deployment script
