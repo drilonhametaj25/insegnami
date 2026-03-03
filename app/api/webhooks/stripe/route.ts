@@ -3,6 +3,21 @@ import { prisma } from '@/lib/db';
 import { constructWebhookEvent, retrieveSubscription } from '@/lib/stripe';
 import Stripe from 'stripe';
 import { SubscriptionStatus } from '@prisma/client';
+import { redis } from '@/lib/redis';
+import { sanitizeError } from '@/lib/api-middleware';
+
+// Check if event has already been processed (deduplication)
+async function isEventProcessed(eventId: string): Promise<boolean> {
+  const key = `stripe:event:${eventId}`;
+  const exists = await redis.get(key);
+  return exists !== null;
+}
+
+// Mark event as processed with 24h expiry
+async function markEventProcessed(eventId: string): Promise<void> {
+  const key = `stripe:event:${eventId}`;
+  await redis.set(key, 'processed', 86400); // 24 hours TTL
+}
 
 // Map Stripe subscription status to our SubscriptionStatus enum
 function mapStripeStatus(stripeStatus: Stripe.Subscription.Status): SubscriptionStatus {
@@ -41,11 +56,18 @@ export async function POST(request: NextRequest) {
     try {
       event = constructWebhookEvent(body, signature);
     } catch (err) {
-      console.error('Webhook signature verification failed:', err);
+      // BUG-048 fix: Sanitize error to prevent secrets in logs
+      console.error('Webhook signature verification failed:', sanitizeError(err));
       return NextResponse.json(
         { error: 'Webhook signature verification failed' },
         { status: 400 }
       );
+    }
+
+    // Event deduplication: Check if this event has already been processed
+    if (await isEventProcessed(event.id)) {
+      console.log(`Event ${event.id} already processed, skipping`);
+      return NextResponse.json({ received: true, deduplicated: true });
     }
 
     // Handle the event
@@ -82,51 +104,53 @@ export async function POST(request: NextRequest) {
           });
 
           if (!plan) {
-            console.error(`Plan not found for price ID: ${priceId}`);
-            break;
+            // BUG-024 fix: Throw error instead of silent break - plan sync required
+            throw new Error(`Plan not found for Stripe price ID: ${priceId}. Database sync required.`);
           }
 
-          // Create or update subscription in our database
-          await prisma.subscription.upsert({
-            where: { tenantId },
-            create: {
-              tenantId,
-              planId: plan.id,
-              stripeSubscriptionId: subscriptionId,
-              stripeCustomerId: session.customer as string,
-              status: mapStripeStatus(stripeSubscription.status),
-              currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-              currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
-              trialStart: stripeSubscription.trial_start
-                ? new Date(stripeSubscription.trial_start * 1000)
-                : null,
-              trialEnd: stripeSubscription.trial_end
-                ? new Date(stripeSubscription.trial_end * 1000)
-                : null,
-            },
-            update: {
-              planId: plan.id,
-              stripeSubscriptionId: subscriptionId,
-              stripeCustomerId: session.customer as string,
-              status: mapStripeStatus(stripeSubscription.status),
-              currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-              currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
-              trialStart: stripeSubscription.trial_start
-                ? new Date(stripeSubscription.trial_start * 1000)
-                : null,
-              trialEnd: stripeSubscription.trial_end
-                ? new Date(stripeSubscription.trial_end * 1000)
-                : null,
-            },
-          });
+          // Create or update subscription in our database (atomic transaction)
+          await prisma.$transaction(async (tx) => {
+            await tx.subscription.upsert({
+              where: { tenantId },
+              create: {
+                tenantId,
+                planId: plan.id,
+                stripeSubscriptionId: subscriptionId,
+                stripeCustomerId: session.customer as string,
+                status: mapStripeStatus(stripeSubscription.status),
+                currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
+                currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+                trialStart: stripeSubscription.trial_start
+                  ? new Date(stripeSubscription.trial_start * 1000)
+                  : null,
+                trialEnd: stripeSubscription.trial_end
+                  ? new Date(stripeSubscription.trial_end * 1000)
+                  : null,
+              },
+              update: {
+                planId: plan.id,
+                stripeSubscriptionId: subscriptionId,
+                stripeCustomerId: session.customer as string,
+                status: mapStripeStatus(stripeSubscription.status),
+                currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
+                currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+                trialStart: stripeSubscription.trial_start
+                  ? new Date(stripeSubscription.trial_start * 1000)
+                  : null,
+                trialEnd: stripeSubscription.trial_end
+                  ? new Date(stripeSubscription.trial_end * 1000)
+                  : null,
+              },
+            });
 
-          // Update tenant with plan info
-          await prisma.tenant.update({
-            where: { id: tenantId },
-            data: {
-              plan: plan.slug.toUpperCase(),
-              stripeCustomerId: session.customer as string,
-            },
+            // Update tenant with plan info
+            await tx.tenant.update({
+              where: { id: tenantId },
+              data: {
+                plan: plan.slug.toUpperCase(),
+                stripeCustomerId: session.customer as string,
+              },
+            });
           });
 
           console.log(`Subscription created for tenant ${tenantId}, plan: ${plan.name}`);
@@ -166,14 +190,42 @@ export async function POST(request: NextRequest) {
       }
 
       case 'payment_intent.payment_failed': {
+        // BUG-023 fix: Update payment status in DB
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.log(`Payment failed: ${paymentIntent.id}`);
+        const failedPaymentId = paymentIntent.metadata?.paymentId;
+
+        if (failedPaymentId) {
+          await prisma.payment.update({
+            where: { id: failedPaymentId },
+            data: {
+              status: 'OVERDUE',
+              notes: `Pagamento fallito: ${paymentIntent.last_payment_error?.message || 'Unknown error'}`,
+            },
+          });
+          console.log(`Payment ${failedPaymentId} marked as OVERDUE due to payment failure`);
+        } else {
+          console.log(`Payment failed (no paymentId in metadata): ${paymentIntent.id}`);
+        }
         break;
       }
 
       case 'charge.refunded': {
+        // BUG-023 fix: Update payment status for refund
         const charge = event.data.object as Stripe.Charge;
-        console.log(`Refund processed: ${charge.id}`);
+        const refundedPaymentId = charge.metadata?.paymentId;
+
+        if (refundedPaymentId) {
+          await prisma.payment.update({
+            where: { id: refundedPaymentId },
+            data: {
+              status: 'CANCELLED',
+              notes: `Rimborso elaborato. Charge ID: ${charge.id}`,
+            },
+          });
+          console.log(`Payment ${refundedPaymentId} marked as CANCELLED due to refund`);
+        } else {
+          console.log(`Refund processed (no paymentId in metadata): ${charge.id}`);
+        }
         break;
       }
 
@@ -200,8 +252,8 @@ export async function POST(request: NextRequest) {
         });
 
         if (!plan) {
-          console.error(`Plan not found for price ID: ${priceId}`);
-          break;
+          // BUG-024 fix: Throw error instead of silent break - plan sync required
+          throw new Error(`Plan not found for Stripe price ID: ${priceId}. Database sync required.`);
         }
 
         // Create subscription record
@@ -301,19 +353,20 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        // Mark subscription as cancelled
-        await prisma.subscription.update({
-          where: { stripeSubscriptionId: subscription.id },
-          data: {
-            status: 'CANCELLED',
-            cancelledAt: new Date(),
-          },
-        });
+        // Atomic transaction: mark subscription cancelled and update tenant
+        await prisma.$transaction(async (tx) => {
+          await tx.subscription.update({
+            where: { stripeSubscriptionId: subscription.id },
+            data: {
+              status: 'CANCELLED',
+              cancelledAt: new Date(),
+            },
+          });
 
-        // Update tenant to free plan
-        await prisma.tenant.update({
-          where: { id: existingSubscription.tenantId },
-          data: { plan: 'FREE' },
+          await tx.tenant.update({
+            where: { id: existingSubscription.tenantId },
+            data: { plan: 'FREE' },
+          });
         });
 
         console.log(`Subscription deleted: ${subscription.id}`);
@@ -369,9 +422,13 @@ export async function POST(request: NextRequest) {
         console.log(`Unhandled event type: ${event.type}`);
     }
 
+    // Mark event as processed for deduplication
+    await markEventProcessed(event.id);
+
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
+    // BUG-048 fix: Sanitize error to prevent secrets in logs
+    console.error('Webhook error:', sanitizeError(error));
     return NextResponse.json(
       { error: 'Webhook handler failed' },
       { status: 500 }

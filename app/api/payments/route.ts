@@ -55,8 +55,9 @@ export async function GET(request: NextRequest) {
         email: session.user.email,
       };
     } else if (session.user.role === 'PARENT') {
+      // SECURITY: Use parentUserId instead of parentEmail to prevent email substring attacks
       where.student = {
-        parentEmail: session.user.email,
+        parentUserId: session.user.id,
       };
     } else if (session.user.role === 'TEACHER') {
       // Teachers can only see payments for their classes

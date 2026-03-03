@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { SMTP_CONFIG, EMAIL_FROM } from '@/lib/config';
+import { EmailNotificationService } from '@/lib/email-queue';
 
 // Create transporter only if not in build mode
 let transporter: nodemailer.Transporter | null = null;
@@ -64,15 +65,37 @@ export interface EmailOptions {
 }
 
 export class EmailService {
-  async sendEmail(options: EmailOptions) {
+  async sendEmail(options: EmailOptions, useQueueFallback: boolean = true) {
     try {
       // Check if transporter is available
       if (!transporter) {
-        console.warn('⚠️ Email transporter not available, skipping email send');
-        return {
-          success: false,
-          error: 'Email transporter not configured',
-        };
+        if (useQueueFallback) {
+          // Fallback to queue system
+          console.log('📬 Email transporter not available, adding to queue');
+          try {
+            await EmailNotificationService.sendGenericEmail({
+              to: options.to,
+              subject: options.subject,
+              html: options.html,
+              text: options.text,
+              attachments: options.attachments?.map(a => ({
+                filename: a.filename,
+                content: a.content,
+                contentType: a.contentType,
+              })),
+            });
+            return {
+              success: true,
+              queued: true,
+              message: 'Email queued for delivery',
+            };
+          } catch (queueError) {
+            console.error('❌ Failed to queue email:', queueError);
+            throw new Error('Email transporter unavailable and queue failed');
+          }
+        }
+        // If no queue fallback, throw error instead of silent failure
+        throw new Error('Email transporter not configured');
       }
 
       const mailOptions = {
@@ -91,13 +114,19 @@ export class EmailService {
       console.log('✅ Email sent successfully:', result.messageId);
       return {
         success: true,
+        queued: false,
         messageId: result.messageId,
         response: result.response,
       };
     } catch (error) {
       console.error('❌ Email sending failed:', error);
+      // Re-throw error so callers can handle it appropriately
+      if (error instanceof Error && error.message.includes('transporter')) {
+        throw error;
+      }
       return {
         success: false,
+        queued: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }

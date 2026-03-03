@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   Container,
@@ -144,8 +144,9 @@ export default function AttendancePage() {
     isLoading: selectedLessonDetailsLoading,
   } = useLessonById(form.values.lessonId);
 
+  // BUG-020 fix: Use useEffect instead of calling setState during render
   // Initialize student attendance map when lesson changes
-  const initializeStudentMap = () => {
+  useEffect(() => {
     if (selectedLessonDetails?.class?.students) {
       const initialMap: Record<string, { status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED'; notes: string }> = {};
       selectedLessonDetails.class.students.forEach((enrollment: any) => {
@@ -155,7 +156,7 @@ export default function AttendancePage() {
       });
       setStudentAttendanceMap(initialMap);
     }
-  };
+  }, [selectedLessonDetails?.class?.students]);
 
   const handleRecordAttendance = (values: AttendanceFormData) => {
     // Build attendance array from studentAttendanceMap
@@ -191,21 +192,22 @@ export default function AttendancePage() {
     });
   };
 
-  const updateStudentStatus = (studentId: string, status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED') => {
+  // BUG-038 fix: Add useCallback to prevent unnecessary re-renders
+  const updateStudentStatus = useCallback((studentId: string, status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED') => {
     setStudentAttendanceMap((prev) => ({
       ...prev,
       [studentId]: { ...prev[studentId], status },
     }));
-  };
+  }, []);
 
-  const updateStudentNotes = (studentId: string, notes: string) => {
+  const updateStudentNotes = useCallback((studentId: string, notes: string) => {
     setStudentAttendanceMap((prev) => ({
       ...prev,
       [studentId]: { ...prev[studentId], notes },
     }));
-  };
+  }, []);
 
-  const setAllStudentsStatus = (status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED') => {
+  const setAllStudentsStatus = useCallback((status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED') => {
     setStudentAttendanceMap((prev) => {
       const newMap: typeof prev = {};
       Object.keys(prev).forEach((studentId) => {
@@ -213,7 +215,7 @@ export default function AttendancePage() {
       });
       return newMap;
     });
-  };
+  }, []);
 
   const handleUpdateAttendanceRecord = (
     recordId: string, 
@@ -956,10 +958,7 @@ export default function AttendancePage() {
                           size="xs"
                           variant="light"
                           color="green"
-                          onClick={() => {
-                            initializeStudentMap();
-                            setAllStudentsStatus('PRESENT');
-                          }}
+                          onClick={() => setAllStudentsStatus('PRESENT')}
                           style={{ background: 'rgba(34, 197, 94, 0.2)', border: 'none' }}
                         >
                           Tutti Presenti
@@ -968,10 +967,7 @@ export default function AttendancePage() {
                           size="xs"
                           variant="light"
                           color="red"
-                          onClick={() => {
-                            initializeStudentMap();
-                            setAllStudentsStatus('ABSENT');
-                          }}
+                          onClick={() => setAllStudentsStatus('ABSENT')}
                           style={{ background: 'rgba(239, 68, 68, 0.2)', border: 'none' }}
                         >
                           Tutti Assenti
@@ -1000,10 +996,8 @@ export default function AttendancePage() {
                             const student = enrollment.student;
                             if (!student) return null;
 
-                            // Initialize student in map if not present
-                            if (!studentAttendanceMap[student.id]) {
-                              initializeStudentMap();
-                            }
+                            // BUG-020 fix: Removed setState call during render
+                            // Map is now initialized via useEffect when selectedLessonDetails changes
 
                             return (
                               <Table.Tr key={student.id}>

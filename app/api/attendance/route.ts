@@ -78,8 +78,9 @@ export async function GET(request: NextRequest) {
       };
     } else if (session.user.role === 'PARENT') {
       // Parents can only see their children's attendance
+      // SECURITY: Use parentUserId instead of parentEmail to prevent email substring attacks
       where.student = {
-        parentEmail: session.user.email,
+        parentUserId: session.user.id,
       };
     }
 

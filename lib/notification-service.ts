@@ -38,8 +38,8 @@ export class NotificationService {
           sourceId: data.sourceId,
           scheduledFor: data.scheduledFor,
           expiresAt: data.expiresAt,
-          emailSent: !(data.sendEmail || false),
-          pushSent: !(data.sendPush || true),
+          emailSent: data.sendEmail ?? false,
+          pushSent: data.sendPush ?? false,
         }
       });
     } catch (error) {
@@ -50,6 +50,7 @@ export class NotificationService {
 
   /**
    * Crea notifiche per più utenti contemporaneamente
+   * BUG-045 fix: Wrapped in transaction for atomicity
    */
   static async createBulkNotifications(notifications: CreateNotificationData[]) {
     try {
@@ -66,12 +67,16 @@ export class NotificationService {
         sourceId: notif.sourceId,
         scheduledFor: notif.scheduledFor,
         expiresAt: notif.expiresAt,
-        emailSent: !(notif.sendEmail || false),
-        pushSent: !(notif.sendPush || true),
+        emailSent: notif.sendEmail ?? false,
+        pushSent: notif.sendPush ?? false,
       }));
 
-      return await prisma.notification.createMany({
-        data,
+      // Use transaction to ensure all notifications are created atomically
+      return await prisma.$transaction(async (tx) => {
+        return await tx.notification.createMany({
+          data,
+          skipDuplicates: false,
+        });
       });
     } catch (error) {
       console.error('Errore nella creazione notifiche bulk:', error);

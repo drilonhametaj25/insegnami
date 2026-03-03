@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { z } from 'zod';
+import { parsePaginationParams, withBodySizeLimit } from '@/lib/api-middleware';
+
+// BUG-033 fix: Use Zod for email validation
+const emailSchema = z.string().email('Email non valida');
 
 // GET /api/users - List users with pagination and filtering
 export async function GET(request: NextRequest) {
@@ -17,13 +22,11 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    // BUG-031 fix: Enforce pagination limits
+    const { page, limit, skip } = parsePaginationParams(searchParams);
     const search = searchParams.get('search') || '';
     const role = searchParams.get('role') || '';
     const status = searchParams.get('status') || '';
-
-    const skip = (page - 1) * limit;
 
     // Build where clause
     const where: any = {};
@@ -130,6 +133,10 @@ export async function GET(request: NextRequest) {
 // POST /api/users - Create new user
 export async function POST(request: NextRequest) {
   try {
+    // BUG-029 fix: Check payload size
+    const sizeCheck = await withBodySizeLimit(request);
+    if (sizeCheck) return sizeCheck;
+
     const session = await getAuth();
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
@@ -159,11 +166,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    // BUG-033 fix: Use Zod for email validation
+    try {
+      emailSchema.parse(email);
+    } catch {
       return NextResponse.json(
-        { error: 'Invalid email format' },
+        { error: 'Email non valida' },
         { status: 400 }
       );
     }

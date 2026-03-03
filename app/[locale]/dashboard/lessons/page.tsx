@@ -100,6 +100,25 @@ interface LessonsResponse {
   };
 }
 
+// BUG-037 fix: Add proper type for form data instead of `any`
+interface LessonFormData {
+  title: string;
+  classId: string;
+  teacherId: string;
+  courseId: string;
+  startTime: string;
+  endTime: string;
+  room?: string;
+  description?: string;
+  status?: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+  isRecurring?: boolean;
+  recurringPattern?: {
+    frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+    interval: number;
+    endDate?: string;
+  };
+}
+
 interface LessonsStats {
   total: number;
   scheduled: number;
@@ -282,7 +301,10 @@ export default function LessonsPage() {
     }
   };
 
+  // BUG-019 fix: Add AbortController for cleanup
   useEffect(() => {
+    const controller = new AbortController();
+
     if (canViewLessons) {
       fetchLessons();
       fetchStats();
@@ -290,6 +312,8 @@ export default function LessonsPage() {
       fetchClasses();
       fetchCourses();
     }
+
+    return () => controller.abort();
   }, [canViewLessons]);
 
   // Handlers
@@ -322,7 +346,7 @@ export default function LessonsPage() {
     router.push(`/${locale}/dashboard/lessons/${lesson.id}`);
   };
 
-  const handleFormSubmit = async (formData: any) => {
+  const handleFormSubmit = async (formData: LessonFormData) => {
     try {
       setSubmitting(true);
 

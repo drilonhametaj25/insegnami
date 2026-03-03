@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { hashPassword, verifyPassword } from '@/lib/auth-utils';
+import { rateLimiters } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 requests per minute per IP
+    const rateLimitResult = await rateLimiters.auth(request);
+    if (!rateLimitResult.success) {
+      return rateLimitResult.error;
+    }
+
     // Check authentication
     const session = await getAuth();
     if (!session?.user?.id) {

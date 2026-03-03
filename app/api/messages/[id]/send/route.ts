@@ -51,58 +51,63 @@ export async function POST(
       return NextResponse.json({ error: 'Messaggio già inviato' }, { status: 400 });
     }
 
-    // Update message status
-    const updatedMessage = await prisma.message.update({
-      where: { id: id },
-      data: {
-        status: 'SENT',
-        sentAt: new Date(),
-      },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
+    // BUG-046 fix: Wrap message and recipient updates in transaction for atomicity
+    const updatedMessage = await prisma.$transaction(async (tx) => {
+      // Update message status
+      const updated = await tx.message.update({
+        where: { id: id },
+        data: {
+          status: 'SENT',
+          sentAt: new Date(),
         },
-        recipients: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
+        include: {
+          sender: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          recipients: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                },
               },
             },
           },
         },
-      },
+      });
+
+      // Update recipient statuses atomically
+      if (message.sendEmail) {
+        await tx.messageRecipient.updateMany({
+          where: { messageId: id },
+          data: { emailStatus: 'SENT' },
+        });
+      }
+
+      if (message.sendSms) {
+        await tx.messageRecipient.updateMany({
+          where: { messageId: id },
+          data: { smsStatus: 'SENT' },
+        });
+      }
+
+      if (message.sendPush) {
+        await tx.messageRecipient.updateMany({
+          where: { messageId: id },
+          data: { pushStatus: 'SENT' },
+        });
+      }
+
+      return updated;
     });
-
-    // Update recipient statuses
-    if (message.sendEmail) {
-      await prisma.messageRecipient.updateMany({
-        where: { messageId: id },
-        data: { emailStatus: 'SENT' },
-      });
-    }
-
-    if (message.sendSms) {
-      await prisma.messageRecipient.updateMany({
-        where: { messageId: id },
-        data: { smsStatus: 'SENT' },
-      });
-    }
-
-    if (message.sendPush) {
-      await prisma.messageRecipient.updateMany({
-        where: { messageId: id },
-        data: { pushStatus: 'SENT' },
-      });
-    }
 
     // Queue message for actual delivery
     if (message.sendEmail && message.recipients.length > 0) {

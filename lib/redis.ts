@@ -19,11 +19,14 @@ class RedisManager {
     }
 
     if (!this.client) {
+      // BUG-042 fix: Enable offline queue with proper retry strategy
       this.client = new Redis(redisUrl, {
         maxRetriesPerRequest: 3,
         enableReadyCheck: true,
-        enableOfflineQueue: false,
+        enableOfflineQueue: true,
         lazyConnect: true,
+        connectTimeout: 10000,
+        retryStrategy: (times: number) => Math.min(times * 50, 2000),
       });
 
       this.client.on('connect', () => {
@@ -116,6 +119,32 @@ class RedisManager {
 
   async setJSON(key: string, value: any, ttl?: number): Promise<boolean> {
     return await this.set(key, JSON.stringify(value), ttl);
+  }
+
+  // BUG-043 fix: Add cache invalidation methods
+  async invalidatePattern(pattern: string): Promise<number> {
+    const client = this.initClient();
+    if (!client) return 0;
+    try {
+      const keys = await client.keys(pattern);
+      if (keys.length === 0) return 0;
+      return await client.del(...keys);
+    } catch (error) {
+      console.error(`Redis invalidatePattern error for ${pattern}:`, error);
+      return 0;
+    }
+  }
+
+  async invalidateByPrefix(prefix: string): Promise<number> {
+    return this.invalidatePattern(`${prefix}:*`);
+  }
+
+  async invalidateUserCache(userId: string): Promise<number> {
+    return this.invalidatePattern(`user:${userId}:*`);
+  }
+
+  async invalidateTenantCache(tenantId: string): Promise<number> {
+    return this.invalidatePattern(`tenant:${tenantId}:*`);
   }
 
   async disconnect(): Promise<void> {

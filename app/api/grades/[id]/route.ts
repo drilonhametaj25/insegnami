@@ -254,7 +254,25 @@ export async function DELETE(
       }
     }
 
-    await prisma.grade.delete({ where: { id } });
+    // Use transaction for atomic audit log + delete (BUG-028 fix)
+    await prisma.$transaction(async (tx) => {
+      // Create audit log before deletion
+      await tx.auditLog.create({
+        data: {
+          tenantId: session.user.tenantId,
+          userId: session.user.id || 'unknown',
+          action: 'DELETE',
+          entity: 'Grade',
+          entityId: grade.id,
+          oldData: grade as any,
+          ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+          userAgent: request.headers.get('user-agent') || 'unknown',
+        },
+      });
+
+      // Then delete the grade
+      await tx.grade.delete({ where: { id } });
+    });
 
     return NextResponse.json({
       success: true,

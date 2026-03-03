@@ -75,6 +75,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
+    // SECURITY: For PARENT role, verify they are the parent of this student
+    if (session.user.role === 'PARENT') {
+      if ((student as any).parentUserId !== session.user.id) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     // Transform response to maintain API compatibility
     const responseStudent = {
       id: student.id,
@@ -265,8 +272,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           },
         });
 
-        await tx.user.delete({
+        // SECURITY: Use soft-delete instead of hard-delete (BUG-015 fix)
+        await tx.user.update({
           where: { id: studentUser.id },
+          data: { status: 'INACTIVE' },
         });
 
         await tx.student.update({
@@ -438,8 +447,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             },
           });
 
-          await tx.user.delete({
+          // SECURITY: Use soft-delete instead of hard-delete (BUG-015 fix)
+          await tx.user.update({
             where: { id: parentUser.id },
+            data: { status: 'INACTIVE' },
           });
         }
 
@@ -548,6 +559,25 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     await prisma.$transaction(async (tx) => {
+      // BUG-047 fix: Create audit log before deletion
+      await tx.auditLog.create({
+        data: {
+          tenantId: session.user.tenantId,
+          userId: session.user.id || 'unknown',
+          action: 'DELETE',
+          entity: 'Student',
+          entityId: student.id,
+          oldData: {
+            id: student.id,
+            firstName: student.firstName,
+            lastName: student.lastName,
+            studentCode: student.studentCode,
+          } as any,
+          ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+          userAgent: request.headers.get('user-agent') || 'unknown',
+        },
+      });
+
       // Delete student record first
       await tx.student.delete({
         where: { id },
@@ -563,8 +593,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
           },
         });
 
-        await tx.user.delete({
+        // SECURITY: Use soft-delete instead of hard-delete (BUG-015 fix)
+        await tx.user.update({
           where: { id: (student as any).userId },
+          data: { status: 'INACTIVE' },
         });
       }
 
@@ -586,8 +618,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
             },
           });
 
-          await tx.user.delete({
+          // SECURITY: Use soft-delete instead of hard-delete (BUG-015 fix)
+          await tx.user.update({
             where: { id: (student as any).parentUserId },
+            data: { status: 'INACTIVE' },
           });
         }
       }

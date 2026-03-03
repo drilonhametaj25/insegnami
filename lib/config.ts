@@ -1,23 +1,27 @@
+// Import env validation (validates on first import)
+import '@/lib/env-validation';
+
 export const isProduction = process.env.NODE_ENV === 'production';
 export const isDevelopment = process.env.NODE_ENV === 'development';
 
-export const MODE = process.env.MODE as 'self-hosted' | 'saas';
+export const MODE = (process.env.MODE || 'self-hosted') as 'self-hosted' | 'saas';
 export const isSaaSMode = MODE === 'saas';
 export const isSelfHostedMode = MODE === 'self-hosted';
 
-export const DATABASE_URL = process.env.DATABASE_URL!;
-export const REDIS_URL = process.env.REDIS_URL!;
-export const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
-export const NEXTAUTH_URL = process.env.NEXTAUTH_URL!;
+// Core configuration - validated by env-validation.ts
+export const DATABASE_URL = process.env.DATABASE_URL || '';
+export const REDIS_URL = process.env.REDIS_URL || '';
+export const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || '';
+export const NEXTAUTH_URL = process.env.NEXTAUTH_URL || '';
 
-// Email configuration
+// Email configuration (optional - uses queue fallback if not configured)
 export const SMTP_CONFIG = {
-  host: process.env.SMTP_HOST!,
+  host: process.env.SMTP_HOST || '',
   port: parseInt(process.env.SMTP_PORT || '587'),
   secure: false,
   auth: {
-    user: process.env.SMTP_USER!,
-    pass: process.env.SMTP_PASSWORD!,
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASSWORD || '',
   },
 };
 

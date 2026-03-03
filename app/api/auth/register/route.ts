@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
 import { isSaaSMode } from '@/lib/config';
 import { generateVerificationToken } from '@/lib/auth-utils';
+import { escapeHtml } from '@/lib/api-middleware';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +40,14 @@ export async function POST(request: NextRequest) {
     if (password.length < 8) {
       return NextResponse.json(
         { error: 'La password deve essere di almeno 8 caratteri' },
+        { status: 400 }
+      );
+    }
+
+    // Validate password complexity (same as change-password)
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      return NextResponse.json(
+        { error: 'La password deve contenere almeno una lettera minuscola, una maiuscola e un numero' },
         { status: 400 }
       );
     }
@@ -108,13 +117,19 @@ export async function POST(request: NextRequest) {
     try {
       const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}`;
       
+      // BUG-032 fix: Escape HTML in user-provided data to prevent XSS
+      const safeFirstName = escapeHtml(firstName);
+      const safeEmail = escapeHtml(email);
+      const safeSchoolName = escapeHtml(schoolName);
+      const roleLabel = role === 'director' ? 'Dirigente Scolastico' : role === 'secretary' ? 'Segreteria' : 'Amministratore';
+
       await sendEmail({
         to: email,
         subject: 'Conferma la tua email - InsegnaMi.pro',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h1 style="color: #0ea5e9;">Benvenuto su InsegnaMi.pro!</h1>
-            <p>Ciao ${firstName},</p>
+            <p>Ciao ${safeFirstName},</p>
             <p>Grazie per esserti registrato su InsegnaMi.pro. Per completare la registrazione, clicca sul link sottostante per confermare la tua email:</p>
             <div style="text-align: center; margin: 30px 0;">
               <a href="${verificationUrl}" style="background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
@@ -125,9 +140,9 @@ export async function POST(request: NextRequest) {
             <p style="word-break: break-all; color: #666;">${verificationUrl}</p>
             <p><strong>Dettagli del tuo account:</strong></p>
             <ul>
-              <li>Email: ${email}</li>
-              <li>Scuola: ${schoolName}</li>
-              <li>Ruolo: ${role === 'director' ? 'Dirigente Scolastico' : role === 'secretary' ? 'Segreteria' : 'Amministratore'}</li>
+              <li>Email: ${safeEmail}</li>
+              <li>Scuola: ${safeSchoolName}</li>
+              <li>Ruolo: ${roleLabel}</li>
             </ul>
             <p>Il link è valido per 24 ore. Se non confermi entro questo periodo, dovrai registrarti nuovamente.</p>
             <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">

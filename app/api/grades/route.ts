@@ -61,13 +61,9 @@ export async function GET(request: NextRequest) {
       }
     } else if (session.user.role === 'PARENT') {
       // Parents can see grades of their children
-      const children = await prisma.student.findMany({
-        where: { parentUserId: session.user.id },
-      });
-      if (children.length > 0) {
-        where.studentId = { in: children.map((c) => c.id) };
-        where.isVisible = true;
-      }
+      // Use relational filter instead of separate query (BUG-027 fix)
+      where.student = { parentUserId: session.user.id };
+      where.isVisible = true;
     }
 
     // Apply filters
@@ -240,7 +236,7 @@ export async function POST(request: NextRequest) {
             firstName: true,
             lastName: true,
             studentCode: true,
-            parentUserId: true,
+            // SECURITY: parentUserId removed from response (BUG-014 fix)
           },
         },
         subject: {

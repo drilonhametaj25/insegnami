@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { parsePaginationParams, withBodySizeLimit } from '@/lib/api-middleware';
 
 // Schema for message validation
+// BUG-030 fix: Add max-length validation
 const messageSchema = z.object({
-  title: z.string().min(1, 'Titolo richiesto'),
-  content: z.string().min(1, 'Contenuto richiesto'),
+  title: z.string().min(1, 'Titolo richiesto').max(200, 'Titolo max 200 caratteri'),
+  content: z.string().min(1, 'Contenuto richiesto').max(10000, 'Contenuto max 10000 caratteri'),
   type: z.enum(['DIRECT', 'GROUP', 'BROADCAST', 'AUTOMATED']).default('DIRECT'),
   recipientIds: z.array(z.string().cuid()).min(1, 'Almeno un destinatario richiesto'),
   groupIds: z.array(z.string().cuid()).optional(),
@@ -29,14 +31,12 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    // BUG-031 fix: Enforce pagination limits
+    const { page, limit, skip } = parsePaginationParams(searchParams);
     const status = searchParams.get('status');
     const type = searchParams.get('type');
     const urgent = searchParams.get('urgent') === 'true';
     const sent = searchParams.get('sent');
-
-    const skip = (page - 1) * limit;
 
     // Build where clause based on user role and filters
     const where: any = {
@@ -60,14 +60,25 @@ export async function GET(request: NextRequest) {
       // Students can only see messages they received
       where.recipients = { some: { userId: session.user.id } };
     } else if (session.user.role === 'PARENT') {
-      // Parents can see messages for their children
+      // Parents can see messages sent to themselves or their children
+      // First get the student user IDs for this parent
+      const studentRelations = await prisma.student.findMany({
+        where: {
+          parentUserId: session.user.id,
+          tenantId: session.user.tenantId,
+        },
+        select: { userId: true }
+      });
+
+      const childUserIds = studentRelations
+        .map(s => s.userId)
+        .filter((id): id is string => id !== null);
+
+      // Include parent's own ID and their children's IDs
+      const allowedUserIds = [session.user.id, ...childUserIds];
+
       where.recipients = {
-        some: {
-          user: {
-            // This is a simplified approach - you might need to adjust based on your parent-child relationship
-            email: { contains: session.user.email?.split('@')[0] }
-          }
-        }
+        some: { userId: { in: allowedUserIds } }
       };
     }
 
@@ -118,6 +129,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // BUG-029 fix: Check payload size
+    const sizeCheck = await withBodySizeLimit(request);
+    if (sizeCheck) return sizeCheck;
+
     const session = await getAuth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });

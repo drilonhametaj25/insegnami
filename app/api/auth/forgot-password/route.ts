@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
 import { generatePasswordResetToken } from '@/lib/auth-utils';
+import { rateLimiters } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 requests per minute per IP
+    const rateLimitResult = await rateLimiters.passwordReset(request);
+    if (!rateLimitResult.success) {
+      return rateLimitResult.error;
+    }
+
     const body = await request.json();
     const { email } = body;
 

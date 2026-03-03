@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import {
   Container,
   Title,
@@ -33,6 +34,10 @@ interface Grade {
 }
 
 export default function CalcolatoreMediaVotiPage() {
+  // BUG-034/035 fix: Get locale from params for dynamic links
+  const params = useParams();
+  const locale = (params?.locale as string) || 'it';
+
   const [grades, setGrades] = useState<Grade[]>([
     { id: '1', subject: '', grade: '', weight: 1 },
   ]);
@@ -118,7 +123,7 @@ export default function CalcolatoreMediaVotiPage() {
       >
         <Container size="lg">
           <Stack gap="md">
-            <Anchor component={Link} href="/it/tools" c="white" size="sm">
+            <Anchor component={Link} href={`/${locale}/tools`} c="white" size="sm">
               <Group gap={4}>
                 <IconArrowLeft size={16} />
                 Tutti gli strumenti
@@ -323,7 +328,7 @@ export default function CalcolatoreMediaVotiPage() {
                   </Text>
                   <Anchor
                     component={Link}
-                    href="/auth/register"
+                    href={`/${locale}/auth/register`}
                     style={{
                       backgroundColor: 'var(--mantine-color-blue-6)',
                       color: 'white',
@@ -370,13 +375,13 @@ export default function CalcolatoreMediaVotiPage() {
                   Strumenti Correlati
                 </Title>
                 <Stack gap="xs">
-                  <Anchor component={Link} href="/it/tools/calcolatore-presenze" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-presenze`} size="sm">
                     Calcolatore Presenze
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/generatore-calendario-scolastico" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/generatore-calendario-scolastico`} size="sm">
                     Generatore Calendario
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/calcolatore-costo-studente" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-costo-studente`} size="sm">
                     Calcolatore Costi
                   </Anchor>
                 </Stack>

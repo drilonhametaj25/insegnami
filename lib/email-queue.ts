@@ -54,12 +54,13 @@ export const emailQueue = new Queue('email', {
   connection: redisConnection,
   defaultJobOptions: {
     removeOnComplete: 10,
-    removeOnFail: 5,
+    removeOnFail: 50,
     backoff: {
       type: 'exponential',
       delay: 5000,
     },
-    attempts: 3,
+    // BUG-025 fix: Increased retry attempts from 3 to 10 for better reliability
+    attempts: 10,
   },
 });
 

@@ -1084,6 +1084,8 @@ model Notification {
   @@index([userId, status])
   @@index([tenantId, type])
   @@index([scheduledFor])
+  // BUG-040 fix: Add index for common queries
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 
@@ -1271,6 +1273,9 @@ model Grade {
   @@index([studentId, subjectId])
   @@index([classId, subjectId])
   @@index([tenantId, date])
+  // BUG-040 fix: Add missing indexes for common queries
+  @@index([tenantId, studentId])
+  @@index([classId, date])
   @@map("grades")
 }
 
@@ -1381,6 +1386,8 @@ model DisciplinaryNote {
 
   @@index([tenantId, studentId])
   @@index([tenantId, date])
+  // BUG-040 fix: Add index for student history lookup
+  @@index([studentId, date])
   @@map("disciplinary_notes")
 }
 
@@ -1422,6 +1429,8 @@ model Homework {
 
   @@index([tenantId, classId])
   @@index([tenantId, dueDate])
+  // BUG-040 fix: Add index for class homework lookup
+  @@index([classId, dueDate])
   @@map("homework")
 }
 

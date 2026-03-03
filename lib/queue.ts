@@ -93,13 +93,20 @@ export const emailQueue = { get: getEmailQueue };
 export const pdfQueue = { get: getPdfQueue };
 export const notificationQueue = { get: getNotificationQueue };
 
+// BUG-044 fix: Throw error instead of returning null when queue is unavailable
+export class QueueUnavailableError extends Error {
+  constructor(queueName: string) {
+    super(`${queueName} queue not available. Redis connection required.`);
+    this.name = 'QueueUnavailableError';
+  }
+}
+
 // Queue utilities
 export const queueManager = {
   async addEmailJob(data: EmailJobData, options?: any) {
     const queue = getEmailQueue();
     if (!queue) {
-      console.warn('Email queue not available');
-      return null;
+      throw new QueueUnavailableError('Email');
     }
     return await queue.add('send-email', data, {
       priority: options?.priority || 0,
@@ -111,8 +118,7 @@ export const queueManager = {
   async addPDFJob(data: PDFJobData, options?: any) {
     const queue = getPdfQueue();
     if (!queue) {
-      console.warn('PDF queue not available');
-      return null;
+      throw new QueueUnavailableError('PDF');
     }
     return await queue.add('generate-pdf', data, {
       priority: options?.priority || 0,
@@ -123,8 +129,7 @@ export const queueManager = {
   async addNotificationJob(data: NotificationJobData, options?: any) {
     const queue = getNotificationQueue();
     if (!queue) {
-      console.warn('Notification queue not available');
-      return null;
+      throw new QueueUnavailableError('Notification');
     }
     return await queue.add('send-notification', data, {
       priority: options?.priority || 0,
