@@ -46,9 +46,9 @@ docker compose -f $COMPOSE_FILE up -d
 echo "Waiting for database to be ready..."
 sleep 10
 
-# Run database migrations
+# Run database migrations (use local prisma, not npx which downloads latest)
 echo "Running database migrations..."
-docker compose -f $COMPOSE_FILE exec -T app npx prisma migrate deploy
+docker compose -f $COMPOSE_FILE exec -T app node_modules/prisma/build/index.js migrate deploy
 
 # Health check
 echo "Running health check..."
