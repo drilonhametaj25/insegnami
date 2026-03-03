@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { Role } from "@prisma/client";
 
 const authOptions = {
+  trustHost: true, // Required for production behind reverse proxy
   adapter: PrismaAdapter(prisma) as any,
   providers: [
     CredentialsProvider({
