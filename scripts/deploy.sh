@@ -110,13 +110,24 @@ docker compose -f $COMPOSE_FILE exec -T app node_modules/prisma/build/index.js m
 
 # Database seed (only first time - checks if demo user exists)
 echo "Checking if database seed is needed..."
-DEMO_EXISTS=$(docker compose -f $COMPOSE_FILE exec -T postgres psql -U insegnami -d insegnami -tAc "SELECT COUNT(*) FROM \"User\" WHERE email='demo@insegnami.pro'" 2>/dev/null || echo "0")
+DEMO_EXISTS=$(docker compose -f $COMPOSE_FILE exec -T postgres psql -U insegnami -d insegnami -tAc "SELECT COUNT(*) FROM users WHERE email='demo@insegnami.pro'" 2>/dev/null || echo "0")
 
 if [ "$DEMO_EXISTS" = "0" ] || [ -z "$DEMO_EXISTS" ]; then
     echo "Running database seed (first time setup)..."
-    docker compose -f $COMPOSE_FILE exec -T app node_modules/prisma/build/index.js db seed || {
-        echo "Warning: Database seed failed (non-critical, continuing...)"
-    }
+    # Use direct SQL instead of tsx (not available in production)
+    docker compose -f $COMPOSE_FILE exec -T postgres psql -U insegnami -d insegnami << 'EOSQL'
+INSERT INTO tenants (id, name, slug, plan, "featureFlags", "isActive", "createdAt", "updatedAt")
+VALUES ('demo-tenant-001', 'Scuola Demo', 'scuola-demo', 'professional', '{}', true, NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO users (id, email, password, "firstName", "lastName", status, "createdAt", "updatedAt")
+VALUES ('demo-user-001', 'demo@insegnami.pro', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.V4ferVKnPie86y', 'Demo', 'User', 'ACTIVE', NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO user_tenants (id, "userId", "tenantId", role, permissions, "createdAt", "updatedAt")
+VALUES ('demo-ut-001', 'demo-user-001', 'demo-tenant-001', 'ADMIN', '{}', NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+EOSQL
     echo "Database seed completed"
 else
     echo "Database already seeded (demo user exists), skipping..."
