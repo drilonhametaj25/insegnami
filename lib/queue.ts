@@ -1,6 +1,5 @@
 import { Queue, Worker, Job } from 'bullmq';
 import { redis } from '@/lib/redis';
-import { WORKER_CONFIG } from '@/lib/config';
 
 // Queue definitions
 export interface EmailJobData {
@@ -31,46 +30,78 @@ export interface NotificationJobData {
   data?: any;
 }
 
-// Create queues
-export const emailQueue = new Queue('email', {
-  connection: redis.getClient(),
-  defaultJobOptions: {
-    removeOnComplete: 50,
-    removeOnFail: 20,
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 2000,
-    },
-  },
-});
+// Lazy queue initialization
+let _emailQueue: Queue | null = null;
+let _pdfQueue: Queue | null = null;
+let _notificationQueue: Queue | null = null;
 
-export const pdfQueue = new Queue('pdf', {
-  connection: redis.getClient(),
-  defaultJobOptions: {
-    removeOnComplete: 10,
-    removeOnFail: 5,
-    attempts: 2,
-    backoff: {
-      type: 'fixed',
-      delay: 5000,
-    },
-  },
-});
+function getEmailQueue(): Queue | null {
+  if (!process.env.REDIS_URL) return null;
+  if (!_emailQueue) {
+    _emailQueue = new Queue('email', {
+      connection: redis.getConnectionConfig(),
+      defaultJobOptions: {
+        removeOnComplete: 50,
+        removeOnFail: 20,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+      },
+    });
+  }
+  return _emailQueue;
+}
 
-export const notificationQueue = new Queue('notification', {
-  connection: redis.getClient(),
-  defaultJobOptions: {
-    removeOnComplete: 100,
-    removeOnFail: 20,
-    attempts: 2,
-  },
-});
+function getPdfQueue(): Queue | null {
+  if (!process.env.REDIS_URL) return null;
+  if (!_pdfQueue) {
+    _pdfQueue = new Queue('pdf', {
+      connection: redis.getConnectionConfig(),
+      defaultJobOptions: {
+        removeOnComplete: 10,
+        removeOnFail: 5,
+        attempts: 2,
+        backoff: {
+          type: 'fixed',
+          delay: 5000,
+        },
+      },
+    });
+  }
+  return _pdfQueue;
+}
+
+function getNotificationQueue(): Queue | null {
+  if (!process.env.REDIS_URL) return null;
+  if (!_notificationQueue) {
+    _notificationQueue = new Queue('notification', {
+      connection: redis.getConnectionConfig(),
+      defaultJobOptions: {
+        removeOnComplete: 100,
+        removeOnFail: 20,
+        attempts: 2,
+      },
+    });
+  }
+  return _notificationQueue;
+}
+
+// Export queues with getters for lazy initialization
+export const emailQueue = { get: getEmailQueue };
+export const pdfQueue = { get: getPdfQueue };
+export const notificationQueue = { get: getNotificationQueue };
 
 // Queue utilities
 export const queueManager = {
   async addEmailJob(data: EmailJobData, options?: any) {
-    return await emailQueue.add('send-email', data, {
+    const queue = getEmailQueue();
+    if (!queue) {
+      console.warn('Email queue not available');
+      return null;
+    }
+    return await queue.add('send-email', data, {
       priority: options?.priority || 0,
       delay: options?.delay || 0,
       ...options,
@@ -78,24 +109,38 @@ export const queueManager = {
   },
 
   async addPDFJob(data: PDFJobData, options?: any) {
-    return await pdfQueue.add('generate-pdf', data, {
+    const queue = getPdfQueue();
+    if (!queue) {
+      console.warn('PDF queue not available');
+      return null;
+    }
+    return await queue.add('generate-pdf', data, {
       priority: options?.priority || 0,
       ...options,
     });
   },
 
   async addNotificationJob(data: NotificationJobData, options?: any) {
-    return await notificationQueue.add('send-notification', data, {
+    const queue = getNotificationQueue();
+    if (!queue) {
+      console.warn('Notification queue not available');
+      return null;
+    }
+    return await queue.add('send-notification', data, {
       priority: options?.priority || 0,
       ...options,
     });
   },
 
   async getQueueStats() {
+    const email = getEmailQueue();
+    const pdf = getPdfQueue();
+    const notification = getNotificationQueue();
+
     const [emailStats, pdfStats, notificationStats] = await Promise.all([
-      emailQueue.getJobCounts(),
-      pdfQueue.getJobCounts(),
-      notificationQueue.getJobCounts(),
+      email?.getJobCounts() || { waiting: 0, active: 0, completed: 0, failed: 0 },
+      pdf?.getJobCounts() || { waiting: 0, active: 0, completed: 0, failed: 0 },
+      notification?.getJobCounts() || { waiting: 0, active: 0, completed: 0, failed: 0 },
     ]);
 
     return {
@@ -122,11 +167,11 @@ export const queueManager = {
   getQueue(name: string) {
     switch (name) {
       case 'email':
-        return emailQueue;
+        return getEmailQueue();
       case 'pdf':
-        return pdfQueue;
+        return getPdfQueue();
       case 'notification':
-        return notificationQueue;
+        return getNotificationQueue();
       default:
         return null;
     }

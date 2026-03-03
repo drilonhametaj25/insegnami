@@ -45,26 +45,41 @@ export interface RecurringLessonJob {
   patternEnd?: Date;
 }
 
-export type AutomationJob = 
-  | AttendanceReminderJob 
-  | PaymentReminderJob 
-  | ClassCapacityWarningJob 
+export type AutomationJob =
+  | AttendanceReminderJob
+  | PaymentReminderJob
+  | ClassCapacityWarningJob
   | AutoEnrollmentJob
   | RecurringLessonJob;
 
-// Create automation queue
-export const automationQueue = new Queue<AutomationJob>('automation', {
-  connection: redis.getConnectionConfig(),
-  defaultJobOptions: {
-    removeOnComplete: 50,
-    removeOnFail: 100,
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 2000,
-    },
-  },
-});
+// Lazy initialization for automation queue
+let _automationQueue: Queue<AutomationJob> | null = null;
+
+function getAutomationQueue(): Queue<AutomationJob> | null {
+  if (!process.env.REDIS_URL) {
+    // During build or when Redis is not configured
+    return null;
+  }
+
+  if (!_automationQueue) {
+    _automationQueue = new Queue<AutomationJob>('automation', {
+      connection: redis.getConnectionConfig(),
+      defaultJobOptions: {
+        removeOnComplete: 50,
+        removeOnFail: 100,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+      },
+    });
+  }
+  return _automationQueue;
+}
+
+// Export getter for queue
+export const automationQueue = { get: getAutomationQueue };
 
 // Automation service class
 export class AutomationService {
@@ -106,7 +121,12 @@ export class AutomationService {
         reminderTime,
       };
 
-      await automationQueue.add(job.type, job, {
+      const queue = automationQueue.get();
+      if (!queue) {
+        logger.warn('Automation queue not available');
+        return;
+      }
+      await queue.add(job.type, job, {
         delay,
         jobId: `attendance-${lessonId}-${reminderTime}`,
       });
@@ -146,7 +166,12 @@ export class AutomationService {
         reminderType,
       };
 
-      await automationQueue.add(job.type, job, {
+      const queue = automationQueue.get();
+      if (!queue) {
+        logger.warn('Automation queue not available');
+        return;
+      }
+      await queue.add(job.type, job, {
         delay,
         jobId: `payment-${paymentId}-${reminderType}`,
       });
@@ -185,9 +210,12 @@ export class AutomationService {
           maxCapacity,
         };
 
-        await automationQueue.add(job.type, job, {
-          jobId: `capacity-${classId}`,
-        });
+        const queue = automationQueue.get();
+        if (queue) {
+          await queue.add(job.type, job, {
+            jobId: `capacity-${classId}`,
+          });
+        }
       }
     } catch (error) {
       logger.error('Failed to check class capacity', error);
@@ -269,10 +297,13 @@ export class AutomationService {
           nextDate: nextOccurrence,
         };
 
-        await automationQueue.add(job.type, job, {
-          delay: nextOccurrence.getTime() - Date.now(),
-          jobId: `recurring-${templateLessonId}-${nextOccurrence.getTime()}`,
-        });
+        const queue = automationQueue.get();
+        if (queue) {
+          await queue.add(job.type, job, {
+            delay: nextOccurrence.getTime() - Date.now(),
+            jobId: `recurring-${templateLessonId}-${nextOccurrence.getTime()}`,
+          });
+        }
       }
 
       logger.info(`Created recurring lesson ${newLesson.id} for ${nextDate}`);

@@ -1,29 +1,44 @@
 import Redis from 'ioredis';
-import { REDIS_URL } from '@/lib/config';
+
+// Get REDIS_URL lazily to avoid build-time errors
+const getRedisUrl = () => process.env.REDIS_URL || '';
 
 class RedisManager {
   private static instance: RedisManager;
-  private client: Redis;
+  private client: Redis | null = null;
 
   private constructor() {
-    this.client = new Redis(REDIS_URL, {
-      maxRetriesPerRequest: 3,
-      enableReadyCheck: true,
-      enableOfflineQueue: false,
-      lazyConnect: true,
-    });
+    // Lazy initialization - don't connect during build
+  }
 
-    this.client.on('connect', () => {
-      console.log('✅ Redis connected successfully');
-    });
+  private initClient() {
+    const redisUrl = getRedisUrl();
+    if (!redisUrl) {
+      console.warn('⚠️ REDIS_URL not configured, Redis operations will be skipped');
+      return null;
+    }
 
-    this.client.on('error', (err: Error) => {
-      console.error('❌ Redis connection error:', err);
-    });
+    if (!this.client) {
+      this.client = new Redis(redisUrl, {
+        maxRetriesPerRequest: 3,
+        enableReadyCheck: true,
+        enableOfflineQueue: false,
+        lazyConnect: true,
+      });
 
-    this.client.on('reconnecting', () => {
-      console.log('🔄 Redis reconnecting...');
-    });
+      this.client.on('connect', () => {
+        console.log('✅ Redis connected successfully');
+      });
+
+      this.client.on('error', (err: Error) => {
+        console.error('❌ Redis connection error:', err);
+      });
+
+      this.client.on('reconnecting', () => {
+        console.log('🔄 Redis reconnecting...');
+      });
+    }
+    return this.client;
   }
 
   public static getInstance(): RedisManager {
@@ -33,14 +48,19 @@ class RedisManager {
     return RedisManager.instance;
   }
 
-  public getClient(): Redis {
-    return this.client;
+  public getClient(): Redis | null {
+    return this.initClient();
   }
 
   // Get Redis connection config for BullMQ
   public getConnectionConfig(): any {
+    const redisUrl = getRedisUrl();
+    if (!redisUrl) {
+      // Return dummy config during build - won't be used
+      return { host: 'localhost', port: 6379 };
+    }
     // Extract connection details from REDIS_URL
-    const url = new URL(REDIS_URL);
+    const url = new URL(redisUrl);
     return {
       host: url.hostname,
       port: parseInt(url.port) || 6379,
@@ -51,8 +71,10 @@ class RedisManager {
 
   // Cache operations
   async get(key: string): Promise<string | null> {
+    const client = this.initClient();
+    if (!client) return null;
     try {
-      return await this.client.get(key);
+      return await client.get(key);
     } catch (error) {
       console.error(`Redis GET error for key ${key}:`, error);
       return null;
@@ -60,11 +82,13 @@ class RedisManager {
   }
 
   async set(key: string, value: string, ttl?: number): Promise<boolean> {
+    const client = this.initClient();
+    if (!client) return false;
     try {
       if (ttl) {
-        await this.client.setex(key, ttl, value);
+        await client.setex(key, ttl, value);
       } else {
-        await this.client.set(key, value);
+        await client.set(key, value);
       }
       return true;
     } catch (error) {
@@ -74,8 +98,10 @@ class RedisManager {
   }
 
   async del(key: string): Promise<boolean> {
+    const client = this.initClient();
+    if (!client) return false;
     try {
-      await this.client.del(key);
+      await client.del(key);
       return true;
     } catch (error) {
       console.error(`Redis DEL error for key ${key}:`, error);
@@ -93,7 +119,9 @@ class RedisManager {
   }
 
   async disconnect(): Promise<void> {
-    await this.client.quit();
+    if (this.client) {
+      await this.client.quit();
+    }
   }
 }
 
