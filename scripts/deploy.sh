@@ -121,7 +121,7 @@ VALUES ('demo-tenant-001', 'Scuola Demo', 'scuola-demo', 'professional', '{}', t
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO users (id, email, password, "firstName", "lastName", status, "createdAt", "updatedAt")
-VALUES ('demo-user-001', 'demo@insegnami.pro', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.V4ferVKnPie86y', 'Demo', 'User', 'ACTIVE', NOW(), NOW())
+VALUES ('demo-user-001', 'demo@insegnami.pro', '$2a$12$2huAAWatvaTZelQfP6ITzOzGzcnk.HzwNQc65vQ71ueaUWjDQ8RAa', 'Demo', 'User', 'ACTIVE', NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO user_tenants (id, "userId", "tenantId", role, permissions, "createdAt", "updatedAt")
