@@ -231,7 +231,7 @@ export default function ContactPage() {
             <Box>
               <Text fw={600} mb="xs">Quanto tempo ci vuole per attivare il servizio?</Text>
               <Text size="sm" c="dimmed">
-                Puoi iniziare subito con la prova gratuita di 30 giorni. L'attivazione è immediata.
+                Puoi iniziare subito con la prova gratuita di 14 giorni. L'attivazione è immediata.
               </Text>
             </Box>
             <Box>

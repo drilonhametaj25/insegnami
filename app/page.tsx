@@ -218,7 +218,7 @@ export default function LandingPage() {
               <Group mt={40} gap={40}>
                 <Group gap="xs">
                   <IconCheck size={20} color="white" />
-                  <Text c="white" size="sm" fw={500}>30 giorni gratis</Text>
+                  <Text c="white" size="sm" fw={500}>14 giorni gratis</Text>
                 </Group>
                 <Group gap="xs">
                   <IconCheck size={20} color="white" />
@@ -596,7 +596,7 @@ export default function LandingPage() {
                   href="/it/auth/register"
                   rightSection={<IconRocket size={20} />}
                 >
-                  Prova Gratis 30 Giorni
+                  Prova Gratis 14 Giorni
                 </Button>
               </Group>
               <Group justify="center" gap={30}>

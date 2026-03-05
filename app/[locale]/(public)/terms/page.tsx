@@ -143,7 +143,7 @@ export default async function TermsPage({
 
             <Text fw={500}>5.2 Periodo di Prova</Text>
             <Text>
-              Offriamo un periodo di prova gratuito di 30 giorni. Non è richiesta carta di credito.
+              Offriamo un periodo di prova gratuito di 14 giorni. Non è richiesta carta di credito.
               Al termine del periodo di prova, dovrai sottoscrivere un abbonamento per continuare a utilizzare il servizio.
             </Text>
 
