@@ -133,6 +133,28 @@ else
     echo "Database already seeded (demo user exists), skipping..."
 fi
 
+# Create SUPERADMIN user if not exists
+echo "Checking if superadmin user exists..."
+SUPERADMIN_EXISTS=$(docker compose -f $COMPOSE_FILE exec -T postgres psql -U insegnami -d insegnami -tAc "SELECT COUNT(*) FROM users WHERE email='admin@insegnami.pro'" 2>/dev/null || echo "0")
+
+if [ "$SUPERADMIN_EXISTS" = "0" ] || [ -z "$SUPERADMIN_EXISTS" ]; then
+    echo "Creating superadmin user..."
+    docker compose -f $COMPOSE_FILE exec -T postgres psql -U insegnami -d insegnami << 'EOSQL'
+-- Create superadmin user (password: SuperAdmin123!)
+INSERT INTO users (id, email, password, "firstName", "lastName", status, "createdAt", "updatedAt")
+VALUES ('superadmin-001', 'admin@insegnami.pro', '$2a$12$wAOBnAkLLvNsa8AgULDgm.xFNkHmVR6TPNLzCoYLcB6KkYZB6ej7W', 'Super', 'Admin', 'ACTIVE', NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+-- Link to demo tenant with SUPERADMIN role
+INSERT INTO user_tenants (id, "userId", "tenantId", role, permissions, "createdAt", "updatedAt")
+VALUES ('superadmin-ut-001', 'superadmin-001', 'demo-tenant-001', 'SUPERADMIN', '{}', NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+EOSQL
+    echo "Superadmin user created"
+else
+    echo "Superadmin user already exists, skipping..."
+fi
+
 # Health check
 echo "Running health check..."
 sleep 5
