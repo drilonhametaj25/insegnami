@@ -43,6 +43,9 @@ import {
   IconNotebook,
   IconFileDescription,
   IconCalendarEvent,
+  IconBuilding,
+  IconCreditCard,
+  IconReceipt,
 } from '@tabler/icons-react';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
@@ -123,10 +126,11 @@ export function Sidebar({ opened }: SidebarProps) {
         { icon: IconUserCircle, label: 'Profile', href: `/${locale}/dashboard/parent` },
       ],
       SUPERADMIN: [
-        { icon: IconHome, label: 'Schools', href: `/${locale}/superadmin/tenants` },
-        { icon: IconUsers, label: 'Administrators', href: `/${locale}/superadmin/admins` },
-        { icon: IconReport, label: 'Analytics', href: `/${locale}/superadmin/analytics` },
-        { icon: IconSettings, label: 'System', href: `/${locale}/superadmin/settings` },
+        { icon: IconHome, label: 'Dashboard', href: `/${locale}/dashboard/superadmin` },
+        { icon: IconBuilding, label: 'Scuole', href: `/${locale}/dashboard/superadmin/tenants` },
+        { icon: IconCreditCard, label: 'Piani', href: `/${locale}/dashboard/superadmin/plans` },
+        { icon: IconReceipt, label: 'Abbonamenti', href: `/${locale}/dashboard/superadmin/subscriptions` },
+        { icon: IconSettings, label: 'Impostazioni', href: `/${locale}/dashboard/superadmin/settings` },
       ],
     };
 
