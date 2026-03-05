@@ -28,7 +28,12 @@
       "Bash(ls:*)",
       "Bash(npm test:*)",
       "Bash(npm run lint:*)",
-      "Bash(gh run list:*)"
+      "Bash(gh run list:*)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\drilo\\\\workspace\\\\insegnami\\\\app\\\\[locale]\\\\\\(public\\)\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(grep:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(git restore:*)"
     ]
   }
 }
