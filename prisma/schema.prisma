@@ -230,6 +230,10 @@ model Tenant {
   // Subscription relation (SaaS billing)
   subscription      Subscription?
 
+  // Smart Scheduling
+  schedules         Schedule[]
+  timeSlotConfigs   TimeSlotConfig[]
+
   @@map("tenants")
 }
 
@@ -464,6 +468,9 @@ model Teacher {
   homework          Homework[]
   parentMeetings    ParentMeeting[]
 
+  // Smart Scheduling
+  scheduleSlots     ScheduleSlot[]
+
   @@map("teachers")
 }
 
@@ -533,6 +540,9 @@ model Class {
   reportCards       ReportCard[]
   disciplinaryNotes DisciplinaryNote[]
   homework          Homework[]
+
+  // Smart Scheduling
+  scheduleSlots     ScheduleSlot[]
 
   @@map("classes")
 }
@@ -1145,6 +1155,9 @@ model AcademicYear {
 
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  // Smart Scheduling
+  schedules Schedule[]
+
   @@unique([tenantId, name])
   @@map("academic_years")
 }
@@ -1197,6 +1210,9 @@ model Subject {
   homework         Homework[]
   classSubjects    ClassSubject[]
   reportCardEntries ReportCardEntry[]
+
+  // Smart Scheduling
+  scheduleSlots    ScheduleSlot[]
 
   @@unique([tenantId, code])
   @@map("subjects")
@@ -1556,4 +1572,98 @@ enum MaterialType {
   IMAGE
   DOCUMENT
   PRESENTATION
+}
+
+// ========================================
+// SMART SCHEDULING
+// ========================================
+
+enum ScheduleStatus {
+  DRAFT      // In preparazione
+  GENERATED  // Generato, non applicato
+  APPLIED    // Applicato (lezioni create)
+  ARCHIVED   // Storico
+}
+
+model Schedule {
+  id        String   @id @default(cuid())
+  tenantId  String
+
+  name           String    // "Orario 2024/2025 - Primo Quadrimestre"
+  academicYearId String
+
+  // Configurazione
+  startDate   DateTime
+  endDate     DateTime
+  config      Json      // Configurazione vincoli e preferenze
+
+  // Stato
+  status      ScheduleStatus @default(DRAFT)
+  generatedAt DateTime?
+  appliedAt   DateTime?
+
+  // Statistiche generazione
+  score       Int?      // Punteggio ottimizzazione (0-100)
+  stats       Json?     // Statistiche dettagliate
+
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String
+
+  // Relations
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  slots        ScheduleSlot[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, academicYearId])
+  @@map("schedules")
+}
+
+model ScheduleSlot {
+  id         String @id @default(cuid())
+  scheduleId String
+
+  dayOfWeek  Int      // 1=Lunedì, 2=Martedì, ..., 5=Venerdì
+  slotNumber Int      // 1, 2, 3... (ora della giornata)
+  startTime  String   // "08:00"
+  endTime    String   // "09:00"
+
+  classId    String
+  subjectId  String
+  teacherId  String
+  room       String?
+
+  // Metadata ottimizzazione
+  score      Int?     // Punteggio singolo slot
+  warnings   Json?    // Eventuali warning/soft constraint violati
+
+  // Relations
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject    Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher    Teacher  @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+
+  @@unique([scheduleId, dayOfWeek, slotNumber, classId])
+  @@index([scheduleId])
+  @@index([classId])
+  @@index([teacherId])
+  @@map("schedule_slots")
+}
+
+model TimeSlotConfig {
+  id       String @id @default(cuid())
+  tenantId String
+
+  slotNumber Int     // 1, 2, 3...
+  name       String? // "Prima ora", "Seconda ora", "Intervallo"
+  startTime  String  // "08:00"
+  endTime    String  // "09:00"
+  isBreak    Boolean @default(false) // Pausa/ricreazione
+
+  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, slotNumber])
+  @@map("time_slot_configs")
 }

@@ -46,6 +46,7 @@ import {
   IconBuilding,
   IconCreditCard,
   IconReceipt,
+  IconCalendarStats,
 } from '@tabler/icons-react';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
@@ -87,6 +88,7 @@ export function Sidebar({ opened }: SidebarProps) {
         { icon: IconNotebook, label: t('homework'), href: `/${locale}/dashboard/homework` },
         { icon: IconCalendarEvent, label: t('meetings'), href: `/${locale}/dashboard/meetings` },
         { icon: IconCalendar, label: t('lessons'), href: `/${locale}/dashboard/lessons` },
+        { icon: IconCalendarStats, label: 'Generatore Orario', href: `/${locale}/dashboard/schedules` },
         { icon: IconClipboardList, label: t('attendance'), href: `/${locale}/dashboard/attendance` },
         { icon: IconClock, label: t('hoursPackages'), href: `/${locale}/dashboard/hours-packages` },
         { icon: IconCash, label: t('payments'), href: `/${locale}/dashboard/payments` },
