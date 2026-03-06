@@ -152,7 +152,11 @@ jobs:
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
         run: |
           # Create environment file on server
           ssh $USER@$HOST "cat > /opt/insegnami/.env << 'ENVEOF'
@@ -161,7 +165,11 @@ jobs:
           NEXTAUTH_URL=$NEXTAUTH_URL
           STRIPE_SECRET_KEY=$STRIPE_SECRET_KEY
           STRIPE_WEBHOOK_SECRET=$STRIPE_WEBHOOK_SECRET
-          RESEND_API_KEY=$RESEND_API_KEY
+          SMTP_HOST=$SMTP_HOST
+          SMTP_PORT=$SMTP_PORT
+          SMTP_USER=$SMTP_USER
+          SMTP_PASSWORD=$SMTP_PASSWORD
+          EMAIL_FROM=$EMAIL_FROM
           POSTGRES_DB=insegnami
           POSTGRES_USER=insegnami
           POSTGRES_PASSWORD=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')

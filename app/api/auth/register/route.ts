@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/(^-|-$)/g, ''),
         isActive: false, // Will be activated after email verification
+        trialUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 giorni trial
       },
     });
 
@@ -136,49 +137,59 @@ export async function POST(request: NextRequest) {
     });
 
     // Send verification email
-    try {
-      // Include planId in verification URL if provided
-      const planParam = planId ? `&plan=${encodeURIComponent(planId)}` : '';
-      const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}${planParam}`;
-      
-      // BUG-032 fix: Escape HTML in user-provided data to prevent XSS
-      const safeFirstName = escapeHtml(firstName);
-      const safeEmail = escapeHtml(email);
-      const safeSchoolName = escapeHtml(schoolName);
-      const roleLabel = role === 'director' ? 'Dirigente Scolastico' : role === 'secretary' ? 'Segreteria' : 'Amministratore';
+    // Include planId in verification URL if provided
+    const planParam = planId ? `&plan=${encodeURIComponent(planId)}` : '';
+    const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}${planParam}`;
 
-      await sendEmail({
-        to: email,
-        subject: 'Conferma la tua email - InsegnaMi.pro',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #0ea5e9;">Benvenuto su InsegnaMi.pro!</h1>
-            <p>Ciao ${safeFirstName},</p>
-            <p>Grazie per esserti registrato su InsegnaMi.pro. Per completare la registrazione, clicca sul link sottostante per confermare la tua email:</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${verificationUrl}" style="background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-                Conferma Email
-              </a>
-            </div>
-            <p>Oppure copia e incolla questo link nel tuo browser:</p>
-            <p style="word-break: break-all; color: #666;">${verificationUrl}</p>
-            <p><strong>Dettagli del tuo account:</strong></p>
-            <ul>
-              <li>Email: ${safeEmail}</li>
-              <li>Scuola: ${safeSchoolName}</li>
-              <li>Ruolo: ${roleLabel}</li>
-            </ul>
-            <p>Il link è valido per 24 ore. Se non confermi entro questo periodo, dovrai registrarti nuovamente.</p>
-            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-            <p style="color: #666; font-size: 12px;">
-              Questo messaggio è stato inviato automaticamente. Se non hai richiesto questa registrazione, ignora questa email.
-            </p>
+    // BUG-032 fix: Escape HTML in user-provided data to prevent XSS
+    const safeFirstName = escapeHtml(firstName);
+    const safeEmail = escapeHtml(email);
+    const safeSchoolName = escapeHtml(schoolName);
+    const roleLabel = role === 'director' ? 'Dirigente Scolastico' : role === 'secretary' ? 'Segreteria' : 'Amministratore';
+
+    const emailResult = await sendEmail({
+      to: email,
+      subject: 'Conferma la tua email - InsegnaMi.pro',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #0ea5e9;">Benvenuto su InsegnaMi.pro!</h1>
+          <p>Ciao ${safeFirstName},</p>
+          <p>Grazie per esserti registrato su InsegnaMi.pro. Per completare la registrazione, clicca sul link sottostante per confermare la tua email:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verificationUrl}" style="background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Conferma Email
+            </a>
           </div>
-        `,
-      });
-    } catch (emailError) {
-      console.error('Failed to send verification email:', emailError);
-      // Don't fail the registration if email fails, but log it
+          <p>Oppure copia e incolla questo link nel tuo browser:</p>
+          <p style="word-break: break-all; color: #666;">${verificationUrl}</p>
+          <p><strong>Dettagli del tuo account:</strong></p>
+          <ul>
+            <li>Email: ${safeEmail}</li>
+            <li>Scuola: ${safeSchoolName}</li>
+            <li>Ruolo: ${roleLabel}</li>
+          </ul>
+          <p>Il link è valido per 24 ore. Se non confermi entro questo periodo, dovrai registrarti nuovamente.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+          <p style="color: #666; font-size: 12px;">
+            Questo messaggio è stato inviato automaticamente. Se non hai richiesto questa registrazione, ignora questa email.
+          </p>
+        </div>
+      `,
+    });
+
+    // Se l'email non parte, rollback e ritorna errore
+    if (!emailResult.success) {
+      console.error('Failed to send verification email, rolling back registration');
+      // Rollback: elimina tutto quello creato
+      await prisma.verificationToken.deleteMany({ where: { identifier: email } });
+      await prisma.userTenant.deleteMany({ where: { userId: user.id } });
+      await prisma.user.delete({ where: { id: user.id } });
+      await prisma.tenant.delete({ where: { id: tenant.id } });
+
+      return NextResponse.json(
+        { error: 'Impossibile inviare email di verifica. Controlla l\'indirizzo email e riprova.' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({

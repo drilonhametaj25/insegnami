@@ -19,7 +19,7 @@ function initializeTransporter() {
       transporter = nodemailer.createTransport({
         host: SMTP_CONFIG.host,
         port: SMTP_CONFIG.port,
-        secure: false,
+        secure: SMTP_CONFIG.port === 465, // true per SSL (porta 465 Aruba)
         auth: SMTP_CONFIG.auth,
         tls: {
           rejectUnauthorized: false,

@@ -61,10 +61,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (userTenant && !userTenant.tenant.isActive) {
+    if (userTenant) {
+      // Attiva tenant e setta trial (14 giorni da ORA, non dalla registrazione)
       await prisma.tenant.update({
         where: { id: userTenant.tenantId },
-        data: { isActive: true },
+        data: {
+          isActive: true,
+          trialUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 giorni trial
+        },
       });
     }
 

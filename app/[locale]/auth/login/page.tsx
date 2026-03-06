@@ -376,6 +376,12 @@ function LoginForm() {
                             Registrati ora
                           </Anchor>
                         </Text>
+                        <Text ta="center" size="sm" c="dimmed">
+                          Non hai ricevuto l'email di verifica?{' '}
+                          <Anchor component={Link} href="/auth/resend-verification" c="blue">
+                            Invia di nuovo
+                          </Anchor>
+                        </Text>
                       </>
                     )}
                   </Stack>
