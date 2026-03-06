@@ -314,52 +314,26 @@ export default function AttendancePage() {
   const isSaving = recordAttendance.isPending || updateAttendance.isPending;
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-      padding: '24px'
-    }}>
-      <Container size="xl">
-        <Stack gap="lg">
-          <Group justify="space-between" align="center">
-            <Title 
-              order={1}
-              style={{ 
-                color: 'white',
-                fontSize: '2.5rem',
-                fontWeight: 700,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-              }}
+    <Container size="xl" py="md">
+      <Stack gap="lg">
+        <Group justify="space-between">
+          <Title order={2}>{t('title')}</Title>
+          <Group>
+            <Button
+              variant="light"
+              leftSection={<IconDownload size={16} />}
+              onClick={() => handleExportAttendance('xlsx')}
             >
-              {t('title')}
-            </Title>
-            <Group>
-              <Button
-                variant="light"
-                leftSection={<IconDownload size={16} />}
-                onClick={() => handleExportAttendance('xlsx')}
-                style={{
-                  background: 'rgba(34, 197, 94, 0.1)',
-                  border: '1px solid rgba(34, 197, 94, 0.2)',
-                  color: '#4ade80',
-                  backdropFilter: 'blur(10px)'
-                }}
-              >
-                {t('exportExcel')}
-              </Button>
-              <Button
-                leftSection={<IconCalendar size={16} />}
-                onClick={openAttendanceModal}
-                style={{
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                  border: 'none',
-                  boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)'
-                }}
-              >
-                {t('recordAttendance')}
-              </Button>
-            </Group>
+              {t('exportExcel')}
+            </Button>
+            <Button
+              leftSection={<IconCalendar size={16} />}
+              onClick={openAttendanceModal}
+            >
+              {t('recordAttendance')}
+            </Button>
           </Group>
+        </Group>
 
         {/* Statistics Cards */}
         {statsLoading ? (
@@ -1152,7 +1126,6 @@ export default function AttendancePage() {
           </Stack>
         )}
       </Modal>
-      </Container>
-    </div>
+    </Container>
   );
 }

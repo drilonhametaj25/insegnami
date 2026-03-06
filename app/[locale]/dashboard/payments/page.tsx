@@ -314,107 +314,43 @@ export default function PaymentsPage() {
   const isSaving = createPayment.isPending || updatePayment.isPending || deletePayment.isPending || markAsPaid.isPending;
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-      padding: '24px'
-    }}>
-      <Container size="xl">
-        <Stack gap="lg">
-          <Group justify="space-between" align="center">
-            <Title 
-              order={1} 
-              style={{ 
-                color: 'white',
-                fontSize: '2.5rem',
-                fontWeight: 700,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+    <Container size="xl" py="md">
+      <Stack gap="lg">
+        <Group justify="space-between">
+          <Title order={2}>{t('title')}</Title>
+          <Group>
+            <Button
+              variant="light"
+              leftSection={<IconDownload size={16} />}
+              onClick={exportPaymentReport}
+            >
+              {t('exportReport')}
+            </Button>
+            <Button
+              leftSection={<IconPlus size={16} />}
+              onClick={() => {
+                setEditingPayment(null);
+                form.reset();
+                openModal();
               }}
             >
-              {t('title')}
-            </Title>
-            <Group>
-              <Button
-                variant="light"
-                leftSection={<IconDownload size={16} />}
-                onClick={exportPaymentReport}
-                style={{
-                  background: 'rgba(59, 130, 246, 0.1)',
-                  border: '1px solid rgba(59, 130, 246, 0.2)',
-                  color: '#60a5fa',
-                  backdropFilter: 'blur(10px)'
-                }}
-              >
-                {t('exportReport')}
-              </Button>
-              <Button
-                leftSection={<IconPlus size={16} />}
-                onClick={() => {
-                  setEditingPayment(null);
-                  form.reset();
-                  openModal();
-                }}
-                style={{
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                  border: 'none',
-                  boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)'
-                }}
-              >
-                {t('addPayment')}
-              </Button>
-            </Group>
+              {t('addPayment')}
+            </Button>
           </Group>
+        </Group>
 
-        <Tabs 
-          value={activeTab} 
+        <Tabs
+          value={activeTab}
           onChange={(value) => value && setActiveTab(value)}
-          style={{
-            '--mantine-tabs-list-border-color': 'rgba(255, 255, 255, 0.1)',
-          }}
         >
-          <Tabs.List 
-            style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
-              padding: '4px'
-            }}
-          >
-            <Tabs.Tab 
-              value="overview" 
-              leftSection={<IconTrendingUp size={16} />}
-              style={{
-                color: activeTab === 'overview' ? 'white' : 'rgba(255, 255, 255, 0.7)',
-                backgroundColor: activeTab === 'overview' ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
-                borderRadius: '8px',
-                border: 'none'
-              }}
-            >
+          <Tabs.List>
+            <Tabs.Tab value="overview" leftSection={<IconTrendingUp size={16} />}>
               {t('overview')}
             </Tabs.Tab>
-            <Tabs.Tab 
-              value="payments" 
-              leftSection={<IconCurrencyEuro size={16} />}
-              style={{
-                color: activeTab === 'payments' ? 'white' : 'rgba(255, 255, 255, 0.7)',
-                backgroundColor: activeTab === 'payments' ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
-                borderRadius: '8px',
-                border: 'none'
-              }}
-            >
+            <Tabs.Tab value="payments" leftSection={<IconCurrencyEuro size={16} />}>
               {t('payments')}
             </Tabs.Tab>
-            <Tabs.Tab 
-              value="overdue" 
-              leftSection={<IconAlertTriangle size={16} />}
-              style={{
-                color: activeTab === 'overdue' ? 'white' : 'rgba(255, 255, 255, 0.7)',
-                backgroundColor: activeTab === 'overdue' ? 'rgba(239, 68, 68, 0.3)' : 'transparent',
-                borderRadius: '8px',
-                border: 'none'
-              }}
-            >
+            <Tabs.Tab value="overdue" leftSection={<IconAlertTriangle size={16} />}>
               {t('overdue')}
             </Tabs.Tab>
           </Tabs.List>
@@ -959,7 +895,6 @@ export default function PaymentsPage() {
           </Stack>
         </form>
       </Modal>
-      </Container>
-    </div>
+    </Container>
   );
 }
