@@ -33,7 +33,11 @@
       "Bash(Select-Object Name)",
       "Bash(grep:*)",
       "mcp__sequential-thinking__sequentialthinking",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(node -e:*)",
+      "Bash(test:*)",
+      "Bash(dir \"C:\\\\Users\\\\drilo\\\\workspace\\\\insegnami\\\\messages\"\")",
+      "Bash(npx prisma validate:*)"
     ]
   }
 }
