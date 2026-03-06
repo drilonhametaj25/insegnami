@@ -5,6 +5,7 @@ import { sendEmail } from '@/lib/email';
 import { isSaaSMode } from '@/lib/config';
 import { generateVerificationToken } from '@/lib/auth-utils';
 import { escapeHtml } from '@/lib/api-middleware';
+import { getOrCreateCustomer } from '@/lib/stripe';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { firstName, lastName, email, password, schoolName, role } = body;
+    const { firstName, lastName, email, password, schoolName, role, planId } = body;
 
     // Validate required fields
     if (!firstName || !lastName || !email || !password || !schoolName) {
@@ -82,6 +83,26 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Create Stripe customer for the tenant
+    let stripeCustomerId: string | null = null;
+    try {
+      const stripeCustomer = await getOrCreateCustomer({
+        email,
+        name: `${firstName} ${lastName}`,
+        tenantId: tenant.id,
+      });
+      stripeCustomerId = stripeCustomer.id;
+
+      // Update tenant with Stripe customer ID
+      await prisma.tenant.update({
+        where: { id: tenant.id },
+        data: { stripeCustomerId },
+      });
+    } catch (stripeError) {
+      console.error('Failed to create Stripe customer:', stripeError);
+      // Continue without Stripe customer - can be created later
+    }
+
     // Create user with admin role for the new tenant
     const user = await prisma.user.create({
       data: {
@@ -116,7 +137,9 @@ export async function POST(request: NextRequest) {
 
     // Send verification email
     try {
-      const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}`;
+      // Include planId in verification URL if provided
+      const planParam = planId ? `&plan=${encodeURIComponent(planId)}` : '';
+      const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}${planParam}`;
       
       // BUG-032 fix: Escape HTML in user-provided data to prevent XSS
       const safeFirstName = escapeHtml(firstName);

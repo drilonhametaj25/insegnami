@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Paper,
   TextInput,
@@ -17,10 +17,13 @@ import {
   Center,
   Checkbox,
   Select,
+  Badge,
+  Card,
+  Loader,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { IconAlertCircle, IconSchool, IconCheck } from '@tabler/icons-react';
+import { IconAlertCircle, IconSchool, IconCheck, IconRocket } from '@tabler/icons-react';
 import Link from 'next/link';
 import { isSaaSMode } from '@/lib/config';
 
@@ -36,11 +39,41 @@ interface RegisterForm {
   acceptPrivacy: boolean;
 }
 
+interface Plan {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  interval: string;
+  description: string | null;
+}
+
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const planId = searchParams.get('plan');
+
+  // Fetch selected plan details if planId is provided
+  useEffect(() => {
+    if (planId) {
+      setPlanLoading(true);
+      fetch('/api/subscriptions/plans')
+        .then(res => res.json())
+        .then(data => {
+          const plan = data.plans?.find((p: Plan) => p.id === planId || p.slug === planId);
+          if (plan) {
+            setSelectedPlan(plan);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setPlanLoading(false));
+    }
+  }, [planId]);
 
   const form = useForm<RegisterForm>({
     initialValues: {
@@ -98,6 +131,7 @@ export default function RegisterPage() {
           password: values.password,
           schoolName: values.schoolName,
           role: values.role,
+          planId: selectedPlan?.id || planId || undefined,
         }),
       });
 
@@ -149,8 +183,22 @@ export default function RegisterPage() {
               <br />
               Controlla la tua casella di posta e clicca sul link per attivare il tuo account.
             </Text>
-            <Text ta="center" size="sm" c="dimmed">
-              Verrai reindirizzato alla pagina di login tra pochi secondi...
+            {selectedPlan && (
+              <Card withBorder p="md" radius="md" mt="md">
+                <Group>
+                  <IconRocket size="1.5rem" color="#0ea5e9" />
+                  <div>
+                    <Text size="sm" c="dimmed">Piano selezionato</Text>
+                    <Text fw={600}>{selectedPlan.name}</Text>
+                  </div>
+                </Group>
+                <Text size="sm" c="dimmed" mt="xs">
+                  Dopo la verifica email, potrai attivare i tuoi 14 giorni di prova gratuita.
+                </Text>
+              </Card>
+            )}
+            <Text ta="center" size="sm" c="dimmed" mt="md">
+              Controlla la tua email per continuare...
             </Text>
           </Stack>
         </Center>
@@ -171,6 +219,31 @@ export default function RegisterPage() {
           </Text>
         </Stack>
       </Center>
+
+      {/* Show selected plan if coming from pricing page */}
+      {planLoading ? (
+        <Center mb="xl">
+          <Loader size="sm" />
+        </Center>
+      ) : selectedPlan && (
+        <Card withBorder p="md" radius="md" mb="xl" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+          <Group justify="space-between" align="center">
+            <Group>
+              <IconRocket size="1.5rem" color="white" />
+              <div>
+                <Text size="sm" c="white" style={{ opacity: 0.8 }}>Piano selezionato</Text>
+                <Text fw={700} c="white" size="lg">{selectedPlan.name}</Text>
+              </div>
+            </Group>
+            <Badge size="lg" variant="white" color="dark">
+              14 giorni gratis
+            </Badge>
+          </Group>
+          <Text size="sm" c="white" style={{ opacity: 0.9 }} mt="xs">
+            Completa la registrazione per iniziare la tua prova gratuita
+          </Text>
+        </Card>
+      )}
 
       <Paper radius="md" p="xl" withBorder>
         <form onSubmit={form.onSubmit(handleSubmit)}>
