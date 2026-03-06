@@ -65,6 +65,7 @@ import {
   type NoticeStats,
   type CreateNoticeData
 } from '@/lib/hooks/useNotices';
+import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 
 interface NoticeFormData {
   title: string;
@@ -393,62 +394,46 @@ export default function NoticesPage() {
           <Grid>
             {[1, 2, 3, 4].map((i) => (
               <Grid.Col key={i} span={{ base: 12, sm: 6, md: 3 }}>
-                <Card shadow="sm" padding="lg" radius="md" withBorder>
-                  <Skeleton height={20} mb="xs" />
-                  <Skeleton height={32} mb="xs" />
-                  <Skeleton height={16} />
-                </Card>
+                <Skeleton height={140} radius="xl" />
               </Grid.Col>
             ))}
           </Grid>
         ) : stats ? (
           <Grid>
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Card shadow="sm" padding="lg" radius="md" withBorder>
-                <Group justify="space-between">
-                  <div>
-                    <Text size="sm" c="dimmed">{t('total')}</Text>
-                    <Text size="xl" fw={700}>{stats.totalNotices}</Text>
-                  </div>
-                  <IconMessageCircle size={32} color="var(--mantine-color-blue-6)" />
-                </Group>
-              </Card>
+              <ModernStatsCard
+                title={t('total')}
+                value={stats.totalNotices}
+                icon="📢"
+                gradient="linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
+              />
             </Grid.Col>
-            
+
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Card shadow="sm" padding="lg" radius="md" withBorder>
-                <Group justify="space-between">
-                  <div>
-                    <Text size="sm" c="dimmed">{t('published')}</Text>
-                    <Text size="xl" fw={700}>{stats.publishedNotices}</Text>
-                  </div>
-                  <IconCheck size={32} color="var(--mantine-color-green-6)" />
-                </Group>
-              </Card>
+              <ModernStatsCard
+                title={t('published')}
+                value={stats.publishedNotices}
+                icon="✅"
+                gradient="linear-gradient(135deg, #22c55e 0%, #15803d 100%)"
+              />
             </Grid.Col>
-            
+
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Card shadow="sm" padding="lg" radius="md" withBorder>
-                <Group justify="space-between">
-                  <div>
-                    <Text size="sm" c="dimmed">{t('drafts')}</Text>
-                    <Text size="xl" fw={700}>{stats.draftNotices}</Text>
-                  </div>
-                  <IconEdit size={32} color="var(--mantine-color-yellow-6)" />
-                </Group>
-              </Card>
+              <ModernStatsCard
+                title={t('drafts')}
+                value={stats.draftNotices}
+                icon="📝"
+                gradient="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+              />
             </Grid.Col>
-            
+
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Card shadow="sm" padding="lg" radius="md" withBorder>
-                <Group justify="space-between">
-                  <div>
-                    <Text size="sm" c="dimmed">{t('urgent')}</Text>
-                    <Text size="xl" fw={700}>{stats.urgentNotices}</Text>
-                  </div>
-                  <IconAlertTriangle size={32} color="var(--mantine-color-red-6)" />
-                </Group>
-              </Card>
+              <ModernStatsCard
+                title={t('urgent')}
+                value={stats.urgentNotices}
+                icon="🚨"
+                gradient="linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+              />
             </Grid.Col>
           </Grid>
         ) : null}

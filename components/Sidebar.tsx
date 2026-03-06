@@ -93,8 +93,7 @@ export function Sidebar({ opened }: SidebarProps) {
         { icon: IconBell, label: t('notices'), href: `/${locale}/dashboard/notices` },
         { icon: IconMessage, label: 'Communication', href: `/${locale}/dashboard/communication` },
         { icon: IconChartBar, label: 'Analytics', href: `/${locale}/dashboard/analytics` },
-        { icon: IconReport, label: t('reports'), href: `/${locale}/dashboard/admin/reports` },
-        { icon: IconSettings, label: t('settings'), href: `/${locale}/dashboard/admin/settings` },
+        { icon: IconReport, label: t('reports'), href: `/${locale}/dashboard/reports` },
       ],
       TEACHER: [
         { icon: IconSchool, label: t('courses'), href: `/${locale}/dashboard/courses` },
@@ -268,7 +267,7 @@ export function Sidebar({ opened }: SidebarProps) {
               </Menu.Item>
               <Menu.Item
                 component={Link}
-                href={`/${locale}/dashboard/settings`}
+                href={`/${locale}/dashboard/profile`}
                 leftSection={<IconSettings size="0.875rem" />}
               >
                 Impostazioni

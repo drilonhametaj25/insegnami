@@ -58,6 +58,7 @@ import {
   type StudentAttendanceSummary,
   type CreateAttendanceData
 } from '@/lib/hooks/useAttendance';
+import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { useLessons, useLessonById } from '@/lib/hooks/useLessons';
 import { useClasses } from '@/lib/hooks/useClasses';
 
@@ -365,129 +366,51 @@ export default function AttendancePage() {
           <Grid>
             {[1, 2, 3, 4].map((i) => (
               <Grid.Col key={i} span={{ base: 12, sm: 6, md: 3 }}>
-                <Card 
-                  shadow="lg" 
-                  padding="lg" 
-                  radius="md"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)'
-                  }}
-                >
-                  <Skeleton height={20} mb="xs" />
-                  <Skeleton height={32} mb="xs" />
-                  <Skeleton height={16} />
-                </Card>
+                <Skeleton height={140} radius="xl" />
               </Grid.Col>
             ))}
           </Grid>
         ) : stats ? (
           <Grid>
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Card 
-                shadow="lg" 
-                padding="lg" 
-                radius="md"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)',
-                  border: '1px solid rgba(59, 130, 246, 0.2)',
-                  backdropFilter: 'blur(10px)'
-                }}
-              >
-                <Group justify="space-between">
-                  <div>
-                    <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                      {t('totalRecords')}
-                    </Text>
-                    <Text size="xl" fw={700} style={{ color: 'white' }}>
-                      {stats.totalRecords}
-                    </Text>
-                  </div>
-                  <IconUsers size={32} color="#3b82f6" />
-                </Group>
-              </Card>
+              <ModernStatsCard
+                title={t('totalRecords')}
+                value={stats.totalRecords}
+                icon="📊"
+                gradient="linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
+              />
             </Grid.Col>
-            
+
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Card 
-                shadow="lg" 
-                padding="lg" 
-                radius="md"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(21, 128, 61, 0.1) 100%)',
-                  border: '1px solid rgba(34, 197, 94, 0.2)',
-                  backdropFilter: 'blur(10px)'
+              <ModernStatsCard
+                title={t('attendanceRate')}
+                value={`${stats.attendanceRate.toFixed(1)}%`}
+                icon="📈"
+                gradient="linear-gradient(135deg, #22c55e 0%, #15803d 100%)"
+                progress={{
+                  value: stats.attendanceRate,
+                  label: "Tasso presenza",
+                  color: stats.attendanceRate > 80 ? 'green' : stats.attendanceRate > 60 ? 'yellow' : 'red'
                 }}
-              >
-                <Group justify="space-between">
-                  <div>
-                    <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                      {t('attendanceRate')}
-                    </Text>
-                    <Text size="xl" fw={700} style={{ color: 'white' }}>
-                      {stats.attendanceRate.toFixed(1)}%
-                    </Text>
-                    <Progress 
-                      value={stats.attendanceRate} 
-                      size="xs" 
-                      color={stats.attendanceRate > 80 ? 'green' : stats.attendanceRate > 60 ? 'yellow' : 'red'} 
-                      style={{ marginTop: '4px' }}
-                    />
-                  </div>
-                  <IconChartBar size={32} color="#22c55e" />
-                </Group>
-              </Card>
+              />
             </Grid.Col>
-            
+
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Card 
-                shadow="lg" 
-                padding="lg" 
-                radius="md"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)',
-                  border: '1px solid rgba(16, 185, 129, 0.2)',
-                  backdropFilter: 'blur(10px)'
-                }}
-              >
-                <Group justify="space-between">
-                  <div>
-                    <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                      {t('presentCount')}
-                    </Text>
-                    <Text size="xl" fw={700} style={{ color: '#10b981' }}>
-                      {stats.presentCount}
-                    </Text>
-                  </div>
-                  <IconCheck size={32} color="#10b981" />
-                </Group>
-              </Card>
+              <ModernStatsCard
+                title={t('presentCount')}
+                value={stats.presentCount}
+                icon="✅"
+                gradient="linear-gradient(135deg, #10b981 0%, #059669 100%)"
+              />
             </Grid.Col>
-            
+
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Card 
-                shadow="lg" 
-                padding="lg" 
-                radius="md"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)',
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
-                  backdropFilter: 'blur(10px)'
-                }}
-              >
-                <Group justify="space-between">
-                  <div>
-                    <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                      {t('absentCount')}
-                    </Text>
-                    <Text size="xl" fw={700} style={{ color: '#ef4444' }}>
-                      {stats.absentCount}
-                    </Text>
-                  </div>
-                  <IconX size={32} color="#ef4444" />
-                </Group>
-              </Card>
+              <ModernStatsCard
+                title={t('absentCount')}
+                value={stats.absentCount}
+                icon="❌"
+                gradient="linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+              />
             </Grid.Col>
           </Grid>
         ) : null}

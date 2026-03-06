@@ -45,7 +45,7 @@ import {
   IconTrendingUp,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { 
+import {
   usePayments,
   usePaymentStats,
   useCreatePayment,
@@ -56,6 +56,7 @@ import {
   type PaymentStats,
   type CreatePaymentData
 } from '@/lib/hooks/usePayments';
+import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { useStudents } from '@/lib/hooks/useStudents';
 import { useClasses } from '@/lib/hooks/useClasses';
 
@@ -423,120 +424,54 @@ export default function PaymentsPage() {
               <Grid mb="xl">
                 {[1, 2, 3, 4].map((i) => (
                   <Grid.Col key={i} span={{ base: 12, sm: 6, md: 3 }}>
-                    <Card shadow="sm" padding="lg" radius="md" withBorder>
-                      <Skeleton height={20} mb="xs" />
-                      <Skeleton height={32} mb="xs" />
-                      <Skeleton height={16} />
-                    </Card>
+                    <Skeleton height={140} radius="xl" />
                   </Grid.Col>
                 ))}
               </Grid>
             ) : stats ? (
               <Grid mb="xl">
                 <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                  <Card 
-                    shadow="lg" 
-                    padding="lg" 
-                    radius="md"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)',
-                      border: '1px solid rgba(16, 185, 129, 0.2)',
-                      backdropFilter: 'blur(10px)'
-                    }}
-                  >
-                    <Group justify="space-between">
-                      <div>
-                        <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                          {t('totalRevenue')}
-                        </Text>
-                        <Text size="xl" fw={700} style={{ color: 'white' }}>
-                          €{stats?.totalPayments?.toLocaleString() || '0'}
-                        </Text>
-                      </div>
-                      <IconCurrencyEuro size={32} color="#10b981" />
-                    </Group>
-                  </Card>
+                  <ModernStatsCard
+                    title={t('totalRevenue')}
+                    value={`€${stats?.totalPayments?.toLocaleString() || '0'}`}
+                    icon="💰"
+                    gradient="linear-gradient(135deg, #10b981 0%, #059669 100%)"
+                  />
                 </Grid.Col>
-                
+
                 <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                  <Card 
-                    shadow="lg" 
-                    padding="lg" 
-                    radius="md"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)',
-                      border: '1px solid rgba(59, 130, 246, 0.2)',
-                      backdropFilter: 'blur(10px)'
+                  <ModernStatsCard
+                    title="In Attesa"
+                    value={`€${stats.pendingAmount.toLocaleString()}`}
+                    icon="⏳"
+                    gradient="linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
+                    badge={{
+                      text: `${stats.pendingPayments} pagamenti`,
+                      color: 'blue'
                     }}
-                  >
-                    <Group justify="space-between">
-                      <div>
-                        <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                          In Attesa
-                        </Text>
-                        <Text size="xl" fw={700} style={{ color: 'white' }}>
-                          €{stats.pendingAmount.toLocaleString()}
-                        </Text>
-                        <Text size="xs" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                          {stats.pendingPayments} pagamenti
-                        </Text>
-                      </div>
-                      <IconClock size={32} color="#3b82f6" />
-                    </Group>
-                  </Card>
+                  />
                 </Grid.Col>
-                
+
                 <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                  <Card 
-                    shadow="lg" 
-                    padding="lg" 
-                    radius="md"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)',
-                      border: '1px solid rgba(239, 68, 68, 0.2)',
-                      backdropFilter: 'blur(10px)'
+                  <ModernStatsCard
+                    title="Scaduti"
+                    value={`€${stats.overdueAmount.toLocaleString()}`}
+                    icon="⚠️"
+                    gradient="linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+                    badge={{
+                      text: `${stats.overduePayments} pagamenti`,
+                      color: 'red'
                     }}
-                  >
-                    <Group justify="space-between">
-                      <div>
-                        <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                          Scaduti
-                        </Text>
-                        <Text size="xl" fw={700} style={{ color: '#ef4444' }}>
-                          €{stats.overdueAmount.toLocaleString()}
-                        </Text>
-                        <Text size="xs" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                          {stats.overduePayments} pagamenti
-                        </Text>
-                      </div>
-                      <IconAlertTriangle size={32} color="#ef4444" />
-                    </Group>
-                  </Card>
+                  />
                 </Grid.Col>
-                
+
                 <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                  <Card 
-                    shadow="lg" 
-                    padding="lg" 
-                    radius="md"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.1) 0%, rgba(13, 148, 136, 0.1) 100%)',
-                      border: '1px solid rgba(20, 184, 166, 0.2)',
-                      backdropFilter: 'blur(10px)'
-                    }}
-                  >
-                    <Group justify="space-between">
-                      <div>
-                        <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                          Questo Mese
-                        </Text>
-                        <Text size="xl" fw={700} style={{ color: 'white' }}>
-                          €{stats.monthlyRevenue.toLocaleString()}
-                        </Text>
-                      </div>
-                      <IconTrendingUp size={32} color="#14b8a6" />
-                    </Group>
-                  </Card>
+                  <ModernStatsCard
+                    title="Questo Mese"
+                    value={`€${stats.monthlyRevenue.toLocaleString()}`}
+                    icon="📈"
+                    gradient="linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)"
+                  />
                 </Grid.Col>
               </Grid>
             ) : null}
