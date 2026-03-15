@@ -429,9 +429,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     // BUG-048 fix: Sanitize error to prevent secrets in logs
     console.error('Webhook error:', sanitizeError(error));
+    // Always return 200 to prevent Stripe from retrying events that don't belong
+    // to this project (e.g. risparmiami.pro events hitting insegnami.pro endpoint)
     return NextResponse.json(
-      { error: 'Webhook handler failed' },
-      { status: 500 }
+      { received: true, error: 'Webhook handler failed' },
+      { status: 200 }
     );
   }
 }
