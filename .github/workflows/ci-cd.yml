@@ -158,24 +158,27 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
         run: |
-          # Create environment file on server
-          ssh $USER@$HOST "cat > /opt/insegnami/.env << 'ENVEOF'
-          DATABASE_URL=$DATABASE_URL
-          NEXTAUTH_SECRET=$NEXTAUTH_SECRET
-          NEXTAUTH_URL=$NEXTAUTH_URL
-          STRIPE_SECRET_KEY=$STRIPE_SECRET_KEY
-          STRIPE_WEBHOOK_SECRET=$STRIPE_WEBHOOK_SECRET
-          SMTP_HOST=$SMTP_HOST
-          SMTP_PORT=$SMTP_PORT
-          SMTP_USER=$SMTP_USER
-          SMTP_PASSWORD=$SMTP_PASSWORD
-          EMAIL_FROM=$EMAIL_FROM
-          POSTGRES_DB=insegnami
-          POSTGRES_USER=insegnami
-          POSTGRES_PASSWORD=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
-          NODE_ENV=production
-          MODE=saas
-          ENVEOF"
+          # Create .env locally with printf (safe for any special characters)
+          POSTGRES_PASSWORD=$(echo "$DATABASE_URL" | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+          {
+            printf "DATABASE_URL='%s'\n" "$DATABASE_URL"
+            printf "NEXTAUTH_SECRET='%s'\n" "$NEXTAUTH_SECRET"
+            printf "NEXTAUTH_URL='%s'\n" "$NEXTAUTH_URL"
+            printf "STRIPE_SECRET_KEY='%s'\n" "$STRIPE_SECRET_KEY"
+            printf "STRIPE_WEBHOOK_SECRET='%s'\n" "$STRIPE_WEBHOOK_SECRET"
+            printf "SMTP_HOST='%s'\n" "$SMTP_HOST"
+            printf "SMTP_PORT='%s'\n" "$SMTP_PORT"
+            printf "SMTP_USER='%s'\n" "$SMTP_USER"
+            printf "SMTP_PASSWORD='%s'\n" "$SMTP_PASSWORD"
+            printf "EMAIL_FROM='%s'\n" "$EMAIL_FROM"
+            printf "POSTGRES_DB='insegnami'\n"
+            printf "POSTGRES_USER='insegnami'\n"
+            printf "POSTGRES_PASSWORD='%s'\n" "$POSTGRES_PASSWORD"
+            printf "NODE_ENV='production'\n"
+            printf "MODE='saas'\n"
+          } > /tmp/.env.deploy
+          scp /tmp/.env.deploy $USER@$HOST:/opt/insegnami/.env
+          rm -f /tmp/.env.deploy
 
           # Clone/update repository on server
           ssh $USER@$HOST "
