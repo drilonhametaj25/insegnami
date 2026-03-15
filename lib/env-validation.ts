@@ -42,7 +42,14 @@ const envSchema = z.object({
   SMTP_PORT: z.string().transform(Number).optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
-  EMAIL_FROM: z.string().email().optional(),
+  EMAIL_FROM: z.string().refine(
+    (val) => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const namedEmailRegex = /^.+<[^\s@]+@[^\s@]+\.[^\s@]+>$/;
+      return emailRegex.test(val) || namedEmailRegex.test(val);
+    },
+    { message: 'Must be a valid email or "Name <email>" format' }
+  ).optional(),
 
   // Stripe (required for SaaS mode)
   STRIPE_SECRET_KEY: z.string().optional(),
@@ -52,7 +59,14 @@ const envSchema = z.object({
   // App config
   APP_NAME: z.string().optional(),
   APP_URL: z.string().url().optional(),
-  SUPPORT_EMAIL: z.string().email().optional(),
+  SUPPORT_EMAIL: z.string().refine(
+    (val) => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const namedEmailRegex = /^.+<[^\s@]+@[^\s@]+\.[^\s@]+>$/;
+      return emailRegex.test(val) || namedEmailRegex.test(val);
+    },
+    { message: 'Must be a valid email or "Name <email>" format' }
+  ).optional(),
 
   // Upload config
   UPLOAD_MAX_SIZE: z.string().transform(Number).optional(),
