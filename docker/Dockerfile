@@ -6,8 +6,8 @@ WORKDIR /app
 # Install dependencies needed for node-gyp
 RUN apk add --no-cache libc6-compat
 
-# Copy package files
-COPY package*.json ./
+# Copy package files and npm config
+COPY package*.json .npmrc ./
 COPY prisma ./prisma/
 
 # Install all dependencies (including dev for build)
