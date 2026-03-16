@@ -20,12 +20,6 @@ export default function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  // Force redirect from locale root paths (e.g., /it, /en) to landing page
-  const localeRootMatch = pathname.match(/^\/([a-z]{2})$/);
-  if (localeRootMatch) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-  
   // Don't process API routes, _next, and static files
   if (pathname.startsWith('/api/') || 
       pathname.startsWith('/_next/') || 

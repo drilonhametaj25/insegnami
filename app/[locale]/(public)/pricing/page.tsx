@@ -20,7 +20,6 @@ import {
   Switch,
   Paper,
   Divider,
-  Anchor,
   Grid
 } from '@mantine/core';
 import {
@@ -28,8 +27,7 @@ import {
   IconStar,
   IconRocket,
   IconAlertCircle,
-  IconArrowRight,
-  IconMail
+  IconArrowRight
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
@@ -509,28 +507,6 @@ export default function PricingPage() {
         </Container>
       </Box>
 
-      {/* Footer */}
-      <Box component="footer" style={{ background: '#0f172a', color: 'white' }} py={40}>
-        <Container size="xl">
-          <Group justify="space-between" align="center">
-            <Group gap="xl">
-              <Anchor component={Link} href="/" c="white" size="sm">Home</Anchor>
-              <Anchor component={Link} href={`/${locale}/auth/login`} c="dimmed" size="sm">Login</Anchor>
-              <Anchor component={Link} href={`/${locale}/auth/register`} c="dimmed" size="sm">Registrati</Anchor>
-            </Group>
-            <Group gap="xs">
-              <ThemeIcon size="md" radius="xl" variant="light">
-                <IconMail size={16} />
-              </ThemeIcon>
-              <Text size="sm" c="dimmed">info@drilonhametaj.it</Text>
-            </Group>
-          </Group>
-          <Divider my="lg" color="rgba(255,255,255,0.1)" />
-          <Text size="sm" c="dimmed" ta="center">
-            © {new Date().getFullYear()} InsegnaMi.pro. Tutti i diritti riservati. | P.IVA: 07327360488
-          </Text>
-        </Container>
-      </Box>
     </Box>
   );
 }

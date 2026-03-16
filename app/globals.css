@@ -54,6 +54,12 @@ body {
   box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
 }
 
+/* Homepage feature card hover */
+.homepage-feature-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
 /* Custom utility classes */
 .glass-morphism {
   background: rgba(255, 255, 255, 0.25);

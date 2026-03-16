@@ -246,7 +246,7 @@ export default async function ToolsPage({
               <Group gap="md">
                 <Anchor
                   component={Link}
-                  href="/auth/register"
+                  href={`/${locale}/auth/register`}
                   style={{
                     backgroundColor: 'var(--mantine-color-violet-6)',
                     color: 'white',

@@ -6,10 +6,44 @@ import '@mantine/notifications/styles.css';
 import './globals.css';
 
 export const metadata = {
-  title: 'InsegnaMi.pro - School Management System',
-  description: 'Modern school management and electronic register system',
-  keywords: 'school, management, electronic register, education, students, teachers',
+  title: {
+    default: 'InsegnaMi.pro — Registro Elettronico e Gestione Scolastica',
+    template: '%s | InsegnaMi.pro',
+  },
+  description:
+    'Piattaforma all-in-one per scuole private, accademie e centri di formazione. Registro elettronico, gestione studenti, presenze digitali, pagamenti e comunicazioni.',
+  keywords: [
+    'registro elettronico',
+    'gestione scolastica',
+    'software scuola',
+    'scuole private',
+    'presenze digitali',
+  ],
   authors: [{ name: 'InsegnaMi.pro Team' }],
+  metadataBase: new URL('https://insegnami.pro'),
+  openGraph: {
+    title: 'InsegnaMi.pro — Registro Elettronico e Gestione Scolastica',
+    description:
+      'Piattaforma all-in-one per scuole private. Registro elettronico, presenze, pagamenti e comunicazioni.',
+    type: 'website',
+    siteName: 'InsegnaMi.pro',
+    locale: 'it_IT',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'InsegnaMi.pro — Registro Elettronico e Gestione Scolastica',
+    description:
+      'Piattaforma all-in-one per scuole private. Registro elettronico, presenze, pagamenti e comunicazioni.',
+  },
+  alternates: {
+    canonical: '/',
+    languages: {
+      'it': '/it',
+      'en': '/en',
+      'fr': '/fr',
+      'pt': '/pt',
+    },
+  },
 };
 
 export const viewport = {
