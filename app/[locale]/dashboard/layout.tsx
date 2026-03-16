@@ -7,7 +7,7 @@ import { Navbar } from '@/components/Navbar';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { IconSchool } from '@tabler/icons-react';
 
 interface DashboardLayoutProps {
@@ -20,6 +20,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const locale = useLocale();
 
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+
   useEffect(() => {
     if (status === 'loading') return; // Still loading
     if (!session) {
@@ -27,7 +29,27 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [session, status, router, locale]);
 
-  if (status === 'loading' || !session) {
+  // Onboarding guard: redirect admin roles to onboarding if not complete
+  useEffect(() => {
+    if (status !== 'authenticated' || !session?.user) return;
+    const adminRoles = ['ADMIN', 'SUPERADMIN', 'DIRECTOR', 'SECRETARY'];
+    if (!adminRoles.includes(session.user.role)) {
+      setOnboardingChecked(true);
+      return;
+    }
+    fetch('/api/onboarding')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.isComplete) {
+          router.push(`/${locale}/onboarding`);
+        } else {
+          setOnboardingChecked(true);
+        }
+      })
+      .catch(() => setOnboardingChecked(true));
+  }, [session, status, locale, router]);
+
+  if (status === 'loading' || !session || !onboardingChecked) {
     return (
       <div style={{ 
         height: '100vh',

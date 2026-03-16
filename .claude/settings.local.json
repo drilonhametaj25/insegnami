@@ -37,7 +37,14 @@
       "Bash(node -e:*)",
       "Bash(test:*)",
       "Bash(dir \"C:\\\\Users\\\\drilo\\\\workspace\\\\insegnami\\\\messages\"\")",
-      "Bash(npx prisma validate:*)"
+      "Bash(npx prisma validate:*)",
+      "WebSearch",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npm view:*)",
+      "Bash(npm audit:*)",
+      "Bash(npx jest:*)",
+      "Bash(rm:*)",
+      "Bash(read f:*)"
     ]
   }
 }

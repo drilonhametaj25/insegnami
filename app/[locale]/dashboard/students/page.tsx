@@ -19,10 +19,11 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCheck, IconX, IconInfoCircle, IconEye, IconPlus, IconRefresh } from '@tabler/icons-react';
+import { IconCheck, IconX, IconInfoCircle, IconEye, IconPlus, IconRefresh, IconDownload, IconTrash } from '@tabler/icons-react';
 import { DataTable, TableRenderers } from '@/components/tables/DataTable';
 import { AdvancedStudentForm } from '@/components/forms/AdvancedStudentForm';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
+import { EmptyState, emptyStateConfigs } from '@/components/ui/EmptyState';
 
 interface Student {
   id: string;
@@ -221,6 +222,59 @@ export default function StudentsPage() {
     }
   };
 
+  // Handle delete student
+  const handleDelete = async (student: Student) => {
+    if (!confirm(`Sei sicuro di voler eliminare lo studente "${student.firstName} ${student.lastName}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/students/${student.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete student');
+      }
+
+      notifications.show({
+        title: 'Successo',
+        message: 'Studente eliminato con successo',
+        color: 'green',
+        icon: <IconCheck />,
+      });
+
+      fetchStudents();
+      fetchStats();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Errore',
+        message: error.message || 'Impossibile eliminare lo studente',
+        color: 'red',
+        icon: <IconX />,
+      });
+    }
+  };
+
+  // Handle export
+  const handleExport = async () => {
+    try {
+      const res = await fetch('/api/students/export?format=csv');
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'studenti.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch {
+      notifications.show({ title: 'Errore', message: 'Export fallito', color: 'red' });
+    }
+  };
+
   // Table columns definition
   const columns = [
     {
@@ -299,6 +353,13 @@ export default function StudentsPage() {
           <Title order={2}>Gestione Studenti</Title>
           <Group>
             <Button
+              leftSection={<IconDownload size={16} />}
+              variant="light"
+              onClick={handleExport}
+            >
+              Esporta
+            </Button>
+            <Button
               leftSection={<IconRefresh size={16} />}
               variant="light"
               onClick={fetchStudents}
@@ -353,29 +414,38 @@ export default function StudentsPage() {
           </Grid>
         )}
 
-        <DataTable
-          data={students}
-          columns={columns}
-          loading={loading}
-          searchPlaceholder="Cerca per nome, cognome o email..."
-          onSearch={handleSearch}
-          filterable
-          filterOptions={[
-            { value: 'ACTIVE', label: 'Attivo' },
-            { value: 'INACTIVE', label: 'Inattivo' },
-            { value: 'SUSPENDED', label: 'Sospeso' },
-          ]}
-          filterLabel="Filtra per stato"
-          onFilter={handleFilter}
-          onEdit={handleEdit}
-          onCreate={handleCreate}
-          createButtonLabel="Nuovo Studente"
-          page={pagination.page}
-          totalPages={pagination.totalPages}
-          onPageChange={handlePageChange}
-          pageSize={pagination.limit}
-          total={pagination.total}
-        />
+        {!loading && students.length === 0 && !searchQuery && !statusFilter ? (
+          <EmptyState
+            {...emptyStateConfigs.students}
+            actionHref={undefined}
+            onAction={handleCreate}
+          />
+        ) : (
+          <DataTable
+            data={students}
+            columns={columns}
+            loading={loading}
+            searchPlaceholder="Cerca per nome, cognome o email..."
+            onSearch={handleSearch}
+            filterable
+            filterOptions={[
+              { value: 'ACTIVE', label: 'Attivo' },
+              { value: 'INACTIVE', label: 'Inattivo' },
+              { value: 'SUSPENDED', label: 'Sospeso' },
+            ]}
+            filterLabel="Filtra per stato"
+            onFilter={handleFilter}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onCreate={handleCreate}
+            createButtonLabel="Nuovo Studente"
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+            pageSize={pagination.limit}
+            total={pagination.total}
+          />
+        )}
       </Stack>
 
       {/* Student Form Modal */}

@@ -39,6 +39,7 @@ import {
   IconTestPipe,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useLocale } from 'next-intl';
 import { isSaaSMode } from '@/lib/config';
 
 interface LoginForm {
@@ -52,6 +53,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const locale = useLocale();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const verified = searchParams.get('verified');
@@ -344,7 +346,7 @@ function LoginForm() {
                         onChange={(event) => form.setFieldValue('rememberMe', event.currentTarget.checked)}
                         color="blue"
                       />
-                      <Anchor component={Link} href="/auth/forgot-password" size="sm" c="blue">
+                      <Anchor component={Link} href={`/${locale}/auth/forgot-password`} size="sm" c="blue">
                         Password dimenticata?
                       </Anchor>
                     </Group>
@@ -372,13 +374,13 @@ function LoginForm() {
                         <Divider label="oppure" labelPosition="center" />
                         <Text ta="center" size="sm">
                           Non hai ancora un account?{' '}
-                          <Anchor component={Link} href="/auth/register" fw={600} c="blue">
+                          <Anchor component={Link} href={`/${locale}/auth/register`} fw={600} c="blue">
                             Registrati ora
                           </Anchor>
                         </Text>
                         <Text ta="center" size="sm" c="dimmed">
                           Non hai ricevuto l'email di verifica?{' '}
-                          <Anchor component={Link} href="/auth/resend-verification" c="blue">
+                          <Anchor component={Link} href={`/${locale}/auth/resend-verification`} c="blue">
                             Invia di nuovo
                           </Anchor>
                         </Text>

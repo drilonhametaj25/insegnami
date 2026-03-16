@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale } from 'next-intl';
 import {
   Container,
   Title,
@@ -25,6 +26,7 @@ import { IconClipboardCheck, IconArrowLeft } from '@tabler/icons-react';
 import Link from 'next/link';
 
 export default function CalcolatorePresenzePage() {
+  const locale = useLocale();
   const [totalHours, setTotalHours] = useState<number | ''>(1000);
   const [attendedHours, setAttendedHours] = useState<number | ''>(850);
   const [minPercentage, setMinPercentage] = useState<number | ''>(75);
@@ -98,7 +100,7 @@ export default function CalcolatorePresenzePage() {
       >
         <Container size="lg">
           <Stack gap="md">
-            <Anchor component={Link} href="/it/tools" c="white" size="sm">
+            <Anchor component={Link} href={`/${locale}/tools`} c="white" size="sm">
               <Group gap={4}>
                 <IconArrowLeft size={16} />
                 Tutti gli strumenti
@@ -349,13 +351,13 @@ export default function CalcolatorePresenzePage() {
                   Strumenti Correlati
                 </Title>
                 <Stack gap="xs">
-                  <Anchor component={Link} href="/it/tools/calcolatore-media-voti" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-media-voti`} size="sm">
                     Calcolatore Media Voti
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/calcolatore-ore-corso" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-ore-corso`} size="sm">
                     Calcolatore Ore Corso
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/generatore-calendario-scolastico" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/generatore-calendario-scolastico`} size="sm">
                     Generatore Calendario
                   </Anchor>
                 </Stack>

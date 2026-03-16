@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale } from 'next-intl';
 import {
   Container,
   Title,
@@ -137,6 +138,7 @@ function validateCF(cf: string): CFResult {
 }
 
 export default function ValidatoreCodiceFiscalePage() {
+  const locale = useLocale();
   const [cf, setCf] = useState('');
   const [result, setResult] = useState<CFResult | null>(null);
 
@@ -188,7 +190,7 @@ export default function ValidatoreCodiceFiscalePage() {
       >
         <Container size="lg">
           <Stack gap="md">
-            <Anchor component={Link} href="/it/tools" c="white" size="sm">
+            <Anchor component={Link} href={`/${locale}/tools`} c="white" size="sm">
               <Group gap={4}>
                 <IconArrowLeft size={16} />
                 Tutti gli strumenti
@@ -456,13 +458,13 @@ export default function ValidatoreCodiceFiscalePage() {
                   Strumenti Correlati
                 </Title>
                 <Stack gap="xs">
-                  <Anchor component={Link} href="/it/tools/calcolatore-media-voti" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-media-voti`} size="sm">
                     Calcolatore Media Voti
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/calcolatore-presenze" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-presenze`} size="sm">
                     Calcolatore Presenze
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/generatore-comunicazioni" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/generatore-comunicazioni`} size="sm">
                     Generatore Comunicazioni
                   </Anchor>
                 </Stack>

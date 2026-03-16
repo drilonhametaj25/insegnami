@@ -34,6 +34,7 @@ import {
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useLocale } from 'next-intl';
 
 interface Plan {
   id: string;
@@ -81,6 +82,7 @@ const planFeatures: Record<string, string[]> = {
 
 export default function PricingPage() {
   const { data: session, status } = useSession();
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -130,7 +132,7 @@ export default function PricingPage() {
   const handleSubscribe = async (planId: string) => {
     if (status !== 'authenticated') {
       // Redirect to register with plan info
-      router.push(`/it/auth/register?plan=${planId}`);
+      router.push(`/${locale}/auth/register?plan=${planId}`);
       return;
     }
 
@@ -405,7 +407,7 @@ export default function PricingPage() {
                         fontWeight: 700
                       }}
                       component={Link}
-                      href="/it/contact?subject=full-installation"
+                      href={`/${locale}/contact?subject=full-installation`}
                       rightSection={<IconArrowRight size={20} />}
                     >
                       Richiedi Preventivo
@@ -482,7 +484,7 @@ export default function PricingPage() {
                     padding: '0 50px'
                   }}
                   component={Link}
-                  href="/it/auth/register"
+                  href={`/${locale}/auth/register`}
                   rightSection={<IconRocket size={20} />}
                 >
                   Inizia la Prova Gratuita
@@ -513,8 +515,8 @@ export default function PricingPage() {
           <Group justify="space-between" align="center">
             <Group gap="xl">
               <Anchor component={Link} href="/" c="white" size="sm">Home</Anchor>
-              <Anchor component={Link} href="/it/auth/login" c="dimmed" size="sm">Login</Anchor>
-              <Anchor component={Link} href="/it/auth/register" c="dimmed" size="sm">Registrati</Anchor>
+              <Anchor component={Link} href={`/${locale}/auth/login`} c="dimmed" size="sm">Login</Anchor>
+              <Anchor component={Link} href={`/${locale}/auth/register`} c="dimmed" size="sm">Registrati</Anchor>
             </Group>
             <Group gap="xs">
               <ThemeIcon size="md" radius="xl" variant="light">

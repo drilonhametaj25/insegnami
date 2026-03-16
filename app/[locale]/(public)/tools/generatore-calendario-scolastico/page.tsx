@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale } from 'next-intl';
 import {
   Container,
   Title,
@@ -125,6 +126,7 @@ function getHolidaysForYear(year: number, includeChristmasBreak: boolean, includ
 }
 
 export default function GeneratoreCalendarioPage() {
+  const locale = useLocale();
   const [startDate, setStartDate] = useState<Date | null>(new Date(2024, 8, 9)); // Sept 9
   const [endDate, setEndDate] = useState<Date | null>(new Date(2025, 5, 10)); // June 10
   const [includeChristmas, setIncludeChristmas] = useState(true);
@@ -228,7 +230,7 @@ export default function GeneratoreCalendarioPage() {
       >
         <Container size="lg">
           <Stack gap="md">
-            <Anchor component={Link} href="/it/tools" c="white" size="sm">
+            <Anchor component={Link} href={`/${locale}/tools`} c="white" size="sm">
               <Group gap={4}>
                 <IconArrowLeft size={16} />
                 Tutti gli strumenti
@@ -469,13 +471,13 @@ export default function GeneratoreCalendarioPage() {
                   Strumenti Correlati
                 </Title>
                 <Stack gap="xs">
-                  <Anchor component={Link} href="/it/tools/generatore-orario-settimanale" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/generatore-orario-settimanale`} size="sm">
                     Generatore Orario
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/calcolatore-presenze" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-presenze`} size="sm">
                     Calcolatore Presenze
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/calcolatore-ore-corso" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-ore-corso`} size="sm">
                     Calcolatore Ore Corso
                   </Anchor>
                 </Stack>

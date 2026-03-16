@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale } from 'next-intl';
 import {
   Container,
   Title,
@@ -36,6 +37,7 @@ interface CostResult {
 }
 
 export default function CalcolatoreCostoStudentePage() {
+  const locale = useLocale();
   const [students, setStudents] = useState<number | ''>(50);
   const [costs, setCosts] = useState<CostItem[]>([
     { id: '1', name: 'Affitto locali', amount: 24000 },
@@ -139,7 +141,7 @@ export default function CalcolatoreCostoStudentePage() {
       >
         <Container size="lg">
           <Stack gap="md">
-            <Anchor component={Link} href="/it/tools" c="white" size="sm">
+            <Anchor component={Link} href={`/${locale}/tools`} c="white" size="sm">
               <Group gap={4}>
                 <IconArrowLeft size={16} />
                 Tutti gli strumenti
@@ -406,13 +408,13 @@ export default function CalcolatoreCostoStudentePage() {
                   Strumenti Correlati
                 </Title>
                 <Stack gap="xs">
-                  <Anchor component={Link} href="/it/tools/calcolatore-ore-corso" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-ore-corso`} size="sm">
                     Calcolatore Ore Corso
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/calcolatore-presenze" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-presenze`} size="sm">
                     Calcolatore Presenze
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/generatore-calendario-scolastico" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/generatore-calendario-scolastico`} size="sm">
                     Generatore Calendario
                   </Anchor>
                 </Stack>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { emailService } from '@/lib/email';
+import { escapeHtml } from '@/lib/api-middleware';
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,19 +51,19 @@ export async function POST(request: NextRequest) {
           <div class="content">
             <div class="field">
               <div class="field-label">Nome:</div>
-              <div class="field-value">${name}</div>
+              <div class="field-value">${escapeHtml(name)}</div>
             </div>
             <div class="field">
               <div class="field-label">Email:</div>
-              <div class="field-value"><a href="mailto:${email}">${email}</a></div>
+              <div class="field-value"><a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></div>
             </div>
             <div class="field">
               <div class="field-label">Oggetto:</div>
-              <div class="field-value">${subject}</div>
+              <div class="field-value">${escapeHtml(subject)}</div>
             </div>
             <div class="field">
               <div class="field-label">Messaggio:</div>
-              <div class="field-value message-box">${message.replace(/\n/g, '<br>')}</div>
+              <div class="field-value message-box">${escapeHtml(message).replace(/\n/g, '<br>')}</div>
             </div>
           </div>
           <div class="footer">
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
     // Send email to support
     const result = await emailService.sendEmail({
       to: 'info@drilonhametaj.it',
-      subject: `[Contatti] ${subject}`,
+      subject: `[Contatti] ${escapeHtml(subject)}`,
       html: htmlContent,
       replyTo: email,
     });
@@ -110,11 +111,11 @@ export async function POST(request: NextRequest) {
             <h1>Grazie per averci contattato!</h1>
           </div>
           <div class="content">
-            <p>Ciao ${name},</p>
+            <p>Ciao ${escapeHtml(name)},</p>
             <p>Abbiamo ricevuto il tuo messaggio e ti ringraziamo per aver contattato InsegnaMi.pro.</p>
             <div class="highlight">
               <p><strong>Il tuo messaggio:</strong></p>
-              <p><em>"${subject}"</em></p>
+              <p><em>"${escapeHtml(subject)}"</em></p>
             </div>
             <p>Il nostro team esaminerà la tua richiesta e ti risponderà entro <strong>24-48 ore lavorative</strong>.</p>
             <p>Nel frattempo, puoi:</p>

@@ -46,6 +46,7 @@ import {
   IconCheck,
   IconX as IconXCircle,
   IconTrendingUp,
+  IconTrash,
 } from '@tabler/icons-react';
 import { Calendar, momentLocalizer, Views } from 'react-big-calendar';
 import moment from 'moment';
@@ -55,6 +56,7 @@ import '@/components/calendar/LessonCalendar.css';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { ModernModal } from '@/components/modals/ModernModal';
 import { LessonForm } from '@/components/forms/LessonForm';
+import { EmptyState, emptyStateConfigs } from '@/components/ui/EmptyState';
 
 moment.locale('it');
 const localizer = momentLocalizer(moment);
@@ -409,6 +411,42 @@ export default function LessonsPage() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Handle delete lesson
+  const handleDelete = async (lesson: Lesson) => {
+    if (!confirm(`Sei sicuro di voler eliminare la lezione "${lesson.title}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/lessons/${lesson.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete lesson');
+      }
+
+      notifications.show({
+        id: `lesson-delete-${Date.now()}`,
+        title: 'Successo',
+        message: 'Lezione eliminata con successo',
+        color: 'green',
+        icon: <IconCheck size={18} />,
+      });
+
+      fetchLessons();
+      fetchStats();
+    } catch (error: any) {
+      notifications.show({
+        id: `lesson-delete-error-${Date.now()}`,
+        title: 'Errore',
+        message: error.message || 'Impossibile eliminare la lezione',
+        color: 'red',
+        icon: <IconX size={18} />,
+      });
     }
   };
 
@@ -767,16 +805,28 @@ export default function LessonsPage() {
                           </ActionIcon>
                         </Tooltip>
                         {canManageLessons && (
-                          <Tooltip label="Modifica lezione">
-                            <ActionIcon
-                              size="sm"
-                              variant="light"
-                              color="yellow"
-                              onClick={() => handleEdit(lesson)}
-                            >
-                              <IconEdit size={14} />
-                            </ActionIcon>
-                          </Tooltip>
+                          <>
+                            <Tooltip label="Modifica lezione">
+                              <ActionIcon
+                                size="sm"
+                                variant="light"
+                                color="yellow"
+                                onClick={() => handleEdit(lesson)}
+                              >
+                                <IconEdit size={14} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Elimina lezione">
+                              <ActionIcon
+                                size="sm"
+                                variant="light"
+                                color="red"
+                                onClick={() => handleDelete(lesson)}
+                              >
+                                <IconTrash size={14} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </>
                         )}
                       </Group>
                     </Table.Td>
@@ -792,11 +842,17 @@ export default function LessonsPage() {
             </div>
           )}
 
-          {!loading && lessons.length === 0 && (
+          {!loading && lessons.length === 0 && !searchTerm && !statusFilter && !classFilter ? (
+            <EmptyState
+              {...emptyStateConfigs.lessons}
+              actionHref={undefined}
+              onAction={handleCreate}
+            />
+          ) : !loading && lessons.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '2rem' }}>
               <Text c="dimmed">Nessuna lezione trovata</Text>
             </div>
-          )}
+          ) : null}
         </Paper>
       )}
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale } from 'next-intl';
 import {
   Container,
   Title,
@@ -34,6 +35,7 @@ interface CourseResult {
 }
 
 export default function CalcolatoreOreCorsoPage() {
+  const locale = useLocale();
   const [totalHours, setTotalHours] = useState<number | ''>(60);
   const [lessonDuration, setLessonDuration] = useState<number | ''>(2);
   const [lessonsPerWeek, setLessonsPerWeek] = useState<number | ''>(2);
@@ -142,7 +144,7 @@ export default function CalcolatoreOreCorsoPage() {
       >
         <Container size="lg">
           <Stack gap="md">
-            <Anchor component={Link} href="/it/tools" c="white" size="sm">
+            <Anchor component={Link} href={`/${locale}/tools`} c="white" size="sm">
               <Group gap={4}>
                 <IconArrowLeft size={16} />
                 Tutti gli strumenti
@@ -435,13 +437,13 @@ export default function CalcolatoreOreCorsoPage() {
                   Strumenti Correlati
                 </Title>
                 <Stack gap="xs">
-                  <Anchor component={Link} href="/it/tools/generatore-orario-settimanale" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/generatore-orario-settimanale`} size="sm">
                     Generatore Orario
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/generatore-calendario-scolastico" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/generatore-calendario-scolastico`} size="sm">
                     Generatore Calendario
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/calcolatore-presenze" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-presenze`} size="sm">
                     Calcolatore Presenze
                   </Anchor>
                 </Stack>

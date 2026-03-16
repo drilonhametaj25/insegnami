@@ -1,11 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { Container, Title, Grid, Space, Group, Text, Badge, LoadingOverlay, Skeleton } from '@mantine/core';
 import { IconDashboard } from '@tabler/icons-react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import DashboardStats from '@/components/cards/DashboardStats';
 import { LessonCalendar } from '@/components/calendar/LessonCalendar';
 import RecentActivity from '@/components/tables/RecentActivity';
@@ -19,40 +17,6 @@ import { useNotices } from '@/lib/hooks/useNotices';
 export default function DashboardPage() {
   const { data: session } = useSession();
   const t = useTranslations('dashboard');
-  const locale = useLocale();
-  const router = useRouter();
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
-
-  // Check onboarding status for admin roles
-  useEffect(() => {
-    const checkOnboarding = async () => {
-      if (!session?.user?.id) return;
-
-      // Only check for admin roles
-      const adminRoles = ['ADMIN', 'SUPERADMIN', 'DIRECTOR', 'SECRETARY'];
-      if (!adminRoles.includes(session.user.role)) {
-        setOnboardingChecked(true);
-        return;
-      }
-
-      try {
-        const response = await fetch('/api/onboarding');
-        if (response.ok) {
-          const data = await response.json();
-          if (!data.isComplete) {
-            router.push(`/${locale}/onboarding`);
-            return;
-          }
-        }
-      } catch (error) {
-        console.error('Onboarding check error:', error);
-      }
-      setOnboardingChecked(true);
-    };
-
-    checkOnboarding();
-    // BUG-018 fix: Only depend on stable values to prevent infinite loops
-  }, [session?.user?.id, session?.user?.role]);
   
   // TanStack Query hooks for dashboard data
   const { 
@@ -86,7 +50,7 @@ export default function DashboardPage() {
     isLoading: noticesLoading 
   } = useNotices(1, 5, { status: 'PUBLISHED' }); // Recent published notices
 
-  if (!session?.user || !onboardingChecked) {
+  if (!session?.user) {
     return (
       <Container
         size="xl"

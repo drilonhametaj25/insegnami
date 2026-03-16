@@ -19,10 +19,11 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCheck, IconX, IconInfoCircle, IconEye, IconPlus, IconRefresh } from '@tabler/icons-react';
+import { IconCheck, IconX, IconInfoCircle, IconEye, IconPlus, IconRefresh, IconDownload, IconTrash } from '@tabler/icons-react';
 import { DataTable, TableRenderers } from '@/components/tables/DataTable';
 import { TeacherForm } from '@/components/forms/TeacherForm';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
+import { EmptyState, emptyStateConfigs } from '@/components/ui/EmptyState';
 
 interface Teacher {
   id: string;
@@ -157,7 +158,6 @@ export default function TeachersPage() {
   };
 
   const handleEdit = (teacher: Teacher) => {
-    console.log('Editing teacher:', teacher); // Debug log
     setEditingTeacher(teacher);
     open();
   };
@@ -230,6 +230,59 @@ export default function TeachersPage() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Handle delete teacher
+  const handleDelete = async (teacher: Teacher) => {
+    if (!confirm(`Sei sicuro di voler eliminare il docente "${teacher.firstName} ${teacher.lastName}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/teachers/${teacher.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete teacher');
+      }
+
+      notifications.show({
+        title: 'Successo',
+        message: 'Docente eliminato con successo',
+        color: 'green',
+        icon: <IconCheck size={18} />,
+      });
+
+      fetchTeachers();
+      fetchStats();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Errore',
+        message: error.message || 'Impossibile eliminare il docente',
+        color: 'red',
+        icon: <IconX size={18} />,
+      });
+    }
+  };
+
+  // Handle export
+  const handleExport = async () => {
+    try {
+      const res = await fetch('/api/teachers/export?format=csv');
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'docenti.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch {
+      notifications.show({ title: 'Errore', message: 'Export fallito', color: 'red' });
     }
   };
 
@@ -306,6 +359,13 @@ export default function TeachersPage() {
           <Title order={2}>Gestione Docenti</Title>
           <Group>
             <Button
+              leftSection={<IconDownload size={16} />}
+              variant="light"
+              onClick={handleExport}
+            >
+              Esporta
+            </Button>
+            <Button
               leftSection={<IconRefresh size={16} />}
               variant="light"
               onClick={() => fetchTeachers()}
@@ -360,30 +420,39 @@ export default function TeachersPage() {
           </Grid>
         )}
 
-        <DataTable
-          data={teachers}
-          columns={columns}
-          loading={loading}
-          searchPlaceholder="Cerca per nome, cognome o email..."
-          onSearch={handleSearch}
-          filterable
-          filterOptions={[
-            { value: 'ACTIVE', label: 'Attivo' },
-            { value: 'INACTIVE', label: 'Inattivo' },
-            { value: 'SUSPENDED', label: 'Sospeso' },
-          ]}
-          filterLabel="Filtra per stato"
-          onFilter={handleFilter}
-          onEdit={handleEdit}
-          onView={(teacher) => handleViewTeacher(teacher.id)}
-          onCreate={handleCreate}
-          createButtonLabel="Nuovo Docente"
-          page={pagination.page}
-          totalPages={pagination.totalPages}
-          onPageChange={handlePageChange}
-          pageSize={pagination.limit}
-          total={pagination.total}
-        />
+        {!loading && teachers.length === 0 && !searchTerm && !statusFilter ? (
+          <EmptyState
+            {...emptyStateConfigs.teachers}
+            actionHref={undefined}
+            onAction={handleCreate}
+          />
+        ) : (
+          <DataTable
+            data={teachers}
+            columns={columns}
+            loading={loading}
+            searchPlaceholder="Cerca per nome, cognome o email..."
+            onSearch={handleSearch}
+            filterable
+            filterOptions={[
+              { value: 'ACTIVE', label: 'Attivo' },
+              { value: 'INACTIVE', label: 'Inattivo' },
+              { value: 'SUSPENDED', label: 'Sospeso' },
+            ]}
+            filterLabel="Filtra per stato"
+            onFilter={handleFilter}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onView={(teacher) => handleViewTeacher(teacher.id)}
+            onCreate={handleCreate}
+            createButtonLabel="Nuovo Docente"
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+            pageSize={pagination.limit}
+            total={pagination.total}
+          />
+        )}
       </Stack>
 
       {/* Teacher Form Modal */}

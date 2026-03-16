@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import {
   Container,
@@ -107,6 +107,7 @@ const statusLabels: Record<string, string> = {
 
 export default function BillingPage() {
   const t = useTranslations('billing');
+  const locale = useLocale();
   const searchParams = useSearchParams();
   const [data, setData] = useState<SubscriptionData | null>(null);
   const [usage, setUsage] = useState<UsageStats | null>(null);
@@ -321,7 +322,7 @@ export default function BillingPage() {
             Stai utilizzando la versione di prova. La prova termina il {formatDate(tenant.trialUntil)}.
             <Button
               component={Link}
-              href="/it/pricing"
+              href={`/${locale}/pricing`}
               size="xs"
               variant="filled"
               color="blue"
@@ -467,7 +468,7 @@ export default function BillingPage() {
                 ) : (
                   <Button
                     component={Link}
-                    href="/it/pricing"
+                    href={`/${locale}/pricing`}
                     leftSection={<IconCrown size={18} />}
                     variant="filled"
                     color="violet"
@@ -478,7 +479,7 @@ export default function BillingPage() {
                 {subscription && (
                   <Button
                     component={Link}
-                    href="/it/pricing"
+                    href={`/${locale}/pricing`}
                     variant="light"
                     leftSection={<IconTrendingUp size={18} />}
                   >

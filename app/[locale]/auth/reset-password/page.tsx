@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   Container,
   Paper,
@@ -30,6 +30,7 @@ interface ResetPasswordForm {
 
 function ResetPasswordForm() {
   const t = useTranslations('auth');
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
@@ -126,7 +127,7 @@ function ResetPasswordForm() {
 
         // Redirect to login after successful reset
         setTimeout(() => {
-          router.push('/auth/login?message=password-reset-success');
+          router.push(`/${locale}/auth/login?message=password-reset-success`);
         }, 2000);
       } else {
         setError(data.error || t('resetError'));
@@ -187,7 +188,7 @@ function ResetPasswordForm() {
             <Group>
               <Button 
                 component={Link}
-                href="/auth/forgot-password"
+                href={`/${locale}/auth/forgot-password`}
                 variant="light"
                 leftSection={<IconArrowLeft size={16} />}
               >
@@ -195,7 +196,7 @@ function ResetPasswordForm() {
               </Button>
               <Button 
                 component={Link}
-                href="/auth/login"
+                href={`/${locale}/auth/login`}
                 variant="outline"
               >
                 {t('backToLogin')}
@@ -253,7 +254,7 @@ function ResetPasswordForm() {
             </Button>
 
             <Text ta="center" size="sm">
-              <Anchor component={Link} href="/auth/login">
+              <Anchor component={Link} href={`/${locale}/auth/login`}>
                 {t('backToLogin')}
               </Anchor>
             </Text>

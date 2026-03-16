@@ -37,6 +37,7 @@ import {
   IconConfetti
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useLocale } from 'next-intl';
 
 interface OnboardingData {
   tenant: {
@@ -58,6 +59,7 @@ const STAGES = ['INITIAL', 'SCHOOL', 'TEAM', 'TEACHERS', 'CLASSES', 'COMPLETE'];
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const locale = useLocale();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState<OnboardingData | null>(null);
@@ -107,7 +109,7 @@ export default function OnboardingPage() {
 
       // If already complete, redirect to dashboard
       if (result.isComplete) {
-        router.push('/it/dashboard');
+        router.push(`/${locale}/dashboard`);
       }
     } catch (err) {
       console.error('Onboarding fetch error:', err);
@@ -179,7 +181,7 @@ export default function OnboardingPage() {
       const success = await updateStage(nextStage);
       if (success) {
         if (nextStage === 'COMPLETE') {
-          router.push('/it/dashboard');
+          router.push(`/${locale}/dashboard`);
         } else {
           setActive(STAGES.indexOf(nextStage));
         }
@@ -196,7 +198,7 @@ export default function OnboardingPage() {
         color: 'green',
         icon: <IconCheck size={18} />,
       });
-      router.push('/it/dashboard');
+      router.push(`/${locale}/dashboard`);
     }
   };
 
@@ -209,7 +211,7 @@ export default function OnboardingPage() {
 
       if (!response.ok) throw new Error('Errore');
 
-      router.push('/it/dashboard');
+      router.push(`/${locale}/dashboard`);
     } catch (err) {
       notifications.show({
         title: 'Errore',
@@ -294,7 +296,7 @@ export default function OnboardingPage() {
                     size="lg"
                     radius="xl"
                     leftSection={<IconArrowRight size={20} />}
-                    onClick={() => router.push('/it/dashboard')}
+                    onClick={() => router.push(`/${locale}/dashboard`)}
                   >
                     Vai alla Dashboard
                   </Button>
@@ -489,7 +491,7 @@ export default function OnboardingPage() {
                   </Button>
                   <Button
                     component={Link}
-                    href="/it/dashboard/admin/users"
+                    href={`/${locale}/dashboard/admin/users`}
                     rightSection={<IconArrowRight size={18} />}
                   >
                     Vai a Gestione Utenti
@@ -534,7 +536,7 @@ export default function OnboardingPage() {
                   </Button>
                   <Button
                     component={Link}
-                    href="/it/dashboard/teachers"
+                    href={`/${locale}/dashboard/teachers`}
                     rightSection={<IconArrowRight size={18} />}
                   >
                     Vai a Gestione Insegnanti
@@ -581,7 +583,7 @@ export default function OnboardingPage() {
                   </Button>
                   <Button
                     component={Link}
-                    href="/it/dashboard/classes"
+                    href={`/${locale}/dashboard/classes`}
                     variant="light"
                     rightSection={<IconArrowRight size={18} />}
                   >

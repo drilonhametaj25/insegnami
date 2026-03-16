@@ -20,6 +20,7 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { IconAlertCircle, IconSchool, IconCheck, IconArrowLeft } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useLocale } from 'next-intl';
 
 interface ForgotPasswordForm {
   email: string;
@@ -30,6 +31,7 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const locale = useLocale();
 
   const form = useForm<ForgotPasswordForm>({
     initialValues: {
@@ -103,7 +105,7 @@ export default function ForgotPasswordPage() {
             </Text>
             <Button
               component={Link}
-              href="/auth/login"
+              href={`/${locale}/auth/login`}
               variant="light"
               leftSection={<IconArrowLeft size="1rem" />}
               mt="md"
@@ -176,7 +178,7 @@ export default function ForgotPasswordPage() {
               </Button>
 
               <Center mt="lg">
-                <Anchor component={Link} href="/auth/login" size="sm">
+                <Anchor component={Link} href={`/${locale}/auth/login`} size="sm">
                   <IconArrowLeft size="0.8rem" style={{ marginRight: '0.25rem' }} />
                   Torna al Login
                 </Anchor>

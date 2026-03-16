@@ -25,6 +25,7 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { IconAlertCircle, IconSchool, IconCheck, IconRocket } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useLocale } from 'next-intl';
 import { isSaaSMode } from '@/lib/config';
 
 interface RegisterForm {
@@ -55,6 +56,7 @@ export default function RegisterPage() {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
   const router = useRouter();
+  const locale = useLocale();
   const searchParams = useSearchParams();
   const planId = searchParams.get('plan');
 
@@ -110,7 +112,7 @@ export default function RegisterPage() {
 
   // Redirect if not in SaaS mode
   if (!isSaaSMode) {
-    router.replace('/auth/login');
+    router.replace(`/${locale}/auth/login`);
     return null;
   }
 
@@ -151,7 +153,7 @@ export default function RegisterPage() {
 
       // Redirect to login after a delay
       setTimeout(() => {
-        router.push('/auth/login');
+        router.push(`/${locale}/auth/login`);
       }, 3000);
 
     } catch (error) {
@@ -364,7 +366,7 @@ export default function RegisterPage() {
 
             <Text ta="center" mt="md">
               Hai già un account?{' '}
-              <Anchor component={Link} href="/auth/login" fw={500}>
+              <Anchor component={Link} href={`/${locale}/auth/login`} fw={500}>
                 Accedi
               </Anchor>
             </Text>

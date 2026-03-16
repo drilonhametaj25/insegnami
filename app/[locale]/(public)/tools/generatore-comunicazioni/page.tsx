@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale } from 'next-intl';
 import {
   Container,
   Title,
@@ -165,6 +166,7 @@ Cordiali saluti,
 ];
 
 export default function GeneratoreComunicazioniPage() {
+  const locale = useLocale();
   const [selectedTemplate, setSelectedTemplate] = useState<string>('assenza');
   const [variables, setVariables] = useState<{ [key: string]: string }>({
     STUDENTE: 'Mario Rossi',
@@ -247,7 +249,7 @@ export default function GeneratoreComunicazioniPage() {
       >
         <Container size="lg">
           <Stack gap="md">
-            <Anchor component={Link} href="/it/tools" c="white" size="sm">
+            <Anchor component={Link} href={`/${locale}/tools`} c="white" size="sm">
               <Group gap={4}>
                 <IconArrowLeft size={16} />
                 Tutti gli strumenti
@@ -473,13 +475,13 @@ export default function GeneratoreComunicazioniPage() {
                   Strumenti Correlati
                 </Title>
                 <Stack gap="xs">
-                  <Anchor component={Link} href="/it/tools/calcolatore-presenze" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-presenze`} size="sm">
                     Calcolatore Presenze
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/calcolatore-media-voti" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/calcolatore-media-voti`} size="sm">
                     Calcolatore Media Voti
                   </Anchor>
-                  <Anchor component={Link} href="/it/tools/generatore-calendario-scolastico" size="sm">
+                  <Anchor component={Link} href={`/${locale}/tools/generatore-calendario-scolastico`} size="sm">
                     Generatore Calendario
                   </Anchor>
                 </Stack>

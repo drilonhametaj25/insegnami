@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale } from 'next-intl';
 import {
   Container,
   Title,
@@ -48,6 +49,7 @@ const COLORS = [
 ];
 
 export default function GeneratoreOrarioPage() {
+  const locale = useLocale();
   const [slots, setSlots] = useState<ScheduleSlot[]>([
     { id: '1', day: 'Lunedì', startTime: '09:00', endTime: '10:00', subject: 'Matematica', teacher: '', room: 'Aula 1', color: COLORS[0] },
     { id: '2', day: 'Lunedì', startTime: '10:00', endTime: '11:00', subject: 'Italiano', teacher: '', room: 'Aula 1', color: COLORS[1] },
@@ -129,7 +131,7 @@ export default function GeneratoreOrarioPage() {
       >
         <Container size="xl">
           <Stack gap="md">
-            <Anchor component={Link} href="/it/tools" c="white" size="sm">
+            <Anchor component={Link} href={`/${locale}/tools`} c="white" size="sm">
               <Group gap={4}>
                 <IconArrowLeft size={16} />
                 Tutti gli strumenti

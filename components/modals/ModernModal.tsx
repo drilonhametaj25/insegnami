@@ -13,14 +13,14 @@ interface ModernModalProps {
   loading?: boolean;
 }
 
-export function ModernModal({ 
-  opened, 
-  onClose, 
-  title, 
-  children, 
+export function ModernModal({
+  opened,
+  onClose,
+  title,
+  children,
   size = 'lg',
   actions,
-  loading = false 
+  loading = false
 }: ModernModalProps) {
   return (
     <Modal
@@ -30,14 +30,15 @@ export function ModernModal({
       size={size}
       styles={{
         content: {
-          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '16px',
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(226, 232, 240, 0.8)',
+          borderRadius: '20px',
           overflow: 'hidden',
         },
         header: {
-          background: 'rgba(255, 255, 255, 0.05)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderBottom: 'none',
           padding: '20px 24px',
           margin: 0,
         },
@@ -45,22 +46,20 @@ export function ModernModal({
           color: 'white',
           fontSize: '1.375rem',
           fontWeight: 600,
-          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
         },
         close: {
-          color: 'rgba(255, 255, 255, 0.7)',
-          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          color: 'white',
+          backgroundColor: 'rgba(255, 255, 255, 0.2)',
           borderRadius: '8px',
           transition: 'all 0.2s ease',
           '&:hover': {
-            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            backgroundColor: 'rgba(255, 255, 255, 0.3)',
             color: 'white',
             transform: 'scale(1.1)',
           },
         },
         body: {
           padding: '24px',
-          color: 'white',
         },
       }}
       overlayProps={{
@@ -75,7 +74,7 @@ export function ModernModal({
       <Stack gap="md">
         {children}
         {actions && (
-          <Group justify="flex-end" mt="lg" style={{ paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <Group justify="flex-end" mt="lg" style={{ paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
             {actions}
           </Group>
         )}
@@ -84,60 +83,58 @@ export function ModernModal({
   );
 }
 
-export function ModernFormField({ 
-  component: Component, 
-  label, 
+export function ModernFormField({
+  component: Component,
+  label,
   required = false,
   error,
-  ...props 
+  ...props
 }: any) {
   return (
     <Component
       label={
-        <Text style={{ color: 'white', fontWeight: 500, marginBottom: '4px' }}>
+        <Text style={{ color: '#374151', fontWeight: 500, marginBottom: '4px' }}>
           {label} {required && <span style={{ color: '#ef4444' }}>*</span>}
         </Text>
       }
       error={error}
       styles={{
         input: {
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          background: 'white',
+          border: '1px solid #e2e8f0',
           borderRadius: '8px',
-          color: 'white',
+          color: '#1a202c',
           fontSize: '14px',
           transition: 'all 0.2s ease',
-          '&::placeholder': { 
-            color: 'rgba(255, 255, 255, 0.5)' 
+          '&::placeholder': {
+            color: '#a0aec0'
           },
           '&:focus': {
-            borderColor: 'rgba(59, 130, 246, 0.5)',
-            boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)',
-            background: 'rgba(255, 255, 255, 0.08)',
+            borderColor: '#667eea',
+            boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)',
           },
           '&:hover': {
-            borderColor: 'rgba(255, 255, 255, 0.2)',
-            background: 'rgba(255, 255, 255, 0.07)',
+            borderColor: '#cbd5e1',
           }
         },
         dropdown: {
-          background: '#1e293b',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          background: 'white',
+          border: '1px solid #e2e8f0',
           borderRadius: '8px',
         },
         option: {
-          color: 'white',
+          color: '#1a202c',
           fontSize: '14px',
           '&:hover': {
-            background: 'rgba(59, 130, 246, 0.2)',
+            background: 'rgba(102, 126, 234, 0.1)',
           },
           '&[data-selected]': {
-            background: 'rgba(59, 130, 246, 0.3)',
-            color: 'white',
+            background: 'rgba(102, 126, 234, 0.15)',
+            color: '#1a202c',
           },
         },
         error: {
-          color: '#f87171',
+          color: '#ef4444',
           fontSize: '13px',
           marginTop: '4px',
         }
@@ -183,26 +180,26 @@ export function ConfirmModal({
       title={title}
       size="sm"
     >
-      <div style={{ 
-        padding: '16px', 
+      <div style={{
+        padding: '16px',
         background: colors[type].bg,
         borderRadius: '8px',
         marginBottom: '16px'
       }}>
-        <Text style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: 1.5 }}>
+        <Text style={{ color: '#374151', lineHeight: 1.5 }}>
           {message}
         </Text>
       </div>
-      
+
       <Group justify="flex-end" gap="md">
         <Button
           variant="light"
           onClick={onClose}
           disabled={loading}
           style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            color: 'rgba(255, 255, 255, 0.8)',
-            border: 'none',
+            background: '#f1f5f9',
+            color: '#475569',
+            border: '1px solid #e2e8f0',
           }}
         >
           {cancelLabel}

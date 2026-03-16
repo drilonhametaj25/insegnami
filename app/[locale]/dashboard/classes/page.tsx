@@ -47,10 +47,13 @@ import {
   IconEdit,
   IconBook2,
   IconCheck,
+  IconTrash,
+  IconDownload,
 } from '@tabler/icons-react';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { ModernModal } from '@/components/modals/ModernModal';
 import { ClassForm } from '@/components/forms/ClassForm';
+import { EmptyState, emptyStateConfigs } from '@/components/ui/EmptyState';
 
 interface Class {
   id: string;
@@ -376,6 +379,61 @@ export default function ClassesPage() {
     }
   };
 
+  // Handle delete class
+  const handleDelete = async (classItem: Class) => {
+    if (!confirm(`Sei sicuro di voler eliminare la classe "${classItem.name}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/classes/${classItem.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete class');
+      }
+
+      notifications.show({
+        id: `class-delete-${Date.now()}`,
+        title: 'Successo',
+        message: 'Classe eliminata con successo',
+        color: 'green',
+        icon: <IconCheck size={18} />,
+      });
+
+      fetchClasses();
+      fetchStats();
+    } catch (error: any) {
+      notifications.show({
+        id: `class-delete-error-${Date.now()}`,
+        title: 'Errore',
+        message: error.message || 'Impossibile eliminare la classe',
+        color: 'red',
+        icon: <IconX size={18} />,
+      });
+    }
+  };
+
+  // Handle export
+  const handleExport = async () => {
+    try {
+      const res = await fetch('/api/classes/export?format=csv');
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'classi.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch {
+      notifications.show({ title: 'Errore', message: 'Export fallito', color: 'red' });
+    }
+  };
+
   // Stats cards
   const statsCards = stats ? [
     {
@@ -458,17 +516,26 @@ export default function ClassesPage() {
             Organizza e monitora tutte le classi della scuola
           </Text>
         </div>
-        {canManageClasses && (
+        <Group>
           <Button
-            onClick={handleCreate}
-            leftSection={<IconPlus size={18} />}
-            variant="gradient"
-            gradient={{ from: 'indigo', to: 'purple', deg: 45 }}
-            radius="lg"
+            leftSection={<IconDownload size={16} />}
+            variant="light"
+            onClick={handleExport}
           >
-            Nuova Classe
+            Esporta
           </Button>
-        )}
+          {canManageClasses && (
+            <Button
+              onClick={handleCreate}
+              leftSection={<IconPlus size={18} />}
+              variant="gradient"
+              gradient={{ from: 'indigo', to: 'purple', deg: 45 }}
+              radius="lg"
+            >
+              Nuova Classe
+            </Button>
+          )}
+        </Group>
       </Group>
 
       {/* Stats Cards */}
@@ -643,16 +710,28 @@ export default function ClassesPage() {
                         </ActionIcon>
                       </Tooltip>
                       {canManageClasses && (
-                        <Tooltip label="Modifica classe">
-                          <ActionIcon
-                            size="sm"
-                            variant="light"
-                            color="yellow"
-                            onClick={() => handleEdit(classItem)}
-                          >
-                            <IconEdit size={14} />
-                          </ActionIcon>
-                        </Tooltip>
+                        <>
+                          <Tooltip label="Modifica classe">
+                            <ActionIcon
+                              size="sm"
+                              variant="light"
+                              color="yellow"
+                              onClick={() => handleEdit(classItem)}
+                            >
+                              <IconEdit size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label="Elimina classe">
+                            <ActionIcon
+                              size="sm"
+                              variant="light"
+                              color="red"
+                              onClick={() => handleDelete(classItem)}
+                            >
+                              <IconTrash size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </>
                       )}
                     </Group>
                   </Table.Td>
@@ -668,11 +747,17 @@ export default function ClassesPage() {
           </div>
         )}
         
-        {!loading && classes.length === 0 && (
+        {!loading && classes.length === 0 && !searchTerm && !statusFilter && !courseFilter ? (
+          <EmptyState
+            {...emptyStateConfigs.classes}
+            actionHref={undefined}
+            onAction={handleCreate}
+          />
+        ) : !loading && classes.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem' }}>
             <Text c="dimmed">Nessuna classe trovata</Text>
           </div>
-        )}
+        ) : null}
       </Paper>
 
       {/* Create/Edit Modal */}

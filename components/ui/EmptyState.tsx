@@ -41,6 +41,7 @@ interface EmptyStateProps {
   secondaryActionHref?: string;
   variant?: 'default' | 'card' | 'minimal';
   color?: string;
+  locale?: string;
 }
 
 // Predefined empty states for common entities
@@ -50,7 +51,7 @@ export const emptyStateConfigs = {
     title: 'Nessuno studente',
     description: 'Non hai ancora aggiunto studenti. Inizia creando il primo profilo studente.',
     actionLabel: 'Aggiungi Studente',
-    actionHref: '/it/dashboard/students',
+    actionHref: '/dashboard/students',
     color: 'blue',
   },
   teachers: {
@@ -58,7 +59,7 @@ export const emptyStateConfigs = {
     title: 'Nessun insegnante',
     description: 'Non hai ancora aggiunto insegnanti. Aggiungi i docenti per iniziare a gestire le lezioni.',
     actionLabel: 'Aggiungi Insegnante',
-    actionHref: '/it/dashboard/teachers',
+    actionHref: '/dashboard/teachers',
     color: 'green',
   },
   classes: {
@@ -66,7 +67,7 @@ export const emptyStateConfigs = {
     title: 'Nessuna classe',
     description: 'Non hai ancora creato classi. Crea la prima classe per organizzare gli studenti.',
     actionLabel: 'Crea Classe',
-    actionHref: '/it/dashboard/classes',
+    actionHref: '/dashboard/classes',
     color: 'violet',
   },
   lessons: {
@@ -74,7 +75,7 @@ export const emptyStateConfigs = {
     title: 'Nessuna lezione',
     description: 'Non hai ancora programmato lezioni. Pianifica la prima lezione per iniziare.',
     actionLabel: 'Pianifica Lezione',
-    actionHref: '/it/dashboard/lessons/new',
+    actionHref: '/dashboard/lessons/new',
     color: 'cyan',
   },
   payments: {
@@ -82,7 +83,7 @@ export const emptyStateConfigs = {
     title: 'Nessun pagamento',
     description: 'Non ci sono pagamenti registrati. I pagamenti appariranno qui quando saranno creati.',
     actionLabel: 'Registra Pagamento',
-    actionHref: '/it/dashboard/payments',
+    actionHref: '/dashboard/payments',
     color: 'orange',
   },
   notices: {
@@ -90,7 +91,7 @@ export const emptyStateConfigs = {
     title: 'Nessun avviso',
     description: 'Non ci sono avvisi da mostrare. Crea un avviso per comunicare con studenti e genitori.',
     actionLabel: 'Crea Avviso',
-    actionHref: '/it/dashboard/notices',
+    actionHref: '/dashboard/notices',
     color: 'pink',
   },
   attendance: {
@@ -98,7 +99,7 @@ export const emptyStateConfigs = {
     title: 'Nessuna presenza registrata',
     description: 'Non ci sono presenze registrate. Le presenze appariranno qui dopo le lezioni.',
     actionLabel: 'Vai alle Lezioni',
-    actionHref: '/it/dashboard/lessons',
+    actionHref: '/dashboard/lessons',
     color: 'teal',
   },
   grades: {
@@ -106,7 +107,7 @@ export const emptyStateConfigs = {
     title: 'Nessun voto',
     description: 'Non ci sono voti registrati. Inizia a inserire i voti per gli studenti.',
     actionLabel: 'Inserisci Voti',
-    actionHref: '/it/dashboard/grades',
+    actionHref: '/dashboard/grades',
     color: 'yellow',
   },
   homework: {
@@ -114,7 +115,7 @@ export const emptyStateConfigs = {
     title: 'Nessun compito',
     description: 'Non ci sono compiti assegnati. Assegna il primo compito alla classe.',
     actionLabel: 'Assegna Compito',
-    actionHref: '/it/dashboard/homework',
+    actionHref: '/dashboard/homework',
     color: 'indigo',
   },
   users: {
@@ -122,7 +123,7 @@ export const emptyStateConfigs = {
     title: 'Nessun utente',
     description: 'Non ci sono altri utenti. Invita colleghi per collaborare.',
     actionLabel: 'Invita Utente',
-    actionHref: '/it/dashboard/admin/users',
+    actionHref: '/dashboard/admin/users',
     color: 'grape',
   },
 };
@@ -138,7 +139,11 @@ export function EmptyState({
   secondaryActionHref,
   variant = 'default',
   color = 'blue',
+  locale,
 }: EmptyStateProps) {
+  const resolvedActionHref = actionHref && locale ? `/${locale}${actionHref}` : actionHref;
+  const resolvedSecondaryHref = secondaryActionHref && locale ? `/${locale}${secondaryActionHref}` : secondaryActionHref;
+
   const content = (
     <Stack align="center" gap="lg" py={variant === 'minimal' ? 'md' : 'xl'}>
       <ThemeIcon
@@ -162,10 +167,10 @@ export function EmptyState({
       {(actionLabel || secondaryActionLabel) && (
         <Group gap="sm">
           {actionLabel && (
-            actionHref ? (
+            resolvedActionHref ? (
               <Button
                 component={Link}
-                href={actionHref}
+                href={resolvedActionHref}
                 leftSection={<IconPlus size={18} />}
                 color={color}
                 size={variant === 'minimal' ? 'sm' : 'md'}
@@ -183,10 +188,10 @@ export function EmptyState({
               </Button>
             )
           )}
-          {secondaryActionLabel && secondaryActionHref && (
+          {secondaryActionLabel && resolvedSecondaryHref && (
             <Button
               component={Link}
-              href={secondaryActionHref}
+              href={resolvedSecondaryHref}
               variant="light"
               color="gray"
               rightSection={<IconArrowRight size={16} />}
@@ -212,48 +217,48 @@ export function EmptyState({
 }
 
 // Pre-configured empty states for easy usage
-export function StudentsEmptyState() {
-  return <EmptyState {...emptyStateConfigs.students} />;
+export function StudentsEmptyState({ locale }: { locale: string }) {
+  return <EmptyState {...emptyStateConfigs.students} locale={locale} />;
 }
 
-export function TeachersEmptyState() {
-  return <EmptyState {...emptyStateConfigs.teachers} />;
+export function TeachersEmptyState({ locale }: { locale: string }) {
+  return <EmptyState {...emptyStateConfigs.teachers} locale={locale} />;
 }
 
-export function ClassesEmptyState() {
-  return <EmptyState {...emptyStateConfigs.classes} />;
+export function ClassesEmptyState({ locale }: { locale: string }) {
+  return <EmptyState {...emptyStateConfigs.classes} locale={locale} />;
 }
 
-export function LessonsEmptyState() {
-  return <EmptyState {...emptyStateConfigs.lessons} />;
+export function LessonsEmptyState({ locale }: { locale: string }) {
+  return <EmptyState {...emptyStateConfigs.lessons} locale={locale} />;
 }
 
-export function PaymentsEmptyState() {
-  return <EmptyState {...emptyStateConfigs.payments} />;
+export function PaymentsEmptyState({ locale }: { locale: string }) {
+  return <EmptyState {...emptyStateConfigs.payments} locale={locale} />;
 }
 
-export function NoticesEmptyState() {
-  return <EmptyState {...emptyStateConfigs.notices} />;
+export function NoticesEmptyState({ locale }: { locale: string }) {
+  return <EmptyState {...emptyStateConfigs.notices} locale={locale} />;
 }
 
-export function AttendanceEmptyState() {
-  return <EmptyState {...emptyStateConfigs.attendance} />;
+export function AttendanceEmptyState({ locale }: { locale: string }) {
+  return <EmptyState {...emptyStateConfigs.attendance} locale={locale} />;
 }
 
-export function GradesEmptyState() {
-  return <EmptyState {...emptyStateConfigs.grades} />;
+export function GradesEmptyState({ locale }: { locale: string }) {
+  return <EmptyState {...emptyStateConfigs.grades} locale={locale} />;
 }
 
-export function HomeworkEmptyState() {
-  return <EmptyState {...emptyStateConfigs.homework} />;
+export function HomeworkEmptyState({ locale }: { locale: string }) {
+  return <EmptyState {...emptyStateConfigs.homework} locale={locale} />;
 }
 
-export function UsersEmptyState() {
-  return <EmptyState {...emptyStateConfigs.users} />;
+export function UsersEmptyState({ locale }: { locale: string }) {
+  return <EmptyState {...emptyStateConfigs.users} locale={locale} />;
 }
 
 // Quick access component
-export function EmptyStateByType({ type, variant = 'default' }: { type: keyof typeof emptyStateConfigs; variant?: 'default' | 'card' | 'minimal' }) {
+export function EmptyStateByType({ type, variant = 'default', locale }: { type: keyof typeof emptyStateConfigs; variant?: 'default' | 'card' | 'minimal'; locale: string }) {
   const config = emptyStateConfigs[type];
-  return <EmptyState {...config} variant={variant} />;
+  return <EmptyState {...config} variant={variant} locale={locale} />;
 }

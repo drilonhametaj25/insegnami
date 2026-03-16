@@ -14,8 +14,7 @@ export async function GET(request: NextRequest) {
     const period = searchParams.get('period') || '30'; // days
     const type = searchParams.get('type') || 'overview';
 
-    // Get tenant ID (in production, get from session or middleware)
-    const tenantId = '1'; // For demo purposes
+    const tenantId = session.user.tenantId;
 
     const endDate = new Date();
     const startDate = subDays(endDate, parseInt(period));

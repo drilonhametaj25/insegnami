@@ -5,6 +5,7 @@ import { IconMail, IconPhone, IconMapPin, IconSend, IconCheck, IconAlertCircle }
 import { useForm } from '@mantine/form';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useLocale } from 'next-intl';
 import { notifications } from '@mantine/notifications';
 
 // Subject mapping for query params
@@ -16,6 +17,7 @@ const SUBJECT_MAP: Record<string, string> = {
 };
 
 export default function ContactPage() {
+  const locale = useLocale();
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -206,7 +208,7 @@ export default function ContactPage() {
 
                   <Text size="xs" c="dimmed">
                     Inviando questo form, accetti la nostra{' '}
-                    <Anchor href="/it/privacy" size="xs">Privacy Policy</Anchor>.
+                    <Anchor href={`/${locale}/privacy`} size="xs">Privacy Policy</Anchor>.
                     Non condivideremo le tue informazioni con terze parti.
                   </Text>
 
