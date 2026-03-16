@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 
@@ -183,7 +183,7 @@ export async function PUT(
       if (!teacher || !teacher.classes.some((c: { id: string }) => c.id === reportCard.classId)) {
         return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
       }
-    } else if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    } else if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
     }
 
@@ -263,7 +263,7 @@ export async function DELETE(
     }
 
     // Only ADMIN and SUPERADMIN can delete
-    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

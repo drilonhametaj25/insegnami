@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 interface RouteParams {
@@ -136,7 +136,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Teachers can update their own profile, admins can update any teacher
     const canUpdateTeacher = 
-      ['ADMIN', 'SUPERADMIN'].includes(session.user.role) ||
+      isAdminRole(session.user.role) ||
       (session.user.role === 'TEACHER' && session.user.id === id);
 
     if (!canUpdateTeacher) {
@@ -242,7 +242,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Status update (admin only)
-    if (status && ['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (status && isAdminRole(session.user.role)) {
       const validStatuses = ['ACTIVE', 'INACTIVE', 'SUSPENDED'];
       if (!validStatuses.includes(status)) {
         return NextResponse.json(
@@ -313,7 +313,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
 
     // Only ADMIN can delete teachers
-    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

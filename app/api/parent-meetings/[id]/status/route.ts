@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { MeetingStatus } from '@prisma/client';
@@ -90,7 +90,7 @@ export async function POST(
     let isTeacher = false;
     let isParent = false;
 
-    if (['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (isAdminRole(session.user.role)) {
       canChangeStatus = true;
     } else if (session.user.role === 'TEACHER' && session.user.email) {
       const teacher = await prisma.teacher.findFirst({

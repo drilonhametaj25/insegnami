@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Only admins can create hours packages
-    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 

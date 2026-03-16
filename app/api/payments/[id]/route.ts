@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 
@@ -108,7 +108,7 @@ export async function PUT(
     }
 
     // Only admins can update payments
-    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 
@@ -197,7 +197,7 @@ export async function DELETE(
     }
 
     // Only admins can delete payments
-    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 

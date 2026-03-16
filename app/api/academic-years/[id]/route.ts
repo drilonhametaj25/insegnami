@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 
@@ -82,7 +82,7 @@ export async function PUT(
     }
 
     // Only ADMIN can update academic years
-    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -199,7 +199,7 @@ export async function DELETE(
     }
 
     // Only ADMIN can delete academic years
-    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

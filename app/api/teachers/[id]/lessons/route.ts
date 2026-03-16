@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 interface RouteParams {
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Teachers can view their own lessons, admins can view any teacher's lessons
     const canViewLessons =
-      ['ADMIN', 'SUPERADMIN'].includes(session.user.role) ||
+      isAdminRole(session.user.role) ||
       (session.user.role === 'TEACHER' && session.user.id === id);
 
     if (!canViewLessons) {

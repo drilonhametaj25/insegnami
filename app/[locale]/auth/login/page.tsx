@@ -55,7 +55,7 @@ function LoginForm() {
   const router = useRouter();
   const locale = useLocale();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const callbackUrl = searchParams.get('callbackUrl') || `/${locale}/dashboard`;
   const verified = searchParams.get('verified');
   const errorParam = searchParams.get('error');
   const showDemo = searchParams.get('demo') === 'true';
@@ -428,16 +428,16 @@ function LoginForm() {
             {/* Footer */}
             <Box mt="md">
               <Text ta="center" size="xs" c="rgba(255, 255, 255, 0.7)">
-                © 2024 InsegnaMi.pro. Tutti i diritti riservati.
+                © {new Date().getFullYear()} InsegnaMi.pro. Tutti i diritti riservati.
               </Text>
               <Group justify="center" mt="xs" gap="md">
-                <Anchor href="#" size="xs" c="rgba(255, 255, 255, 0.7)">
+                <Anchor component={Link} href={`/${locale}/terms`} size="xs" c="rgba(255, 255, 255, 0.7)">
                   Termini di Servizio
                 </Anchor>
-                <Anchor href="#" size="xs" c="rgba(255, 255, 255, 0.7)">
+                <Anchor component={Link} href={`/${locale}/privacy`} size="xs" c="rgba(255, 255, 255, 0.7)">
                   Privacy Policy
                 </Anchor>
-                <Anchor href="#" size="xs" c="rgba(255, 255, 255, 0.7)">
+                <Anchor component={Link} href={`/${locale}/contact`} size="xs" c="rgba(255, 255, 255, 0.7)">
                   Supporto
                 </Anchor>
               </Group>

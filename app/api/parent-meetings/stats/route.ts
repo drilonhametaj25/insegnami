@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 // GET /api/parent-meetings/stats - Get meeting statistics
@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
 
     // For ADMIN: get stats by teacher
     let byTeacher: any[] = [];
-    if (['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (isAdminRole(session.user.role)) {
       const teacherStats = await prisma.parentMeeting.groupBy({
         by: ['teacherId'],
         where: baseWhere,

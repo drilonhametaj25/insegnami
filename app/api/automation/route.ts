@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth, authOptions } from '@/lib/auth';
+import { getAuth, authOptions, isAdminRole } from '@/lib/auth';
 import { AutomationService } from '@/lib/automation-service';
 import { logger } from '@/lib/logger';
 
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Only admins can trigger automation
-    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Only admins can view automation status
-    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 

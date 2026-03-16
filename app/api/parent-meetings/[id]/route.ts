@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 
@@ -142,7 +142,7 @@ export async function PUT(
     let canUpdate = false;
     let allowedFields: string[] = [];
 
-    if (['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (isAdminRole(session.user.role)) {
       canUpdate = true;
       allowedFields = ['date', 'duration', 'room', 'parentNotes', 'teacherNotes'];
     } else if (session.user.role === 'TEACHER' && session.user.email) {
@@ -287,7 +287,7 @@ export async function DELETE(
     // Access control
     let canDelete = false;
 
-    if (['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (isAdminRole(session.user.role)) {
       canDelete = true;
     } else if (session.user.role === 'TEACHER' && session.user.email) {
       const teacher = await prisma.teacher.findFirst({

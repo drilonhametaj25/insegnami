@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Users can view their own profile, admins can view any user in their tenant
     const canViewUser = 
       session.user.id === id || 
-      ['ADMIN', 'SUPERADMIN'].includes(session.user.role);
+      isAdminRole(session.user.role);
 
     if (!canViewUser) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -104,7 +104,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Users can update their own profile, admins can update any user in their tenant
     const canUpdateUser = 
       session.user.id === id || 
-      ['ADMIN', 'SUPERADMIN'].includes(session.user.role);
+      isAdminRole(session.user.role);
 
     if (!canUpdateUser) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -161,7 +161,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Status update (admin only)
-    if (status && ['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (status && isAdminRole(session.user.role)) {
       const validStatuses = ['ACTIVE', 'INACTIVE', 'SUSPENDED'];
       if (!validStatuses.includes(status)) {
         return NextResponse.json(
@@ -173,7 +173,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Role update (admin only, and can't change own role unless SUPERADMIN)
-    if (role && ['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (role && isAdminRole(session.user.role)) {
       if (session.user.id === id && session.user.role !== 'SUPERADMIN') {
         return NextResponse.json(
           { error: 'Cannot change your own role' },
@@ -271,7 +271,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
 
     // Only ADMIN and SUPERADMIN can delete users
-    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

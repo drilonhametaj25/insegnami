@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 
@@ -124,7 +124,7 @@ export async function PUT(
     }
 
     // Only sender or admin can update
-    if (existingMessage.senderId !== session.user.id && !['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (existingMessage.senderId !== session.user.id && !isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 
@@ -206,7 +206,7 @@ export async function DELETE(
     }
 
     // Only sender or admin can delete
-    if (existingMessage.senderId !== session.user.id && !['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (existingMessage.senderId !== session.user.id && !isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 

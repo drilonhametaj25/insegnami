@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { EmailNotificationService } from '@/lib/email-queue';
 
@@ -42,7 +42,7 @@ export async function POST(
     }
 
     // Only sender or admin can send
-    if (message.senderId !== session.user.id && !['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+    if (message.senderId !== session.user.id && !isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 

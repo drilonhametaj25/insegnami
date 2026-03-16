@@ -190,15 +190,15 @@ export default function ForgotPasswordPage() {
 
       <Box mt="xl">
         <Text ta="center" size="sm" c="dimmed">
-          © 2024 InsegnaMi.pro. Tutti i diritti riservati.
+          © {new Date().getFullYear()} InsegnaMi.pro. Tutti i diritti riservati.
         </Text>
         <Group justify="center" mt="xs">
-          <Anchor href="#" size="xs" c="dimmed">
+          <Anchor component={Link} href={`/${locale}/contact`} size="xs" c="dimmed">
             Supporto
           </Anchor>
           <Text size="xs" c="dimmed">•</Text>
-          <Anchor href="#" size="xs" c="dimmed">
-            Contatti
+          <Anchor component={Link} href={`/${locale}/privacy`} size="xs" c="dimmed">
+            Privacy
           </Anchor>
         </Group>
       </Box>

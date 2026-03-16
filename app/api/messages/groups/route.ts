@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
       });
 
       // Add role-based groups if user is admin
-      if (['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+      if (isAdminRole(session.user.role)) {
         const [teachersCount, studentsCount, parentsCount] = await Promise.all([
           prisma.userTenant.count({
             where: {
