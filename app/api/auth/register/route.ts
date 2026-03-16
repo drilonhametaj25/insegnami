@@ -60,10 +60,28 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'Impossibile completare la registrazione. Verifica i dati e riprova.' },
-        { status: 400 }
-      );
+      // Allow re-registration if email was never verified (incomplete registration)
+      if (!existingUser.emailVerified && existingUser.status === 'INACTIVE') {
+        // Clean up previous incomplete registration
+        await prisma.verificationToken.deleteMany({ where: { identifier: email } });
+        const oldUserTenants = await prisma.userTenant.findMany({ where: { userId: existingUser.id } });
+        await prisma.userTenant.deleteMany({ where: { userId: existingUser.id } });
+        await prisma.user.delete({ where: { id: existingUser.id } });
+
+        // Delete orphan tenants (tenants with no remaining users)
+        for (const ut of oldUserTenants) {
+          const remainingUsers = await prisma.userTenant.count({ where: { tenantId: ut.tenantId } });
+          if (remainingUsers === 0) {
+            await prisma.tenant.delete({ where: { id: ut.tenantId } });
+          }
+        }
+        // Fall through to normal registration
+      } else {
+        return NextResponse.json(
+          { error: 'Impossibile completare la registrazione. Verifica i dati e riprova.' },
+          { status: 400 }
+        );
+      }
     }
 
     // Hash password

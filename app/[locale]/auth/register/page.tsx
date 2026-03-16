@@ -258,6 +258,16 @@ export default function RegisterPage() {
                 variant="light"
               >
                 {error}
+                <Text size="sm" mt="xs">
+                  Hai già un account?{' '}
+                  <Anchor component={Link} href={`/${locale}/auth/login`} fw={500}>
+                    Accedi qui
+                  </Anchor>{' '}
+                  oppure{' '}
+                  <Anchor component={Link} href={`/${locale}/auth/forgot-password`} fw={500}>
+                    recupera la password
+                  </Anchor>
+                </Text>
               </Alert>
             )}
 
