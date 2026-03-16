@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function RootNotFound() {
   return (
     <html lang="it">
@@ -30,7 +32,7 @@ export default function RootNotFound() {
           <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
             La pagina che stai cercando non esiste o è stata spostata.
           </p>
-          <a
+          <Link
             href="/"
             style={{
               display: 'inline-block',
@@ -44,7 +46,7 @@ export default function RootNotFound() {
             }}
           >
             Torna alla Home
-          </a>
+          </Link>
         </div>
       </body>
     </html>
