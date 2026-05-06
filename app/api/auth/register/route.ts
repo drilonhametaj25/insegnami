@@ -7,6 +7,7 @@ import { generateVerificationToken } from '@/lib/auth-utils';
 import { escapeHtml } from '@/lib/api-middleware';
 import { getOrCreateCustomer, stripe } from '@/lib/stripe';
 import { rateLimit } from '@/lib/rate-limit';
+import { bootstrapTenant } from '@/lib/tenant-bootstrap';
 
 export async function POST(request: NextRequest) {
   try {
@@ -163,6 +164,19 @@ export async function POST(request: NextRequest) {
         expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
       },
     });
+
+    // Seed the tenant with the bare-minimum data needed to use the system:
+    // current AcademicYear + 2 quadrimestri, Italian holidays, default
+    // invoice series (VEN), placeholder InvoiceSettings. Without this,
+    // the very first attempt to enter grades / emit an invoice / generate
+    // a schedule fails with "anno scolastico non trovato" or similar.
+    // Failures here are logged but NOT fatal — the tenant is still usable
+    // and the admin can re-trigger via POST /api/tenants/[id]/bootstrap.
+    try {
+      await bootstrapTenant(tenant.id, { tenantName: schoolName });
+    } catch (bootstrapErr) {
+      console.error('Tenant bootstrap failed (non-fatal):', bootstrapErr);
+    }
 
     // Send verification email
     // Include planId in verification URL if provided
