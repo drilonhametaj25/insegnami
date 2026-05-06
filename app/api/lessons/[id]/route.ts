@@ -184,45 +184,42 @@ export async function PUT(
       }
     }
 
-    const updatedLesson = await prisma.lesson.update({
-      where: { id: id },
-      data: {
-        ...validatedData,
-        ...(validatedData.startTime && { startTime: new Date(validatedData.startTime) }),
-        ...(validatedData.endTime && { endTime: new Date(validatedData.endTime) }),
-      },
-      include: {
-        class: {
-          include: {
-            course: {
-              select: {
-                id: true,
-                name: true,
-                description: true,
-              },
+    // Detect SCHEDULED → COMPLETED transition so we trigger hours-package
+    // consumption AFTER the update commits. Doing it inside the same
+    // $transaction guarantees: lesson.status flip + hoursConsumed flag flip
+    // + HoursPackage.remainingHours decrements all succeed or all roll back.
+    const willComplete =
+      validatedData.status === 'COMPLETED' && existingLesson.status !== 'COMPLETED';
+
+    const updatedLesson = await prisma.$transaction(async (tx) => {
+      const updated = await tx.lesson.update({
+        where: { id: id },
+        data: {
+          ...validatedData,
+          ...(validatedData.startTime && { startTime: new Date(validatedData.startTime) }),
+          ...(validatedData.endTime && { endTime: new Date(validatedData.endTime) }),
+        },
+        include: {
+          class: {
+            include: {
+              course: { select: { id: true, name: true, description: true } },
+            },
+          },
+          teacher: { select: { id: true, firstName: true, lastName: true, email: true } },
+          attendance: {
+            include: {
+              student: { select: { id: true, firstName: true, lastName: true } },
             },
           },
         },
-        teacher: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-        attendance: {
-          include: {
-            student: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        },
-      },
+      });
+
+      if (willComplete) {
+        const { consumeHoursForLesson } = await import('@/lib/hours/consume');
+        await consumeHoursForLesson(id, tx);
+      }
+
+      return updated;
     });
 
     return NextResponse.json(updatedLesson);

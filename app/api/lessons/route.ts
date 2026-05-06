@@ -248,6 +248,42 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Recurring lesson: schedule the BullMQ job that materializes the next
+    // occurrence. The processor (lib/automation-worker.ts processRecurringLesson)
+    // creates a NEW Lesson row at the computed time and re-schedules the
+    // following occurrence, forming a chain. Without this trigger the
+    // isRecurring flag was a noop.
+    if (lesson.isRecurring && lesson.recurrenceRule) {
+      try {
+        const { AutomationService, automationQueue } = await import('@/lib/automation-service');
+        const nextDate = AutomationService.calculateNextOccurrenceFromRule(
+          lesson.startTime,
+          lesson.recurrenceRule,
+        );
+        const queue = automationQueue.get();
+        if (nextDate && queue) {
+          await queue.add(
+            'recurring-lesson',
+            {
+              type: 'recurring-lesson' as const,
+              tenantId: lesson.tenantId,
+              templateLessonId: lesson.id,
+              nextDate,
+            },
+            {
+              delay: Math.max(0, nextDate.getTime() - Date.now()),
+              jobId: `recurring-${lesson.id}-${nextDate.getTime()}`,
+            },
+          );
+        }
+      } catch (recErr) {
+        // A failed scheduling shouldn't kill the create — the parent lesson
+        // is still in DB and an admin can use POST /api/automation
+        // {action:'generate-recurring-lesson'} to backfill.
+        console.error('Failed to schedule recurring lesson trigger:', recErr);
+      }
+    }
+
     return NextResponse.json(lesson, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {

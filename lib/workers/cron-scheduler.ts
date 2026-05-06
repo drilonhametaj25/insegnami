@@ -14,7 +14,8 @@ export type CronJobName =
   | 'daily-automation'
   | 'mark-payments-overdue'
   | 'parent-attendance-digest'
-  | 'deactivate-expired-tenants';
+  | 'deactivate-expired-tenants'
+  | 'auto-complete-lessons';
 
 let _cronQueue: Queue | null = null;
 
@@ -133,6 +134,10 @@ async function cronProcessor(job: Job): Promise<unknown> {
       const { deactivateExpiredTenants } = await import('@/lib/tenant-access');
       return withAuditRun(name, () => deactivateExpiredTenants());
     }
+    case 'auto-complete-lessons': {
+      const { autoCompletePastLessons } = await import('@/lib/hours/consume');
+      return withAuditRun(name, () => autoCompletePastLessons(30));
+    }
     default:
       logger.warn(`Unknown cron job: ${name}`);
       return null;
@@ -173,6 +178,7 @@ export async function registerCronJobs(): Promise<void> {
     { name: 'daily-automation',       cron: '0 2 * * *' },     // daily 02:00 (lessons + payment reminders)
     { name: 'parent-attendance-digest', cron: '0 9 * * *' },   // daily 09:00
     { name: 'deactivate-expired-tenants', cron: '15 3 * * *' },// daily 03:15 (after most subs renew)
+    { name: 'auto-complete-lessons',      cron: '30 6 * * *' }, // daily 06:30 — past SCHEDULED → COMPLETED + consume hours
   ];
 
   for (const s of schedules) {

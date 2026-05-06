@@ -317,7 +317,7 @@ export class AutomationService {
    * Calculate next occurrence from RRULE string
    * This is a simplified version - in production use 'rrule' package
    */
-  private static calculateNextOccurrenceFromRule(currentDate: Date, rrule: string | null): Date | null {
+  static calculateNextOccurrenceFromRule(currentDate: Date, rrule: string | null): Date | null {
     if (!rrule) return null;
 
     // Simple parsing for basic rules

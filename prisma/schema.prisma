@@ -662,6 +662,11 @@ model Lesson {
 
   status LessonStatus @default(SCHEDULED)
 
+  // Idempotency flag for hours-package consumption — set to true once the
+  // student-side hours have been deducted. Prevents double deduction on
+  // PUT replays or cron auto-complete on a lesson already settled.
+  hoursConsumed Boolean @default(false)
+
   // Content
   materials String? // JSON or text
   homework  String?
