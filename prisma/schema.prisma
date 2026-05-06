@@ -14,8 +14,8 @@ datasource db {
 enum Role {
   SUPERADMIN // Only in SaaS mode
   ADMIN
-  DIRECTOR   // School Director/Principal
-  SECRETARY  // Administrative staff
+  DIRECTOR // School Director/Principal
+  SECRETARY // Administrative staff
   TEACHER
   STUDENT
   PARENT
@@ -95,11 +95,11 @@ enum NotificationType {
   CALENDAR
   ANNOUNCEMENT
   REMINDER
-  GRADE           // New: for grade notifications
-  DISCIPLINARY    // New: for disciplinary notes
-  HOMEWORK        // New: for homework notifications
-  REPORT_CARD     // New: for report card notifications
-  MEETING         // New: for parent meeting notifications
+  GRADE // New: for grade notifications
+  DISCIPLINARY // New: for disciplinary notes
+  HOMEWORK // New: for homework notifications
+  REPORT_CARD // New: for report card notifications
+  MEETING // New: for parent meeting notifications
 }
 
 // ========================================
@@ -107,28 +107,28 @@ enum NotificationType {
 // ========================================
 
 enum GradeType {
-  ORAL        // Interrogazione
-  WRITTEN     // Compito in classe / Verifica
-  PRACTICAL   // Laboratorio / Pratica
-  HOMEWORK    // Compiti a casa
-  PROJECT     // Progetto
-  TEST        // Test rapido
-  BEHAVIOR    // Voto di condotta (se numerico)
+  ORAL // Interrogazione
+  WRITTEN // Compito in classe / Verifica
+  PRACTICAL // Laboratorio / Pratica
+  HOMEWORK // Compiti a casa
+  PROJECT // Progetto
+  TEST // Test rapido
+  BEHAVIOR // Voto di condotta (se numerico)
 }
 
 enum ReportCardStatus {
-  DRAFT       // Bozza
-  IN_REVIEW   // Allo scrutinio
-  APPROVED    // Approvata dal consiglio
-  PUBLISHED   // Visibile a studente/genitore
-  ARCHIVED    // Archiviata
+  DRAFT // Bozza
+  IN_REVIEW // Allo scrutinio
+  APPROVED // Approvata dal consiglio
+  PUBLISHED // Visibile a studente/genitore
+  ARCHIVED // Archiviata
 }
 
 enum DisciplinaryType {
-  NOTE        // Nota sul registro
-  WARNING     // Ammonizione
-  SUSPENSION  // Sospensione
-  POSITIVE    // Nota positiva/merito
+  NOTE // Nota sul registro
+  WARNING // Ammonizione
+  SUSPENSION // Sospensione
+  POSITIVE // Nota positiva/merito
 }
 
 enum Severity {
@@ -146,10 +146,10 @@ enum PeriodType {
 }
 
 enum MeetingStatus {
-  REQUESTED   // Richiesto dal genitore
-  CONFIRMED   // Confermato dal docente
-  CANCELLED   // Cancellato
-  COMPLETED   // Completato
+  REQUESTED // Richiesto dal genitore
+  CONFIRMED // Confermato dal docente
+  CANCELLED // Cancellato
+  COMPLETED // Completato
 }
 
 // ========================================
@@ -157,12 +157,12 @@ enum MeetingStatus {
 // ========================================
 
 enum SubscriptionStatus {
-  TRIALING    // In prova gratuita
-  ACTIVE      // Abbonamento attivo
-  PAST_DUE    // Pagamento in ritardo
-  CANCELLED   // Cancellato
-  UNPAID      // Non pagato
-  PAUSED      // In pausa
+  TRIALING // In prova gratuita
+  ACTIVE // Abbonamento attivo
+  PAST_DUE // Pagamento in ritardo
+  CANCELLED // Cancellato
+  UNPAID // Non pagato
+  PAUSED // In pausa
 }
 
 enum PlanInterval {
@@ -173,49 +173,49 @@ enum PlanInterval {
 // Core Models
 
 model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  domain    String?  @unique // For subdomain support in SaaS
-  plan      String   @default("basic") // Legacy field, use subscription instead
+  id     String  @id @default(cuid())
+  name   String
+  slug   String  @unique
+  domain String? @unique // For subdomain support in SaaS
+  plan   String  @default("basic") // Legacy field, use subscription instead
 
   // Feature flags
   featureFlags Json @default("{}")
 
   // Stripe Integration
-  stripeCustomerId String?  @unique
+  stripeCustomerId String? @unique
 
   // Trial and billing (SaaS mode)
   trialUntil DateTime?
-  isActive   Boolean  @default(true)
+  isActive   Boolean   @default(true)
 
   // Onboarding Setup
-  setupStage       String   @default("INITIAL") // INITIAL, SCHOOL, TEAM, TEACHERS, CLASSES, COMPLETE
+  setupStage       String    @default("INITIAL") // INITIAL, SCHOOL, TEAM, TEACHERS, CLASSES, COMPLETE
   setupCompletedAt DateTime?
-  
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
-  users     UserTenant[]
-  students  Student[]
-  teachers  Teacher[]
-  classes   Class[]
-  courses   Course[]
-  lessons   Lesson[]
-  payments  Payment[]
-  notices   Notice[]
-  events    Event[]
-  messages  Message[]
-  messageTemplates MessageTemplate[]
+  users               UserTenant[]
+  students            Student[]
+  teachers            Teacher[]
+  classes             Class[]
+  courses             Course[]
+  lessons             Lesson[]
+  payments            Payment[]
+  notices             Notice[]
+  events              Event[]
+  messages            Message[]
+  messageTemplates    MessageTemplate[]
   communicationGroups CommunicationGroup[]
-  reports   Report[]
-  analyticsSnapshots AnalyticsSnapshot[]
-  dashboardWidgets DashboardWidget[]
-  notifications Notification[]
-  hoursPackages HoursPackage[]
-  materials     Material[]
+  reports             Report[]
+  analyticsSnapshots  AnalyticsSnapshot[]
+  dashboardWidgets    DashboardWidget[]
+  notifications       Notification[]
+  hoursPackages       HoursPackage[]
+  materials           Material[]
 
   // New: School Core Relations
   subjects          Subject[]
@@ -228,14 +228,27 @@ model Tenant {
   auditLogs         AuditLog[]
 
   // Subscription relation (SaaS billing)
-  subscription      Subscription?
+  subscription Subscription?
 
   // Smart Scheduling
-  schedules         Schedule[]
-  timeSlotConfigs   TimeSlotConfig[]
+  schedules       Schedule[]
+  timeSlotConfigs TimeSlotConfig[]
 
   // Calendario scolastico — vacanze/giorni non lavorativi
-  holidays          Holiday[]
+  holidays Holiday[]
+
+  // Fatturazione elettronica italiana (Wave 3)
+  invoiceSeries           InvoiceSeries[]
+  invoices                Invoice[]
+  invoiceCustomerProfiles InvoiceCustomerProfile[]
+  invoiceSettings         InvoiceSettings?
+
+  // Payroll / cedolini docenti (Wave 3)
+  payrollPeriods PayrollPeriod[]
+  payrolls       Payroll[]
+
+  // Movimenti contabili — astrazione P&L (Wave 3)
+  accountingMovements AccountingMovement[]
 
   @@map("tenants")
 }
@@ -246,31 +259,31 @@ model Tenant {
 
 model Plan {
   id            String       @id @default(cuid())
-  name          String       // Starter, Professional, Enterprise
+  name          String // Starter, Professional, Enterprise
   slug          String       @unique // starter, professional, enterprise
   stripePriceId String       @unique // Stripe Price ID (price_xxx)
   price         Decimal      @db.Decimal(10, 2)
   interval      PlanInterval @default(MONTHLY)
 
   // Limits
-  maxStudents   Int?         // null = unlimited
-  maxTeachers   Int?         // null = unlimited
-  maxClasses    Int?         // null = unlimited
+  maxStudents Int? // null = unlimited
+  maxTeachers Int? // null = unlimited
+  maxClasses  Int? // null = unlimited
 
   // Features (JSON for flexibility)
-  features      Json         @default("{}") // { sms: true, analytics: true, etc }
+  features Json @default("{}") // { sms: true, analytics: true, etc }
 
   // Display
-  description   String?
-  isPopular     Boolean      @default(false)
-  sortOrder     Int          @default(0)
+  description String?
+  isPopular   Boolean @default(false)
+  sortOrder   Int     @default(0)
 
   // Status
-  isActive      Boolean      @default(true)
+  isActive Boolean @default(true)
 
   // Metadata
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   subscriptions Subscription[]
@@ -279,34 +292,34 @@ model Plan {
 }
 
 model Subscription {
-  id                   String             @id @default(cuid())
-  tenantId             String             @unique
-  tenant               Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  planId               String
-  plan                 Plan               @relation(fields: [planId], references: [id])
+  id       String @id @default(cuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  planId   String
+  plan     Plan   @relation(fields: [planId], references: [id])
 
   // Stripe IDs
-  stripeSubscriptionId String             @unique
+  stripeSubscriptionId String @unique
   stripeCustomerId     String
 
   // Status
-  status               SubscriptionStatus @default(TRIALING)
+  status SubscriptionStatus @default(TRIALING)
 
   // Billing period
-  currentPeriodStart   DateTime
-  currentPeriodEnd     DateTime
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
 
   // Trial
-  trialStart           DateTime?
-  trialEnd             DateTime?
+  trialStart DateTime?
+  trialEnd   DateTime?
 
   // Cancellation
-  cancelAtPeriodEnd    Boolean            @default(false)
-  cancelledAt          DateTime?
+  cancelAtPeriodEnd Boolean   @default(false)
+  cancelledAt       DateTime?
 
   // Metadata
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([stripeCustomerId])
   @@index([status])
@@ -314,47 +327,51 @@ model Subscription {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String  @id @default(cuid())
+  email     String  @unique
   password  String
   firstName String
   lastName  String
   phone     String?
   avatar    String?
-  
-  status    UserStatus @default(ACTIVE)
-  
+
+  status UserStatus @default(ACTIVE)
+
   // Email verification
-  emailVerified DateTime?
+  emailVerified     DateTime?
   verificationToken String?
-  
+
   // Password reset
-  resetToken String?
+  resetToken       String?
   resetTokenExpiry DateTime?
-  
+
   // Metadata
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   lastLogin DateTime?
-  
+
   // Relations
-  tenants   UserTenant[]
-  accounts  Account[]
-  sessions  Session[]
-  sentMessages Message[]
-  messageRecipients MessageRecipient[]
-  createdTemplates MessageTemplate[]
-  createdGroups CommunicationGroup[]
-  groupMemberships CommunicationGroupMember[]
-  reports Report[] @relation("UserReports")
-  dashboardWidgets DashboardWidget[] @relation("UserWidgets")
-  notifications Notification[]
+  tenants                 UserTenant[]
+  accounts                Account[]
+  sessions                Session[]
+  sentMessages            Message[]
+  messageRecipients       MessageRecipient[]
+  createdTemplates        MessageTemplate[]
+  createdGroups           CommunicationGroup[]
+  groupMemberships        CommunicationGroupMember[]
+  reports                 Report[]                   @relation("UserReports")
+  dashboardWidgets        DashboardWidget[]          @relation("UserWidgets")
+  notifications           Notification[]
   notificationPreferences NotificationPreferences?
-  
+
   // Student relations
-  studentProfile Student? @relation("StudentUser")
+  studentProfile   Student?  @relation("StudentUser")
   childrenAsParent Student[] @relation("ParentUser")
-  
+
+  // Fatturazione (Wave 3): un utente (es. genitore) può essere intestatario
+  // fiscale di N profili fattura (storici / per regimi diversi).
+  invoiceCustomerProfiles InvoiceCustomerProfile[]
+
   @@map("users")
 }
 
@@ -363,29 +380,29 @@ model UserTenant {
   userId   String
   tenantId String
   role     Role
-  
+
   // Permissions (JSON field for fine-grained control)
   permissions Json @default("{}")
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, tenantId])
   @@map("user_tenants")
 }
 
 model Student {
-  id          String   @id @default(cuid())
-  tenantId    String
-  
+  id       String @id @default(cuid())
+  tenantId String
+
   // Links to User accounts
-  userId      String   @unique // Student user account
+  userId       String  @unique // Student user account
   parentUserId String? @unique // Optional parent user account
-  
+
   // Personal info (duplicated from User for quick access)
   firstName   String
   lastName    String
@@ -393,23 +410,23 @@ model Student {
   email       String?
   phone       String?
   address     String?
-  
+
   // Student specific
-  studentCode String   @unique // Generated student ID
-  enrollmentDate DateTime @default(now())
-  status      UserStatus @default(ACTIVE)
-  
+  studentCode    String     @unique // Generated student ID
+  enrollmentDate DateTime   @default(now())
+  status         UserStatus @default(ACTIVE)
+
   // Emergency contact (if different from parent)
   emergencyContact String?
-  
+
   // Medical/Special needs
   medicalNotes String?
   specialNeeds String?
-  
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
   tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user          User           @relation("StudentUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -426,38 +443,44 @@ model Student {
   homeworkSubmissions HomeworkSubmission[]
   parentMeetings      ParentMeeting[]
 
+  // Fatturazione (Wave 3): un'anagrafica fiscale può essere intestata a uno
+  // studente (es. studente maggiorenne in proprio) — relation 1:N perché
+  // possono esistere profili storici se cambia indirizzo/regime.
+  invoiceCustomerProfiles InvoiceCustomerProfile[]
+  invoiceLines            InvoiceLine[]
+
   @@map("students")
 }
 
 model Teacher {
-  id        String   @id @default(cuid())
-  tenantId  String
-  
+  id       String @id @default(cuid())
+  tenantId String
+
   // Personal info
   firstName String
   lastName  String
   email     String
   phone     String?
   address   String?
-  
+
   // Professional info
-  teacherCode String   @unique // Generated teacher ID
-  hireDate    DateTime @default(now())
+  teacherCode String     @unique // Generated teacher ID
+  hireDate    DateTime   @default(now())
   status      UserStatus @default(ACTIVE)
-  
+
   // Qualifications
-  qualifications String?
+  qualifications  String?
   specializations String?
-  biography      String?
-  
+  biography       String?
+
   // Employment
-  hourlyRate     Decimal? @db.Decimal(10,2)
-  contractType   String? // Full-time, Part-time, Contract
-  
+  hourlyRate   Decimal? @db.Decimal(10, 2)
+  contractType String? // Full-time, Part-time, Contract
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
   tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   classes Class[]
@@ -472,39 +495,46 @@ model Teacher {
   parentMeetings    ParentMeeting[]
 
   // Smart Scheduling
-  scheduleSlots     ScheduleSlot[]
+  scheduleSlots ScheduleSlot[]
 
+  // Payroll (Wave 3) — un teacher ha N cedolini, N voci di timesheet via lessons,
+  // 1 record di settings (default ritenute, IBAN, regime fiscale).
+  payrolls        Payroll[]
+  payrollSettings TeacherPayrollSettings?
+
+  @@index([tenantId, status])
   @@map("teachers")
 }
 
 model Course {
-  id          String @id @default(cuid())
-  tenantId    String
-  
+  id       String @id @default(cuid())
+  tenantId String
+
   name        String
-  code        String @unique
+  code        String  @unique
   description String?
   category    String?
   level       String? // Beginner, Intermediate, Advanced
-  
+
   // Course details
-  duration    Int?    // Duration in hours
+  duration    Int? // Duration in hours
   maxStudents Int?
   minStudents Int?
-  price       Decimal? @db.Decimal(10,2)
-  
+  price       Decimal? @db.Decimal(10, 2)
+
   // Status
   isActive Boolean @default(true)
-  
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
   tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   classes       Class[]
   hoursPackages HoursPackage[]
-  
+  invoiceLines  InvoiceLine[]
+
   @@map("courses")
 }
 
@@ -513,22 +543,22 @@ model Class {
   tenantId  String
   courseId  String
   teacherId String
-  
-  name      String
-  code      String @unique
-  
+
+  name String
+  code String @unique
+
   // Schedule
   startDate DateTime
   endDate   DateTime?
-  
+
   // Settings
   maxStudents Int     @default(20)
   isActive    Boolean @default(true)
-  
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
   tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   course   Course         @relation(fields: [courseId], references: [id], onDelete: Restrict)
@@ -545,56 +575,56 @@ model Class {
   homework          Homework[]
 
   // Smart Scheduling
-  scheduleSlots     ScheduleSlot[]
+  scheduleSlots ScheduleSlot[]
 
   @@map("classes")
 }
 
 model StudentClass {
-  id          String @id @default(cuid())
-  studentId   String
-  classId     String
-  
-  enrolledAt  DateTime @default(now())
-  droppedAt   DateTime?
-  isActive    Boolean  @default(true)
-  
+  id        String @id @default(cuid())
+  studentId String
+  classId   String
+
+  enrolledAt DateTime  @default(now())
+  droppedAt  DateTime?
+  isActive   Boolean   @default(true)
+
   // Relations
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
-  
+
   @@unique([studentId, classId])
   @@map("student_classes")
 }
 
 // Hours packages purchased by students for courses
 model HoursPackage {
-  id              String   @id @default(cuid())
-  tenantId        String
-  studentId       String
-  courseId        String
-  
+  id        String @id @default(cuid())
+  tenantId  String
+  studentId String
+  courseId  String
+
   // Hours tracking
-  totalHours      Decimal  @db.Decimal(10,2) // Total hours purchased
-  remainingHours  Decimal  @db.Decimal(10,2) // Hours still available
-  
+  totalHours     Decimal @db.Decimal(10, 2) // Total hours purchased
+  remainingHours Decimal @db.Decimal(10, 2) // Hours still available
+
   // Purchase info
-  purchaseDate    DateTime @default(now())
-  expiryDate      DateTime? // Optional expiration
-  price           Decimal? @db.Decimal(10,2)
-  
+  purchaseDate DateTime  @default(now())
+  expiryDate   DateTime? // Optional expiration
+  price        Decimal?  @db.Decimal(10, 2)
+
   // Status
-  isActive        Boolean  @default(true)
-  notes           String?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  isActive Boolean @default(true)
+  notes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  
+
   @@map("hours_packages")
 }
 
@@ -603,41 +633,51 @@ model Lesson {
   tenantId  String
   classId   String
   teacherId String
-  
-  title     String
+
+  title       String
   description String?
-  
+
   // Schedule
   startTime DateTime
   endTime   DateTime
   room      String?
-  
+
   // Recurring lessons
-  isRecurring Boolean @default(false)
+  isRecurring    Boolean @default(false)
   recurrenceRule String? // RRULE format
   parentLessonId String?
-  
+
   status LessonStatus @default(SCHEDULED)
-  
+
   // Content
   materials String? // JSON or text
   homework  String?
   notes     String?
-  
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
-  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  class      Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
-  teacher    Teacher      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
-  attendance Attendance[]
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  class           Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher         Teacher      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  attendance      Attendance[]
   lessonMaterials Material[]
 
   // New: School Core Relations
   homeworkAssignments Homework[]
 
+  // Payroll: una Lesson COMPLETED conta come riga timesheet (ore × hourlyRate).
+  // La relazione opzionale serve solo per audit/breakdown; il timesheet calculator
+  // legge da `Lesson where status=COMPLETED AND teacherId=X AND startTime in period`.
+  payrollLineItems PayrollLineItem[]
+
+  // Critical performance index for payroll timesheet queries (Wave 3).
+  // Without this, generating monthly payroll for a tenant with 50+ teachers
+  // and thousands of lessons becomes O(N) on the entire lessons table.
+  @@index([teacherId, startTime, status])
+  @@index([tenantId, startTime])
   @@map("lessons")
 }
 
@@ -645,123 +685,132 @@ model Attendance {
   id        String @id @default(cuid())
   lessonId  String
   studentId String
-  
+
   status AttendanceStatus
   notes  String?
-  
+
   // Timing
   arrivedAt DateTime?
   leftAt    DateTime?
-  
+
   // Hours tracking
-  hoursAttended Decimal? @db.Decimal(10,2) // Actual hours attended (for partial attendance)
-  
+  hoursAttended Decimal? @db.Decimal(10, 2) // Actual hours attended (for partial attendance)
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
   lesson  Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
+
   @@unique([lessonId, studentId])
   @@map("attendance")
 }
 
 model Payment {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   tenantId  String
   studentId String
   classId   String?
-  
+
   // Payment details
   description String
-  amount      Decimal @db.Decimal(10,2)
+  amount      Decimal @db.Decimal(10, 2)
   currency    String  @default("EUR")
-  
+
   status PaymentStatus @default(PENDING)
-  
+
   // Dates
   dueDate  DateTime
   paidDate DateTime?
-  
+
   // Payment method and reference
   paymentMethod String? // Cash, Card, Bank Transfer, etc.
   reference     String? // Transaction ID, check number, etc.
-  
+
   // Notes
   notes String?
-  
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
+  // Wave 3: Payment può essere collegato a un'Invoice (un'invoice può
+  // raggruppare più Payment-rate). Restiamo opzionali perché Payment è
+  // anche usato come scadenzario indipendente dalla fatturazione.
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
   // Relations
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   class   Class?  @relation(fields: [classId], references: [id], onDelete: SetNull)
-  
+
+  invoiceLines InvoiceLine[]
+
+  @@index([tenantId, status, dueDate])
   @@map("payments")
 }
 
 model Notice {
   id       String @id @default(cuid())
   tenantId String
-  
+
   title   String
   content String
   type    NoticeType @default(ANNOUNCEMENT)
-  
+
   // Visibility
-  isPublic Boolean @default(true)
+  isPublic    Boolean @default(true)
   targetRoles Role[] // Which roles can see this notice
-  
+
   // Scheduling
-  publishAt DateTime @default(now())
+  publishAt DateTime  @default(now())
   expiresAt DateTime?
-  
+
   // Flags
-  isPinned  Boolean @default(false)
-  isUrgent  Boolean @default(false)
-  
+  isPinned Boolean @default(false)
+  isUrgent Boolean @default(false)
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
+
   @@map("notices")
 }
 
 model Event {
-  id        String @id @default(cuid())
-  tenantId  String
-  
-  title     String
+  id       String @id @default(cuid())
+  tenantId String
+
+  title       String
   description String?
-  location  String?
-  
+  location    String?
+
   // Timing
   startTime DateTime
   endTime   DateTime
-  isAllDay  Boolean @default(false)
-  
+  isAllDay  Boolean  @default(false)
+
   // Event details
-  color     String? @default("#3b82f6")
-  category  String?
-  
+  color    String? @default("#3b82f6")
+  category String?
+
   // Recurrence
-  isRecurring Boolean @default(false)
+  isRecurring    Boolean @default(false)
   recurrenceRule String?
-  
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
+
   @@map("events")
 }
 
@@ -779,9 +828,9 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@unique([provider, providerAccountId])
   @@map("accounts")
 }
@@ -791,9 +840,9 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("sessions")
 }
 
@@ -801,49 +850,49 @@ model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
-  
+
   @@unique([identifier, token])
   @@map("verification_tokens")
 }
 
 // Advanced Communication System
 model Message {
-  id        String @id @default(cuid())
-  tenantId  String
-  senderId  String
-  
-  title     String
-  content   String
-  type      MessageType @default(DIRECT)
-  status    MessageStatus @default(DRAFT)
-  
+  id       String @id @default(cuid())
+  tenantId String
+  senderId String
+
+  title   String
+  content String
+  type    MessageType   @default(DIRECT)
+  status  MessageStatus @default(DRAFT)
+
   // Scheduling
   scheduledAt DateTime?
   sentAt      DateTime?
-  
+
   // Channels
-  sendEmail   Boolean @default(true)
-  sendSms     Boolean @default(false)
-  sendPush    Boolean @default(true)
-  
+  sendEmail Boolean @default(true)
+  sendSms   Boolean @default(false)
+  sendPush  Boolean @default(true)
+
   // Email specific
   emailTemplate String?
   emailSubject  String?
-  
+
   // Priority and flags
-  priority    Int @default(0) // 0=normal, 1=high, 2=urgent
-  isUrgent    Boolean @default(false)
+  priority         Int     @default(0) // 0=normal, 1=high, 2=urgent
+  isUrgent         Boolean @default(false)
   requiresResponse Boolean @default(false)
-  
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
-  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sender     User              @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sender     User               @relation(fields: [senderId], references: [id], onDelete: Restrict)
   recipients MessageRecipient[]
-  
+
   @@map("messages")
 }
 
@@ -851,32 +900,32 @@ model MessageRecipient {
   id        String @id @default(cuid())
   messageId String
   userId    String
-  
+
   // Delivery status per channel
-  emailStatus   MessageStatus @default(SCHEDULED)
-  smsStatus     MessageStatus @default(SCHEDULED)
-  pushStatus    MessageStatus @default(SCHEDULED)
-  
+  emailStatus MessageStatus @default(SCHEDULED)
+  smsStatus   MessageStatus @default(SCHEDULED)
+  pushStatus  MessageStatus @default(SCHEDULED)
+
   // Timestamps
   emailDeliveredAt DateTime?
   emailReadAt      DateTime?
   smsDeliveredAt   DateTime?
   pushDeliveredAt  DateTime?
   pushReadAt       DateTime?
-  
+
   // Response tracking
-  hasResponded Boolean @default(false)
+  hasResponded Boolean   @default(false)
   respondedAt  DateTime?
   response     String?
-  
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@unique([messageId, userId])
   @@map("message_recipients")
 }
@@ -885,31 +934,31 @@ model MessageTemplate {
   id        String @id @default(cuid())
   tenantId  String
   creatorId String
-  
+
   name        String
   description String?
-  
+
   // Template content
-  subject     String
-  content     String
-  type        NoticeType @default(MESSAGE)
-  
+  subject String
+  content String
+  type    NoticeType @default(MESSAGE)
+
   // Template variables (JSON)
-  variables   String? // JSON array of variable names
-  
+  variables String? // JSON array of variable names
+
   // Usage stats
-  usageCount  Int @default(0)
-  lastUsedAt  DateTime?
-  
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
+
   // Metadata
-  isActive  Boolean @default(true)
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
   tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   creator User   @relation(fields: [creatorId], references: [id], onDelete: Restrict)
-  
+
   @@map("message_templates")
 }
 
@@ -917,27 +966,27 @@ model CommunicationGroup {
   id        String @id @default(cuid())
   tenantId  String
   creatorId String
-  
+
   name        String
   description String?
-  
+
   // Group types: CLASS, ROLE, CUSTOM, PARENT_CLASS
-  type        String @default("CUSTOM")
-  
+  type String @default("CUSTOM")
+
   // Auto-sync settings
-  autoSync    Boolean @default(false)
-  syncRules   String? // JSON rules for auto-membership
-  
+  autoSync  Boolean @default(false)
+  syncRules String? // JSON rules for auto-membership
+
   // Metadata
-  isActive    Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  tenant      Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  creator     User                      @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  tenant      Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creator     User                       @relation(fields: [creatorId], references: [id], onDelete: Restrict)
   memberships CommunicationGroupMember[]
-  
+
   @@map("communication_groups")
 }
 
@@ -945,18 +994,18 @@ model CommunicationGroupMember {
   id      String @id @default(cuid())
   groupId String
   userId  String
-  
+
   // Member settings
   isActive        Boolean @default(true)
   canSendMessages Boolean @default(false)
-  
+
   // Metadata
   joinedAt DateTime @default(now())
-  
+
   // Relations
   group CommunicationGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([groupId, userId])
   @@map("communication_group_members")
 }
@@ -981,119 +1030,119 @@ enum ReportPeriod {
 
 // Analytics and Reports Models
 model Report {
-  id          String      @id @default(cuid())
+  id          String       @id @default(cuid())
   tenantId    String
   title       String
   type        ReportType
   period      ReportPeriod
   startDate   DateTime
   endDate     DateTime
-  data        Json        // Flexible JSON storage for report data
-  filters     Json        @default("{}")
+  data        Json // Flexible JSON storage for report data
+  filters     Json         @default("{}")
   generatedBy String
-  
+
   // Metadata
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user        User        @relation("UserReports", fields: [generatedBy], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserReports", fields: [generatedBy], references: [id])
 
   @@map("reports")
 }
 
 model AnalyticsSnapshot {
-  id                String   @id @default(cuid())
-  tenantId          String
-  date             DateTime
-  totalStudents    Int      @default(0)
-  totalTeachers    Int      @default(0)
-  totalClasses     Int      @default(0)
-  totalLessons     Int      @default(0)
-  attendanceRate   Float    @default(0)
-  paymentRate      Float    @default(0)
-  activeStudents   Int      @default(0)
-  overduePayments  Int      @default(0)
-  totalRevenue     Float    @default(0)
-  
+  id              String   @id @default(cuid())
+  tenantId        String
+  date            DateTime
+  totalStudents   Int      @default(0)
+  totalTeachers   Int      @default(0)
+  totalClasses    Int      @default(0)
+  totalLessons    Int      @default(0)
+  attendanceRate  Float    @default(0)
+  paymentRate     Float    @default(0)
+  activeStudents  Int      @default(0)
+  overduePayments Int      @default(0)
+  totalRevenue    Float    @default(0)
+
   // Monthly metrics
-  monthlyEnrollments Int    @default(0)
-  monthlyRevenue     Float  @default(0)
-  
+  monthlyEnrollments Int   @default(0)
+  monthlyRevenue     Float @default(0)
+
   // Metadata
-  createdAt        DateTime @default(now())
-  
+  createdAt DateTime @default(now())
+
   // Relations
-  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, date])
   @@map("analytics_snapshots")
 }
 
 model DashboardWidget {
-  id          String   @id @default(cuid())
-  tenantId    String
-  userId      String
-  type        String   // 'chart', 'stat', 'table', etc.
-  title       String
-  config      Json     // Widget configuration
-  position    Json     // Grid position {x, y, w, h}
-  isVisible   Boolean  @default(true)
-  
+  id        String  @id @default(cuid())
+  tenantId  String
+  userId    String
+  type      String // 'chart', 'stat', 'table', etc.
+  title     String
+  config    Json // Widget configuration
+  position  Json // Grid position {x, y, w, h}
+  isVisible Boolean @default(true)
+
   // Metadata
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user        User     @relation("UserWidgets", fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserWidgets", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("dashboard_widgets")
 }
 
 // Notification System Models
 model Notification {
-  id          String              @id @default(cuid())
-  tenantId    String
-  userId      String
-  
-  title       String
-  content     String
-  type        NotificationType
-  priority    NotificationPriority @default(NORMAL)
-  status      NotificationStatus   @default(UNREAD)
-  
+  id       String @id @default(cuid())
+  tenantId String
+  userId   String
+
+  title    String
+  content  String
+  type     NotificationType
+  priority NotificationPriority @default(NORMAL)
+  status   NotificationStatus   @default(UNREAD)
+
   // Action & Navigation
-  actionUrl   String?             // URL to navigate when clicked
-  actionLabel String?             // Button text for action
-  
+  actionUrl   String? // URL to navigate when clicked
+  actionLabel String? // Button text for action
+
   // Metadata for tracking source
-  sourceType  String?             // 'lesson', 'payment', 'class', etc.
-  sourceId    String?             // ID of the source entity
-  
+  sourceType String? // 'lesson', 'payment', 'class', etc.
+  sourceId   String? // ID of the source entity
+
   // Email and push settings
-  emailSent   Boolean             @default(false)
-  pushSent    Boolean             @default(false)
+  emailSent   Boolean   @default(false)
+  pushSent    Boolean   @default(false)
   emailSentAt DateTime?
   pushSentAt  DateTime?
-  
+
   // User interaction
   readAt      DateTime?
   dismissedAt DateTime?
-  
+
   // Scheduling
-  scheduledFor DateTime?          // For future notifications
+  scheduledFor DateTime? // For future notifications
   expiresAt    DateTime?
-  
+
   // Metadata
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, status])
   @@index([tenantId, type])
   @@index([scheduledFor])
@@ -1103,37 +1152,37 @@ model Notification {
 }
 
 model NotificationPreferences {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  
+  id     String @id @default(cuid())
+  userId String @unique
+
   // Email preferences
-  emailEnabled    Boolean  @default(true)
-  emailDigest     Boolean  @default(true)
-  emailImmediate  Boolean  @default(false)
-  
+  emailEnabled   Boolean @default(true)
+  emailDigest    Boolean @default(true)
+  emailImmediate Boolean @default(false)
+
   // Push preferences
-  pushEnabled     Boolean  @default(true)
-  pushSound       Boolean  @default(true)
-  
+  pushEnabled Boolean @default(true)
+  pushSound   Boolean @default(true)
+
   // Type-specific preferences (JSON)
-  typePreferences Json     @default("{}")
-  
+  typePreferences Json @default("{}")
+
   // Quiet hours
   quietHoursEnabled Boolean @default(false)
   quietHoursStart   String? // "22:00"
   quietHoursEnd     String? // "08:00"
-  
+
   // Digest settings
-  digestFrequency String   @default("daily") // daily, weekly, never
-  digestTime      String   @default("09:00")
-  
+  digestFrequency String @default("daily") // daily, weekly, never
+  digestTime      String @default("09:00")
+
   // Metadata
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("notification_preferences")
 }
 
@@ -1142,49 +1191,49 @@ model NotificationPreferences {
 // ========================================
 
 model AcademicYear {
-  id        String   @id @default(cuid())
-  tenantId  String
+  id       String @id @default(cuid())
+  tenantId String
 
-  name      String   // "2024/2025"
+  name      String // "2024/2025"
   startDate DateTime
   endDate   DateTime
   isCurrent Boolean  @default(false)
 
   // Trimestri/Quadrimestri
-  periods   AcademicPeriod[]
+  periods AcademicPeriod[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Smart Scheduling
   schedules Schedule[]
 
   // Vacanze legate a questo anno (es. ponti specifici)
-  holidays  Holiday[]
+  holidays Holiday[]
 
   @@unique([tenantId, name])
   @@map("academic_years")
 }
 
 model AcademicPeriod {
-  id              String   @id @default(cuid())
-  academicYearId  String
+  id             String @id @default(cuid())
+  academicYearId String
 
-  name            String   // "1° Quadrimestre", "2° Quadrimestre"
-  type            PeriodType @default(QUADRIMESTRE)
-  startDate       DateTime
-  endDate         DateTime
-  orderIndex      Int      @default(0)
+  name       String // "1° Quadrimestre", "2° Quadrimestre"
+  type       PeriodType @default(QUADRIMESTRE)
+  startDate  DateTime
+  endDate    DateTime
+  orderIndex Int        @default(0)
 
-  grades          Grade[]
-  reportCards     ReportCard[]
+  grades      Grade[]
+  reportCards ReportCard[]
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  academicYear    AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
 
   @@map("academic_periods")
 }
@@ -1194,31 +1243,31 @@ model AcademicPeriod {
 // ========================================
 
 model Subject {
-  id        String   @id @default(cuid())
-  tenantId  String
+  id       String @id @default(cuid())
+  tenantId String
 
-  name      String   // "Matematica", "Italiano"
-  code      String   // "MAT", "ITA"
-  color     String?  @default("#3b82f6")
-  icon      String?
+  name  String // "Matematica", "Italiano"
+  code  String // "MAT", "ITA"
+  color String? @default("#3b82f6")
+  icon  String?
 
   // Ore settimanali previste (utile per orario)
   weeklyHours Int?
 
-  isActive  Boolean  @default(true)
+  isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  teachers         TeacherSubject[]
-  grades           Grade[]
-  homework         Homework[]
-  classSubjects    ClassSubject[]
+  tenant            Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teachers          TeacherSubject[]
+  grades            Grade[]
+  homework          Homework[]
+  classSubjects     ClassSubject[]
   reportCardEntries ReportCardEntry[]
 
   // Smart Scheduling
-  scheduleSlots    ScheduleSlot[]
+  scheduleSlots ScheduleSlot[]
 
   @@unique([tenantId, code])
   @@map("subjects")
@@ -1229,8 +1278,8 @@ model TeacherSubject {
   teacherId String
   subjectId String
 
-  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
   @@unique([teacherId, subjectId])
   @@map("teacher_subjects")
@@ -1244,9 +1293,9 @@ model ClassSubject {
 
   weeklyHours Int @default(1)
 
-  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
-  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
 
   @@unique([classId, subjectId])
   @@map("class_subjects")
@@ -1257,40 +1306,40 @@ model ClassSubject {
 // ========================================
 
 model Grade {
-  id          String    @id @default(cuid())
-  tenantId    String
-  studentId   String
-  subjectId   String
-  teacherId   String
-  classId     String
-  periodId    String?   // Collegato al periodo accademico
+  id        String  @id @default(cuid())
+  tenantId  String
+  studentId String
+  subjectId String
+  teacherId String
+  classId   String
+  periodId  String? // Collegato al periodo accademico
 
   // Voto
-  value       Decimal   @db.Decimal(4,2) // 6.50, 7.00, ecc.
-  valueText   String?   // "Sufficiente", "Buono" (per scuola primaria)
-  weight      Decimal   @default(1.0) @db.Decimal(3,1) // Peso del voto
+  value     Decimal @db.Decimal(4, 2) // 6.50, 7.00, ecc.
+  valueText String? // "Sufficiente", "Buono" (per scuola primaria)
+  weight    Decimal @default(1.0) @db.Decimal(3, 1) // Peso del voto
 
   // Tipo
-  type        GradeType @default(WRITTEN)
+  type GradeType @default(WRITTEN)
 
   // Dettagli
-  description String?   // "Verifica equazioni 2° grado"
+  description String? // "Verifica equazioni 2° grado"
   date        DateTime
 
   // Visibilità
-  isVisible   Boolean   @default(true) // Visibile a studente/genitore
+  isVisible Boolean @default(true) // Visibile a studente/genitore
 
-  notes       String?
+  notes String?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  teacher     Teacher   @relation(fields: [teacherId], references: [id], onDelete: Restrict)
-  class       Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
-  period      AcademicPeriod? @relation(fields: [periodId], references: [id])
+  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject Subject         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher Teacher         @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  class   Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  period  AcademicPeriod? @relation(fields: [periodId], references: [id])
 
   @@index([studentId, subjectId])
   @@index([classId, subjectId])
@@ -1306,65 +1355,65 @@ model Grade {
 // ========================================
 
 model ReportCard {
-  id          String   @id @default(cuid())
-  tenantId    String
-  studentId   String
-  classId     String
-  periodId    String
+  id        String @id @default(cuid())
+  tenantId  String
+  studentId String
+  classId   String
+  periodId  String
 
   // Stato
-  status      ReportCardStatus @default(DRAFT)
+  status ReportCardStatus @default(DRAFT)
 
   // Voti finali per materia
-  entries     ReportCardEntry[]
+  entries ReportCardEntry[]
 
   // Giudizio globale
   overallComment String?
   behaviorGrade  String? // Voto condotta
 
   // Firme
-  approvedBy     String? // ID del dirigente/coordinatore
-  approvedAt     DateTime?
+  approvedBy String? // ID del dirigente/coordinatore
+  approvedAt DateTime?
 
   // PDF generato
-  pdfUrl         String?
-  generatedAt    DateTime?
+  pdfUrl      String?
+  generatedAt DateTime?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  student     Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  class       Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
-  period      AcademicPeriod @relation(fields: [periodId], references: [id])
+  tenant  Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  period  AcademicPeriod @relation(fields: [periodId], references: [id])
 
   @@unique([studentId, classId, periodId])
   @@map("report_cards")
 }
 
 model ReportCardEntry {
-  id            String @id @default(cuid())
-  reportCardId  String
-  subjectId     String
+  id           String @id @default(cuid())
+  reportCardId String
+  subjectId    String
 
   // Voto finale
-  finalGrade    Decimal @db.Decimal(4,2)
+  finalGrade     Decimal @db.Decimal(4, 2)
   finalGradeText String? // Per primaria
 
   // Medie calcolate (snapshot)
-  averageOral      Decimal? @db.Decimal(4,2)
-  averageWritten   Decimal? @db.Decimal(4,2)
-  averagePractical Decimal? @db.Decimal(4,2)
-  overallAverage   Decimal? @db.Decimal(4,2)
+  averageOral      Decimal? @db.Decimal(4, 2)
+  averageWritten   Decimal? @db.Decimal(4, 2)
+  averagePractical Decimal? @db.Decimal(4, 2)
+  overallAverage   Decimal? @db.Decimal(4, 2)
 
   // Giudizio docente
-  teacherComment  String?
+  teacherComment String?
 
   // Assenze per materia
-  absenceCount    Int @default(0)
+  absenceCount Int @default(0)
 
-  reportCard      ReportCard @relation(fields: [reportCardId], references: [id], onDelete: Cascade)
-  subject         Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  reportCard ReportCard @relation(fields: [reportCardId], references: [id], onDelete: Cascade)
+  subject    Subject    @relation(fields: [subjectId], references: [id], onDelete: Restrict)
 
   @@unique([reportCardId, subjectId])
   @@map("report_card_entries")
@@ -1375,36 +1424,36 @@ model ReportCardEntry {
 // ========================================
 
 model DisciplinaryNote {
-  id          String   @id @default(cuid())
-  tenantId    String
-  studentId   String
-  teacherId   String
-  classId     String
+  id        String @id @default(cuid())
+  tenantId  String
+  studentId String
+  teacherId String
+  classId   String
 
-  type        DisciplinaryType @default(NOTE)
-  severity    Severity         @default(MEDIUM)
+  type     DisciplinaryType @default(NOTE)
+  severity Severity         @default(MEDIUM)
 
   title       String
   description String
   date        DateTime
 
   // Notifica genitore
-  parentNotified    Boolean  @default(false)
-  parentNotifiedAt  DateTime?
+  parentNotified   Boolean   @default(false)
+  parentNotifiedAt DateTime?
 
   // Risoluzione
-  resolved      Boolean  @default(false)
-  resolvedAt    DateTime?
-  resolvedBy    String?
-  resolution    String?
+  resolved   Boolean   @default(false)
+  resolvedAt DateTime?
+  resolvedBy String?
+  resolution String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
-  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, studentId])
   @@index([tenantId, date])
@@ -1418,12 +1467,12 @@ model DisciplinaryNote {
 // ========================================
 
 model Homework {
-  id          String   @id @default(cuid())
-  tenantId    String
-  classId     String
-  subjectId   String
-  teacherId   String
-  lessonId    String?  // Opzionale: collegato a lezione
+  id        String  @id @default(cuid())
+  tenantId  String
+  classId   String
+  subjectId String
+  teacherId String
+  lessonId  String? // Opzionale: collegato a lezione
 
   title       String
   description String
@@ -1432,7 +1481,7 @@ model Homework {
   dueDate      DateTime
 
   // Attachments (URL o riferimenti file)
-  attachments  Json?   @default("[]")
+  attachments Json? @default("[]")
 
   // Stato
   isPublished Boolean @default(true)
@@ -1443,11 +1492,11 @@ model Homework {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
-  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
-  lesson    Lesson? @relation(fields: [lessonId], references: [id])
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  lesson  Lesson? @relation(fields: [lessonId], references: [id])
 
   @@index([tenantId, classId])
   @@index([tenantId, dueDate])
@@ -1457,22 +1506,22 @@ model Homework {
 }
 
 model HomeworkSubmission {
-  id          String   @id @default(cuid())
-  homeworkId  String
-  studentId   String
+  id         String @id @default(cuid())
+  homeworkId String
+  studentId  String
 
   content     String?
-  attachments Json?    @default("[]")
+  attachments Json?   @default("[]")
 
   submittedAt DateTime @default(now())
 
   // Valutazione docente
-  grade       Decimal? @db.Decimal(4,2)
-  feedback    String?
-  gradedAt    DateTime?
+  grade    Decimal?  @db.Decimal(4, 2)
+  feedback String?
+  gradedAt DateTime?
 
-  homework    Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  homework Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([homeworkId, studentId])
   @@map("homework_submissions")
@@ -1483,19 +1532,19 @@ model HomeworkSubmission {
 // ========================================
 
 model ParentMeeting {
-  id          String   @id @default(cuid())
-  tenantId    String
-  teacherId   String
-  parentId    String   // User ID del genitore
-  studentId   String
+  id        String @id @default(cuid())
+  tenantId  String
+  teacherId String
+  parentId  String // User ID del genitore
+  studentId String
 
   // Scheduling
-  date        DateTime
-  duration    Int      @default(15) // minuti
-  room        String?
+  date     DateTime
+  duration Int      @default(15) // minuti
+  room     String?
 
   // Stato
-  status      MeetingStatus @default(REQUESTED)
+  status MeetingStatus @default(REQUESTED)
 
   // Note
   teacherNotes String?
@@ -1504,9 +1553,9 @@ model ParentMeeting {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, teacherId])
   @@index([tenantId, date])
@@ -1518,17 +1567,17 @@ model ParentMeeting {
 // ========================================
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  tenantId  String
-  userId    String
+  id       String @id @default(cuid())
+  tenantId String
+  userId   String
 
-  action    String   // "CREATE", "UPDATE", "DELETE", "STATE_CHANGE"
-  entity    String   // "Student", "Grade", "Attendance"
-  entityId  String
+  action   String // "CREATE", "UPDATE", "DELETE", "STATE_CHANGE"
+  entity   String // "Student", "Grade", "Attendance"
+  entityId String
 
   // Dati prima/dopo (JSON)
-  oldData   Json?
-  newData   Json?
+  oldData Json?
+  newData Json?
 
   // Metadata
   ipAddress String?
@@ -1536,7 +1585,7 @@ model AuditLog {
 
   createdAt DateTime @default(now())
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, entity, entityId])
   @@index([tenantId, userId])
@@ -1549,23 +1598,23 @@ model AuditLog {
 // ========================================
 
 model Material {
-  id        String @id @default(cuid())
-  tenantId  String
-  lessonId  String
+  id       String @id @default(cuid())
+  tenantId String
+  lessonId String
 
-  name      String
-  type      MaterialType @default(FILE)
-  url       String       // File URL or external link
-  size      Int?         // File size in bytes
-  mimeType  String?      // MIME type for files
+  name     String
+  type     MaterialType @default(FILE)
+  url      String // File URL or external link
+  size     Int? // File size in bytes
+  mimeType String? // MIME type for files
 
   description String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  lesson    Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, lessonId])
   @@map("materials")
@@ -1585,23 +1634,23 @@ enum MaterialType {
 // ========================================
 
 enum ScheduleStatus {
-  DRAFT      // In preparazione
-  GENERATED  // Generato, non applicato
-  APPLIED    // Applicato (lezioni create)
-  ARCHIVED   // Storico
+  DRAFT // In preparazione
+  GENERATED // Generato, non applicato
+  APPLIED // Applicato (lezioni create)
+  ARCHIVED // Storico
 }
 
 model Schedule {
-  id        String   @id @default(cuid())
-  tenantId  String
+  id       String @id @default(cuid())
+  tenantId String
 
-  name           String    // "Orario 2024/2025 - Primo Quadrimestre"
+  name           String // "Orario 2024/2025 - Primo Quadrimestre"
   academicYearId String
 
   // Configurazione
-  startDate   DateTime
-  endDate     DateTime
-  config      Json      // Configurazione vincoli e preferenze
+  startDate DateTime
+  endDate   DateTime
+  config    Json // Configurazione vincoli e preferenze
 
   // Stato
   status      ScheduleStatus @default(DRAFT)
@@ -1609,17 +1658,17 @@ model Schedule {
   appliedAt   DateTime?
 
   // Statistiche generazione
-  score       Int?      // Punteggio ottimizzazione (0-100)
-  stats       Json?     // Statistiche dettagliate
+  score Int? // Punteggio ottimizzazione (0-100)
+  stats Json? // Statistiche dettagliate
 
   // Metadata
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String
 
   // Relations
-  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
   slots        ScheduleSlot[]
 
   @@index([tenantId, status])
@@ -1631,25 +1680,25 @@ model ScheduleSlot {
   id         String @id @default(cuid())
   scheduleId String
 
-  dayOfWeek  Int      // 1=Lunedì, 2=Martedì, ..., 5=Venerdì
-  slotNumber Int      // 1, 2, 3... (ora della giornata)
-  startTime  String   // "08:00"
-  endTime    String   // "09:00"
+  dayOfWeek  Int // 1=Lunedì, 2=Martedì, ..., 5=Venerdì
+  slotNumber Int // 1, 2, 3... (ora della giornata)
+  startTime  String // "08:00"
+  endTime    String // "09:00"
 
-  classId    String
-  subjectId  String
-  teacherId  String
-  room       String?
+  classId   String
+  subjectId String
+  teacherId String
+  room      String?
 
   // Metadata ottimizzazione
-  score      Int?     // Punteggio singolo slot
-  warnings   Json?    // Eventuali warning/soft constraint violati
+  score    Int? // Punteggio singolo slot
+  warnings Json? // Eventuali warning/soft constraint violati
 
   // Relations
-  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  subject    Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  teacher    Teacher  @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  class    Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject  Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher  Teacher  @relation(fields: [teacherId], references: [id], onDelete: Restrict)
 
   @@unique([scheduleId, dayOfWeek, slotNumber, classId])
   @@index([scheduleId])
@@ -1662,13 +1711,13 @@ model TimeSlotConfig {
   id       String @id @default(cuid())
   tenantId String
 
-  slotNumber Int     // 1, 2, 3...
+  slotNumber Int // 1, 2, 3...
   name       String? // "Prima ora", "Seconda ora", "Intervallo"
-  startTime  String  // "08:00"
-  endTime    String  // "09:00"
+  startTime  String // "08:00"
+  endTime    String // "09:00"
   isBreak    Boolean @default(false) // Pausa/ricreazione
 
-  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, slotNumber])
   @@map("time_slot_configs")
@@ -1686,13 +1735,13 @@ model TimeSlotConfig {
 /// month/day" — useful for fixed national holidays. The year component
 /// is then ignored at lookup time.
 model Holiday {
-  id             String   @id @default(cuid())
+  id             String  @id @default(cuid())
   tenantId       String
   academicYearId String?
 
-  date      DateTime  @db.Date
+  date      DateTime @db.Date
   name      String
-  recurring Boolean   @default(false)
+  recurring Boolean  @default(false)
   notes     String?
 
   createdAt DateTime @default(now())
@@ -1724,14 +1773,576 @@ enum AutomationRunStatus {
 model AutomationRun {
   id         String              @id @default(cuid())
   tenantId   String?
-  jobName    String              // e.g. 'daily-automation', 'mark-payments-overdue'
+  jobName    String // e.g. 'daily-automation', 'mark-payments-overdue'
   startedAt  DateTime            @default(now())
   finishedAt DateTime?
   status     AutomationRunStatus @default(RUNNING)
-  error      String?             // truncated error message if FAILED
-  resultJson Json?               // job-specific summary (counts, ids, etc.)
+  error      String? // truncated error message if FAILED
+  resultJson Json? // job-specific summary (counts, ids, etc.)
 
   @@index([jobName, startedAt])
   @@index([status])
   @@map("automation_runs")
+}
+
+// ========================================
+// FATTURAZIONE ELETTRONICA ITALIANA (SDI) — WAVE 3
+// ========================================
+//
+// Modelli conformi alla specifica AdE 1.7 di FatturaPA. Le scelte di design:
+//
+// 1. Numerazione: ogni tenant ha N InvoiceSeries (sezionali). La numerazione
+//    è strettamente sequenziale per anno+sezionale (vincolo di legge — un
+//    "buco" nella sequenza è una violazione che AdE può sanzionare).
+//    L'assegnazione del numero avviene SOLO al passaggio DRAFT → ISSUED,
+//    dentro una transazione con pg_advisory_lock per evitare race conditions
+//    (vedi lib/billing/invoice-numbering.ts in Wave 3.2).
+//
+// 2. Anagrafica fiscale separata da Student/User: una fattura può essere
+//    intestata a uno studente, a un genitore, a un'azienda, e i dati fiscali
+//    (CF/PIVA/PEC/codiceDestinatario/regimeFiscale) non appartengono al
+//    profilo personale. Il modello InvoiceCustomerProfile è lo strumento
+//    canonico — può essere creato standalone o linkato a Student/User.
+//
+// 3. Provider SDI astratti: la trasmissione vera al SDI è delegata a
+//    provider terzi (ACube, Aruba, FatturaInCloud). InvoiceSettings.provider
+//    determina l'implementazione concreta. SdiEvent registra ogni notifica
+//    ricevuta dal provider (NS/RC/MC/NE/MT/EC) per audit + debug.
+//
+// 4. Immutabilità: Invoice in stato ISSUED+ non può essere modificata,
+//    solo annullata via Nota di Credito (TD04 collegata via relatedInvoiceId).
+//    Enforce a livello applicativo.
+
+enum InvoiceDocumentType {
+  TD01 // Fattura
+  TD02 // Acconto/anticipo su fattura
+  TD03 // Acconto/anticipo su parcella
+  TD04 // Nota di credito
+  TD05 // Nota di debito
+  TD06 // Parcella
+  TD16 // Integrazione fattura reverse charge interno
+  TD17 // Integrazione/autofattura per acquisto servizi dall'estero
+  TD18 // Integrazione per acquisto beni intracomunitari
+  TD19 // Integrazione/autofattura per acquisto beni ex art.17 c.2 DPR 633/72
+  TD20 // Autofattura per regolarizzazione e integrazione delle fatture
+  TD21 // Autofattura per splafonamento
+  TD22 // Estrazione beni da Deposito IVA
+  TD23 // Estrazione beni da Deposito IVA con versamento dell'IVA
+  TD24 // Fattura differita di cui all'art.21 c.4 lett. a)
+  TD25 // Fattura differita di cui all'art.21 c.4 terzo periodo lett. b)
+  TD26 // Cessione di beni ammortizzabili e per passaggi interni
+  TD27 // Fattura per autoconsumo o per cessioni gratuite senza rivalsa
+  TD28 // Acquisti da San Marino con IVA (fattura cartacea)
+}
+
+enum InvoiceStatus {
+  DRAFT // bozza, modificabile/cancellabile
+  ISSUED // emessa con numero assegnato, immutabile
+  SENT // XML inviato al provider SDI, in attesa esito
+  ACCEPTED // SDI ha accettato (RC = ricevuta consegna)
+  REJECTED // SDI ha scartato (NS = notifica scarto)
+  PAID // marcata come pagata (può convivere con ACCEPTED)
+  CANCELLED // annullata via NC oppure mai trasmessa
+}
+
+enum SdiEventType {
+  NS // Notifica di Scarto
+  RC // Ricevuta di Consegna
+  MC // notifica di Mancata Consegna
+  NE // Notifica Esito (committente)
+  MT // notifica di Metadati del file fattura
+  EC // Notifica Esito Cessionario
+  DT // Notifica Decorrenza Termini
+  AT // notifica di AT (Avvenuta Trasmissione)
+}
+
+enum SdiTransmissionStatus {
+  PENDING // mai inviata
+  TRANSMITTED // inviata al provider, attendiamo ack
+  ACCEPTED // SDI ha consegnato (RC ricevuto)
+  REJECTED // SDI ha scartato (NS ricevuto)
+  NOT_DELIVERED // mancata consegna (MC ricevuto)
+  EXPIRED // decorsi termini
+}
+
+/// Sezionali di numerazione fattura. Ogni tenant ha almeno un sezionale di
+/// default ("VEN" per vendite). NC, parcelle, autofatture possono avere
+/// sezionali separati per chiarezza contabile.
+model InvoiceSeries {
+  id          String  @id @default(cuid())
+  tenantId    String
+  code        String // es. "VEN", "NC", "PARC"
+  prefix      String? // es. "F" → numerazione "F/2026/0001"
+  description String?
+  isDefault   Boolean @default(false)
+
+  // Stato corrente: ultimo numero emesso per ogni anno.
+  // Conservato come Json {year:lastNumber} per evitare una tabella
+  // separata di counter per (series, year).
+  yearCounters Json @default("{}")
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+
+  @@unique([tenantId, code])
+  @@map("invoice_series")
+}
+
+/// Anagrafica fiscale del cessionario/committente (cliente).
+/// Separata da Student/User perché i dati fiscali (CF, P.IVA, regime,
+/// codiceDestinatario, PEC, indirizzo) cambiano indipendentemente dal
+/// profilo personale e devono restare immutabili sulle fatture emesse.
+model InvoiceCustomerProfile {
+  id        String  @id @default(cuid())
+  tenantId  String
+  studentId String?
+  userId    String?
+
+  // Identificazione fiscale (almeno uno tra CF e PIVA è obbligatorio per FE).
+  denominazione String? // ragione sociale per soggetti giuridici
+  nome          String? // per persone fisiche
+  cognome       String?
+  codiceFiscale String?
+  partitaIva    String? // formato: IT01234567890
+
+  // Trasmissione SDI: codiceDestinatario (7 char) o "0000000" + PEC.
+  pec                String?
+  codiceDestinatario String  @default("0000000") // "0000000" = recapito via PEC
+
+  // Regime fiscale del cessionario (raramente serve, ma usiamo l'enum AdE).
+  regimeFiscale String? // RF01..RF19
+
+  // Indirizzo (FatturaPA campi obbligatori).
+  indirizzo String
+  cap       String // 5 cifre per IT, 0 cifre per estero
+  comune    String
+  provincia String? // 2 lettere (IT)
+  nazione   String  @default("IT")
+
+  // Recapiti soft (non SDI).
+  email    String?
+  telefono String?
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student  Student?  @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  invoices Invoice[]
+
+  @@index([tenantId, codiceFiscale])
+  @@index([tenantId, partitaIva])
+  @@map("invoice_customer_profiles")
+}
+
+/// Dati cedente prestatore (la scuola). 1:1 con Tenant.
+/// Necessari per popolare la sezione CedentePrestatore dell'XML FatturaPA.
+model InvoiceSettings {
+  id       String @id @default(cuid())
+  tenantId String @unique
+
+  // Identità fiscale della scuola.
+  denominazione     String
+  partitaIva        String
+  codiceFiscale     String
+  regimeFiscale     String   @default("RF01") // ordinario di default
+  iscrizioneREA     String?
+  capitaleSociale   Decimal? @db.Decimal(15, 2)
+  socioUnico        String? // SU/SM
+  statoLiquidazione String?  @default("LN") // LN/LS
+
+  // Sede legale (CedentePrestatore.Sede).
+  indirizzo String
+  cap       String
+  comune    String
+  provincia String?
+  nazione   String  @default("IT")
+
+  // Telefono/Email IVA — opzionali.
+  telefono String?
+  email    String?
+
+  // Provider SDI attivo (acube | aruba | fatture-in-cloud | file-system).
+  // file-system = dev mode (XML salvato su disk per ispezione).
+  sdiProvider String @default("file-system")
+
+  // Credenziali provider (cifrate a livello app prima del salvataggio).
+  // Json schema dipende dal provider — ogni adapter sa cosa cercare.
+  sdiCredentials Json?
+
+  // Conservazione sostitutiva (servizio aggiuntivo del provider).
+  conservazioneEnabled Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_settings")
+}
+
+model Invoice {
+  id       String @id @default(cuid())
+  tenantId String
+  seriesId String
+
+  // Numerazione progressiva. Assegnata atomicamente al passaggio
+  // DRAFT → ISSUED via lib/billing/invoice-numbering.ts (advisory lock).
+  // number=0 + null implica DRAFT non ancora emessa.
+  number       Int                 @default(0)
+  year         Int
+  documentType InvoiceDocumentType @default(TD01)
+
+  // Date.
+  issueDate    DateTime  @default(now())
+  // Data documento differita (per TD24/TD25).
+  documentDate DateTime?
+
+  customerProfileId String
+
+  // Totali (snapshot al momento dell'emissione — non ricalcolati al volo).
+  subtotal         Decimal @db.Decimal(15, 2)
+  vatTotal         Decimal @db.Decimal(15, 2)
+  withholdingTotal Decimal @default(0) @db.Decimal(15, 2)
+  total            Decimal @db.Decimal(15, 2)
+  currency         String  @default("EUR")
+
+  // Pagamento.
+  paymentMethod String? // MP01..MP23 SDI codes
+  paymentTerms  Json? // array di scadenze: [{dueDate, amount, ibanCedente}]
+
+  // Stato applicativo + stato SDI tracciato separatamente.
+  status            InvoiceStatus         @default(DRAFT)
+  sdiStatus         SdiTransmissionStatus @default(PENDING)
+  sdiIdentifier     String? // id univoco assegnato dal provider SDI
+  sdiTransmittedAt  DateTime?
+  sdiAcceptedAt     DateTime?
+  sdiRejectedReason String?
+
+  // Artefatti generati.
+  xmlContent String? @db.Text // XML FatturaPA (firmato se via provider)
+  pdfUrl     String?
+
+  // Per Note di Credito (TD04): collegamento alla fattura originale.
+  relatedInvoiceId String?
+  relatedInvoice   Invoice?  @relation("CreditNoteRel", fields: [relatedInvoiceId], references: [id], onDelete: SetNull)
+  creditNotes      Invoice[] @relation("CreditNoteRel")
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String // userId
+
+  tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  series          InvoiceSeries          @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  customerProfile InvoiceCustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Restrict)
+
+  lines               InvoiceLine[]
+  sdiEvents           SdiEvent[]
+  payments            Payment[]
+  payrolls            Payroll[]
+  accountingMovements AccountingMovement[]
+
+  @@unique([tenantId, seriesId, year, number])
+  @@index([tenantId, year, status])
+  @@index([tenantId, sdiStatus])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id         String @id @default(cuid())
+  invoiceId  String
+  lineNumber Int // 1-based ordering
+
+  description     String
+  quantity        Decimal  @default(1) @db.Decimal(10, 2)
+  unitPrice       Decimal  @db.Decimal(15, 4) // 4 decimali per prezzi unitari
+  vatRate         Decimal  @db.Decimal(5, 2) // es. 22.00, 10.00, 4.00, 0.00
+  // Quando vatRate=0, è obbligatorio fornire la natura per FE.
+  vatNature       String? // N1..N7 (es. N4 = esente IVA)
+  discountPercent Decimal? @db.Decimal(5, 2)
+  total           Decimal  @db.Decimal(15, 2) // (qty × unitPrice) - sconto, esclusa IVA
+
+  // Riferimenti opzionali al sistema (per audit + reconciliation).
+  paymentId String?
+  studentId String?
+  courseId  String?
+
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  course  Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  @@unique([invoiceId, lineNumber])
+  @@map("invoice_lines")
+}
+
+/// Audit trail per ogni notifica SDI ricevuta (via webhook provider).
+/// Indispensabile per debug "perché questa fattura è stata scartata?" —
+/// il payloadXml contiene la risposta integrale del SDI.
+model SdiEvent {
+  id           String       @id @default(cuid())
+  invoiceId    String
+  eventType    SdiEventType
+  receivedAt   DateTime     @default(now())
+  payloadXml   String?      @db.Text
+  errorCode    String?
+  errorMessage String?
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, receivedAt])
+  @@map("sdi_events")
+}
+
+// ========================================
+// PAYROLL / CEDOLINI DOCENTI — WAVE 3
+// ========================================
+//
+// Sistema di costing del personale docente, NON sostitutivo di un gestionale
+// paghe certificato. Genera un cedolino indicativo basato su:
+//   - ore effettive di insegnamento (Lesson status=COMPLETED)
+//   - hourlyRate snapshot al momento del calcolo
+//   - voci aggiuntive manuali (premi, rimborsi)
+//   - ritenute configurate per teacher (ritenuta acconto, contributi)
+//
+// Disclaimer obbligatorio nell'UI: "Strumento di costing, non sostitutivo
+// di consulente del lavoro / busta paga ufficiale".
+//
+// Lock periodi: il PayrollPeriod può essere LOCKED per impedire che modifiche
+// retroattive a Lesson.status alterino cedolini già consolidati.
+
+enum PayrollPeriodStatus {
+  OPEN // generabile/modificabile
+  LOCKED // chiuso, le ore non vengono più ricontate
+  PAID // tutti i Payroll del periodo sono PAID
+}
+
+enum PayrollStatus {
+  DRAFT // generato dal sistema, modificabile
+  APPROVED // approvato da ADMIN/DIRECTOR
+  PAID // pagato (genera AccountingMovement COST)
+}
+
+enum PayrollLineType {
+  HOURS // riga timesheet (ore × hourlyRate)
+  BONUS // premio/incentivo
+  EXPENSE_REIMBURSEMENT // rimborso spese
+  ADJUSTMENT // correzione manuale
+  OTHER
+}
+
+enum PayrollWithholdingType {
+  RITENUTA_ACCONTO // 20% standard professionisti
+  INPS // contributo INPS
+  INAIL
+  OTHER
+}
+
+enum TaxRegime {
+  FORFETTARIO
+  ORDINARIO
+  DIPENDENTE
+  COCOCO // collaborazione coordinata e continuativa
+  OTHER
+}
+
+model PayrollPeriod {
+  id       String @id @default(cuid())
+  tenantId String
+  year     Int
+  month    Int // 1-12
+
+  status   PayrollPeriodStatus @default(OPEN)
+  lockedAt DateTime?
+  lockedBy String? // userId
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payrolls Payroll[]
+
+  @@unique([tenantId, year, month])
+  @@index([tenantId, status])
+  @@map("payroll_periods")
+}
+
+model Payroll {
+  id        String @id @default(cuid())
+  tenantId  String
+  periodId  String
+  teacherId String
+
+  // Snapshot rate al momento della generazione (hourlyRate del Teacher può
+  // cambiare dopo, ma il cedolino già emesso non deve cambiare).
+  hourlyRateSnapshot Decimal @db.Decimal(10, 2)
+
+  // Aggregati monetari.
+  hoursWorked       Decimal @default(0) @db.Decimal(10, 2)
+  grossBase         Decimal @default(0) @db.Decimal(15, 2) // hoursWorked × hourlyRateSnapshot
+  extrasTotal       Decimal @default(0) @db.Decimal(15, 2) // somma BONUS/EXPENSE/...
+  withholdingsTotal Decimal @default(0) @db.Decimal(15, 2)
+  netAmount         Decimal @default(0) @db.Decimal(15, 2)
+  currency          String  @default("EUR")
+
+  status           PayrollStatus @default(DRAFT)
+  approvedBy       String?
+  approvedAt       DateTime?
+  paidAt           DateTime?
+  paymentReference String? // bonifico, IBAN, ecc.
+
+  payslipPdfUrl String?
+
+  // Se il teacher è P.IVA può essere emessa autofattura TD17 collegata.
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  period       PayrollPeriod        @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  teacher      Teacher              @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  lineItems    PayrollLineItem[]
+  withholdings PayrollWithholding[]
+
+  accountingMovements AccountingMovement[]
+
+  @@unique([periodId, teacherId])
+  @@index([tenantId, status])
+  @@index([teacherId, periodId])
+  @@map("payrolls")
+}
+
+model PayrollLineItem {
+  id          String          @id @default(cuid())
+  payrollId   String
+  type        PayrollLineType
+  description String
+
+  quantity   Decimal? @db.Decimal(10, 2)
+  unitAmount Decimal  @db.Decimal(15, 4)
+  total      Decimal  @db.Decimal(15, 2)
+
+  // Per type=HOURS: link opzionale alla Lesson che ha generato la riga
+  // (utile per breakdown nel cedolino PDF).
+  lessonId String?
+
+  payroll Payroll @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  lesson  Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+
+  @@index([payrollId])
+  @@map("payroll_line_items")
+}
+
+model PayrollWithholding {
+  id        String                 @id @default(cuid())
+  payrollId String
+  type      PayrollWithholdingType
+  label     String // es. "Ritenuta d'acconto 20%"
+  rate      Decimal                @db.Decimal(5, 2)
+  base      Decimal                @db.Decimal(15, 2) // imponibile
+  amount    Decimal                @db.Decimal(15, 2) // base × rate / 100
+
+  payroll Payroll @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  @@index([payrollId])
+  @@map("payroll_withholdings")
+}
+
+/// Default per ritenute / IBAN / regime fiscale di un singolo teacher.
+/// Quando si genera un Payroll, queste impostazioni sono copiate nel
+/// Payroll/PayrollWithholding (snapshot).
+model TeacherPayrollSettings {
+  id        String    @id @default(cuid())
+  teacherId String    @unique
+  taxRegime TaxRegime @default(ORDINARIO)
+  iban      String?
+
+  // Json shape: [{ type: "RITENUTA_ACCONTO", rate: 20.00, label: "Ritenuta d'acconto" }, ...]
+  defaultWithholdings Json @default("[]")
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@map("teacher_payroll_settings")
+}
+
+// ========================================
+// ACCOUNTING MOVEMENT — astrazione P&L (Wave 3)
+// ========================================
+//
+// Tabella event-sourcing-like: ogni transazione contabile (ricavo o costo)
+// genera una riga, indipendentemente dalla fonte (Payment incassato,
+// Payroll pagato, Subscription Stripe, costo manuale).
+//
+// È la fonte unica per:
+//   - Dashboard P&L per periodo
+//   - Cost-allocation per studente/classe/corso
+//   - Snapshots cumulativi in AnalyticsSnapshot
+
+enum AccountingMovementType {
+  REVENUE // ricavo (positivo per il P&L)
+  COST // costo (negativo per il P&L)
+}
+
+enum AccountingMovementSource {
+  INVOICE // generata da Invoice.status → PAID
+  PAYMENT // generata da Payment.status → PAID (anche senza Invoice)
+  PAYROLL // generata da Payroll.status → PAID (categoria HR)
+  SUBSCRIPTION // ricavo SaaS dal proprio Subscription Stripe (per superadmin)
+  MANUAL // inserita a mano (es. spesa generica)
+}
+
+model AccountingMovement {
+  id       String @id @default(cuid())
+  tenantId String
+
+  date     DateTime                 @db.Date
+  type     AccountingMovementType
+  source   AccountingMovementSource
+  category String? // libera (es. "rette", "stipendi", "marketing"); usata nei pivot del P&L
+
+  amount   Decimal @db.Decimal(15, 2) // sempre positivo; il segno è in `type`
+  currency String  @default("EUR")
+
+  description String?
+
+  // Riferimenti opzionali per drill-down.
+  invoiceId String?
+  paymentId String? // Payment.id se MANUAL/PAYMENT (no FK perché Payment può essere cancellato)
+  payrollId String?
+
+  // Allocation hints — popolati dal cost-allocator (Wave 3.7).
+  classId   String?
+  courseId  String?
+  studentId String?
+
+  createdAt DateTime @default(now())
+  createdBy String? // userId per movimenti MANUAL
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  payroll Payroll? @relation(fields: [payrollId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, date, type])
+  @@index([tenantId, source])
+  @@index([tenantId, classId])
+  @@map("accounting_movements")
 }
