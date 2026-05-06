@@ -111,11 +111,53 @@ const authOptions = {
         token.tenantName = user.tenantName;
         token.permissions = user.permissions;
         token.avatar = user.avatar;
+        token.refreshedAt = Date.now();
       }
 
-      // Handle session update
-      if (trigger === "update" && session) {
-        token = { ...token, ...session };
+      // Session update — triggered client-side via useSession().update().
+      // We ALWAYS re-fetch role/status/tenant from the DB so a role change
+      // by an admin or a User.status flip to INACTIVE takes effect on the
+      // next request, not after JWT expiry (30 days). The JWT cache stays
+      // (no DB hit per request) but invalidation is now under our control.
+      if (trigger === "update" && token?.id) {
+        const fresh = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: {
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            status: true,
+            tenants: {
+              where: token.tenantId ? { tenantId: token.tenantId as string } : undefined,
+              select: { role: true, tenantId: true, permissions: true, tenant: { select: { name: true, isActive: true } } },
+              take: 1,
+            },
+          },
+        });
+        if (fresh && fresh.status === 'ACTIVE') {
+          const ut = fresh.tenants[0];
+          token.firstName = fresh.firstName;
+          token.lastName = fresh.lastName;
+          token.avatar = fresh.avatar;
+          if (ut) {
+            token.role = ut.role;
+            token.tenantId = ut.tenantId;
+            token.tenantName = ut.tenant?.name ?? token.tenantName;
+            token.permissions = ut.permissions;
+          }
+          token.refreshedAt = Date.now();
+        } else if (fresh && fresh.status !== 'ACTIVE') {
+          // User was suspended / deactivated — drop role so route guards
+          // refuse subsequent requests. NextAuth doesn't expose direct
+          // session invalidation, but a role of 'INACTIVE_USER' won't
+          // satisfy any can() check.
+          token.role = 'INACTIVE_USER';
+        }
+
+        // Allow caller to additionally override specific keys via session arg.
+        if (session) {
+          token = { ...token, ...session };
+        }
       }
 
       return token;

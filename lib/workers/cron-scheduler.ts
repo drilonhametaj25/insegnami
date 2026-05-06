@@ -13,7 +13,8 @@ import { AutomationService } from '@/lib/automation-service';
 export type CronJobName =
   | 'daily-automation'
   | 'mark-payments-overdue'
-  | 'parent-attendance-digest';
+  | 'parent-attendance-digest'
+  | 'deactivate-expired-tenants';
 
 let _cronQueue: Queue | null = null;
 
@@ -128,6 +129,10 @@ async function cronProcessor(job: Job): Promise<unknown> {
       return withAuditRun(name, () => markPaymentsOverdue());
     case 'parent-attendance-digest':
       return withAuditRun(name, () => parentAttendanceDigest());
+    case 'deactivate-expired-tenants': {
+      const { deactivateExpiredTenants } = await import('@/lib/tenant-access');
+      return withAuditRun(name, () => deactivateExpiredTenants());
+    }
     default:
       logger.warn(`Unknown cron job: ${name}`);
       return null;
@@ -164,9 +169,10 @@ export async function registerCronJobs(): Promise<void> {
 
   const tz = 'Europe/Rome';
   const schedules: Array<{ name: CronJobName; cron: string }> = [
-    { name: 'mark-payments-overdue', cron: '0 6 * * *' },   // daily 06:00
-    { name: 'daily-automation',       cron: '0 2 * * *' },   // daily 02:00 (lessons + payment reminders)
-    { name: 'parent-attendance-digest', cron: '0 9 * * *' }, // daily 09:00
+    { name: 'mark-payments-overdue', cron: '0 6 * * *' },     // daily 06:00
+    { name: 'daily-automation',       cron: '0 2 * * *' },     // daily 02:00 (lessons + payment reminders)
+    { name: 'parent-attendance-digest', cron: '0 9 * * *' },   // daily 09:00
+    { name: 'deactivate-expired-tenants', cron: '15 3 * * *' },// daily 03:15 (after most subs renew)
   ];
 
   for (const s of schedules) {

@@ -20,7 +20,7 @@ export async function POST(
 
     const tenantId = user.tenantId;
     const { id: classId } = await params;
-    const { studentIds } = await request.json();
+    const { studentIds, sendNotification = false } = await request.json();
 
     if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
       return NextResponse.json(
@@ -134,6 +134,45 @@ export async function POST(
     }
 
     const totalEnrolled = newStudentIds.length + inactiveEnrollments.length;
+    const allEnrolledIds = [...newStudentIds, ...inactiveEnrollments.map(e => e.studentId)];
+
+    // Notify each student (in-app + parent if enabled). Best-effort — a
+    // failed notification doesn't roll back the enrollment, only logs.
+    let notificationsSent = 0;
+    if (sendNotification && allEnrolledIds.length > 0) {
+      const enrolledStudents = await prisma.student.findMany({
+        where: { id: { in: allEnrolledIds } },
+        select: { id: true, userId: true, parentUserId: true, firstName: true, lastName: true } as any,
+      });
+      const recipients: Array<{ userId: string; tenantId: string }> = [];
+      for (const s of enrolledStudents as any[]) {
+        if (s.userId) recipients.push({ userId: s.userId, tenantId });
+        if (s.parentUserId) recipients.push({ userId: s.parentUserId, tenantId });
+      }
+      if (recipients.length > 0) {
+        try {
+          await prisma.notification.createMany({
+            data: recipients.map((r) => ({
+              tenantId: r.tenantId,
+              userId: r.userId,
+              title: 'Iscrizione a nuova classe',
+              content: `Sei stato iscritto alla classe "${classRecord.name}".`,
+              type: 'CLASS' as const,
+              priority: 'NORMAL' as const,
+              actionUrl: `/dashboard/classes/${classId}`,
+              actionLabel: 'Vai alla classe',
+              sourceType: 'CLASS_ENROLLMENT',
+              sourceId: classId,
+              emailSent: false,
+              pushSent: false,
+            })),
+          });
+          notificationsSent = recipients.length;
+        } catch (notifErr) {
+          logger.warn('enrollment notifications failed', notifErr);
+        }
+      }
+    }
 
     logger.info('Students enrolled in class', {
       tenantId,
@@ -141,7 +180,8 @@ export async function POST(
       enrolledStudents: totalEnrolled,
       newEnrollments: newStudentIds.length,
       reactivatedEnrollments: inactiveEnrollments.length,
-      performedBy: user.id
+      notificationsSent,
+      performedBy: user.id,
     });
 
     return NextResponse.json({
@@ -149,7 +189,8 @@ export async function POST(
       message: `${totalEnrolled} studenti iscritti alla classe`,
       enrolledStudents: totalEnrolled,
       newEnrollments: newStudentIds.length,
-      reactivatedEnrollments: inactiveEnrollments.length
+      reactivatedEnrollments: inactiveEnrollments.length,
+      notificationsSent,
     });
 
   } catch (error) {

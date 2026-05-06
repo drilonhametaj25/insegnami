@@ -51,6 +51,9 @@ backups/
 # Uploads
 uploads/
 public/uploads/
+# But DO version-control upload-related TypeScript helpers under lib/uploads/
+!lib/uploads/
+!lib/uploads/**
 
 # Generated files
 prisma/migrations/*.sql

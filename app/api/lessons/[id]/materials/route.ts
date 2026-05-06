@@ -223,16 +223,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Materiale non trovato' }, { status: 404 });
     }
 
-    // Delete file from disk if it's a local file
-    if (material.url.startsWith('/uploads/')) {
-      const filePath = join(process.cwd(), 'public', material.url);
-      if (existsSync(filePath)) {
-        try {
-          await unlink(filePath);
-        } catch (fileError) {
-          console.error('Error deleting file:', fileError);
-          // Continue with database deletion even if file deletion fails
-        }
+    // SECURITY: validate the URL before touching the filesystem.
+    // resolveSafeUploadPath rejects path-traversal payloads (e.g.
+    // "/uploads/../../../.env") that would otherwise let an admin unlink
+    // arbitrary files via Material.url.
+    const { resolveSafeUploadPath } = await import('@/lib/uploads/safe-path');
+    const filePath = resolveSafeUploadPath(material.url);
+    if (filePath && existsSync(filePath)) {
+      try {
+        await unlink(filePath);
+      } catch (fileError) {
+        console.error('Error deleting file:', fileError);
+        // Continue with database deletion even if file deletion fails
       }
     }
 

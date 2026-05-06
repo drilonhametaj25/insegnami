@@ -106,17 +106,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Per ora solo admin può creare notifiche per altri utenti
+    // SECURITY: admin check MUST be tenant-scoped. Without filtering on
+    // the current request's tenantId, an ADMIN of tenant A would qualify
+    // as admin when writing notifications targeted at tenant B users.
+    // session.user.tenantId reflects the active tenant of the request.
+    const callerTenant = session.user.tenantId;
     const userTenant = await prisma.userTenant.findFirst({
-      where: { 
+      where: {
         userId: session.user.id,
-        role: { in: ['ADMIN', 'SUPERADMIN'] }
-      }
+        tenantId: callerTenant,
+        role: { in: ['ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER', 'SUPERADMIN'] },
+      },
     });
 
     const targetUserId = userId || session.user.id;
-    
-    // Se non è admin, può creare notifiche solo per se stesso
+
     if (!userTenant && targetUserId !== session.user.id) {
       return NextResponse.json(
         { error: 'Non autorizzato a creare notifiche per altri utenti' },
@@ -124,14 +128,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get tenant info
+    // SECURITY: target user lookup MUST be scoped to the caller's tenant.
+    // SUPERADMIN may write cross-tenant; everyone else is locked to their
+    // own tenant. Without this filter, a tenant A admin who guesses a
+    // tenant B userId would produce a notification visible to that user.
     const targetUserTenant = await prisma.userTenant.findFirst({
-      where: { userId: targetUserId }
+      where: {
+        userId: targetUserId,
+        ...(session.user.role === 'SUPERADMIN' ? {} : { tenantId: callerTenant }),
+      },
     });
 
     if (!targetUserTenant) {
       return NextResponse.json(
-        { error: 'Utente non trovato' },
+        { error: 'Utente non trovato in questo tenant' },
         { status: 404 }
       );
     }

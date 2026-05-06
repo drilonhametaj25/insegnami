@@ -13,7 +13,12 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    // `?all=true` returns up to 1000 classes (used by dropdowns / pickers
+    // that need the full list, e.g. /dashboard/grades). Capped to prevent
+    // accidental DOS via wide selects.
+    const limit = searchParams.get('all') === 'true'
+      ? 1000
+      : parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
     const courseId = searchParams.get('courseId') || '';
     const teacherId = searchParams.get('teacherId') || '';
