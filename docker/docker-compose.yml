@@ -51,6 +51,33 @@ services:
     networks:
       - insegnami_network
 
+  # BullMQ worker process — consumes email/automation/cron queues.
+  # Built from the same image as the Next.js app (npm run worker).
+  # Enable in production by running: docker-compose up -d worker
+  # The Next.js app process must NOT instantiate workers in production.
+  worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: insegnami-worker
+    command: ["npm", "run", "worker"]
+    env_file:
+      - ../.env
+    environment:
+      # Override hostnames so the worker reaches services by container name.
+      DATABASE_URL: postgresql://insegnami_user:insegnami_password@postgres:5432/insegnami_db
+      REDIS_URL: redis://redis:6379
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - insegnami_network
+
 volumes:
   postgres_data:
   redis_data:

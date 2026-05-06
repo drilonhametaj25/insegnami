@@ -1,37 +1,17 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { getServiceHealth } from '@/lib/queue/health';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * GET /api/health — uptime probe.
+ * Public (no auth) so external monitors can hit it. Checks DB + Redis,
+ * returns 200 when both healthy, 503 when degraded.
+ */
 export async function GET() {
-  try {
-    // Check database connection
-    await prisma.$queryRaw`SELECT 1`;
-
-    return NextResponse.json(
-      {
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        services: {
-          database: 'ok',
-          app: 'ok',
-        },
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error('Health check failed:', error);
-    return NextResponse.json(
-      {
-        status: 'unhealthy',
-        timestamp: new Date().toISOString(),
-        services: {
-          database: 'error',
-          app: 'ok',
-        },
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 503 }
-    );
-  }
+  const health = await getServiceHealth();
+  return NextResponse.json(health, {
+    status: health.status === 'ok' ? 200 : 503,
+    headers: { 'Cache-Control': 'no-store' },
+  });
 }

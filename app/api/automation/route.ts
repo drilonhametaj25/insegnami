@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, authOptions, isAdminRole } from '@/lib/auth';
 import { AutomationService } from '@/lib/automation-service';
 import { logger } from '@/lib/logger';
+import { prisma } from '@/lib/db';
+import { automationQueue } from '@/lib/automation-service';
+import { triggerCronJob, type CronJobName } from '@/lib/workers/cron-scheduler';
 
 export async function POST(request: NextRequest) {
   try {
@@ -105,9 +108,25 @@ export async function POST(request: NextRequest) {
           lesson: newLesson
         });
 
+      case 'trigger-cron': {
+        // SUPERADMIN-only: enqueue an immediate run of a recurring cron job.
+        // Useful for ops dashboards and post-incident catch-up.
+        if (session.user.role !== 'SUPERADMIN') {
+          return NextResponse.json({ error: 'Solo SUPERADMIN' }, { status: 403 });
+        }
+        if (!data?.jobName) {
+          return NextResponse.json({ error: 'jobName richiesto' }, { status: 400 });
+        }
+        await triggerCronJob(data.jobName as CronJobName);
+        return NextResponse.json({
+          success: true,
+          message: `Cron ${data.jobName} accodato per esecuzione immediata`,
+        });
+      }
+
       default:
-        return NextResponse.json({ 
-          error: 'Azione non riconosciuta' 
+        return NextResponse.json({
+          error: 'Azione non riconosciuta'
         }, { status: 400 });
     }
   } catch (error) {
@@ -131,18 +150,45 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 
-    // Return automation status and configuration
-    const status = {
+    // Look up the most recent successful daily-automation run.
+    const lastDailyRun = await prisma.automationRun.findFirst({
+      where: { jobName: 'daily-automation', status: 'SUCCESS' },
+      orderBy: { startedAt: 'desc' },
+      select: { startedAt: true, finishedAt: true, resultJson: true },
+    });
+
+    const recentRuns = await prisma.automationRun.findMany({
+      orderBy: { startedAt: 'desc' },
+      take: 20,
+      select: { id: true, jobName: true, startedAt: true, finishedAt: true, status: true, error: true },
+    });
+
+    // Live counts from BullMQ — best-effort. If Redis is down we return zeros
+    // rather than failing the dashboard.
+    let activeJobs = { waiting: 0, active: 0, delayed: 0, failed: 0 };
+    try {
+      const q = automationQueue.get();
+      if (q) {
+        const counts = await q.getJobCounts('waiting', 'active', 'delayed', 'failed');
+        activeJobs = {
+          waiting: counts.waiting ?? 0,
+          active: counts.active ?? 0,
+          delayed: counts.delayed ?? 0,
+          failed: counts.failed ?? 0,
+        };
+      }
+    } catch (err) {
+      logger.warn('Could not fetch automation queue counts', err);
+    }
+
+    return NextResponse.json({
       automationEnabled: true,
-      lastDailyRun: null, // TODO: track this in database
-      activeJobs: {
-        attendanceReminders: 0, // TODO: get from queue
-        paymentReminders: 0,
-        recurringLessons: 0,
-      },
+      lastDailyRun,
+      recentRuns,
+      activeJobs,
       configuration: {
         attendanceReminderTimes: {
-          beforeClass: 30, // minutes
+          beforeClass: 30,
           afterClass: 15,
         },
         paymentReminderDays: {
@@ -151,9 +197,7 @@ export async function GET(request: NextRequest) {
           finalNotice: 30,
         },
       },
-    };
-
-    return NextResponse.json(status);
+    });
   } catch (error) {
     logger.error('Automation status API error:', error);
     return NextResponse.json({ 

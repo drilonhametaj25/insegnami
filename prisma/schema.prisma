@@ -1667,3 +1667,33 @@ model TimeSlotConfig {
   @@unique([tenantId, slotNumber])
   @@map("time_slot_configs")
 }
+
+// ========================================
+// AUTOMATION RUN AUDIT
+// ========================================
+
+enum AutomationRunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+/// Audit trail for cron / scheduled jobs. One row per execution.
+/// Used by GET /api/automation to expose lastDailyRun + history, and by the
+/// cron worker (lib/workers/cron-scheduler.ts) for failure diagnostics.
+/// Tenant is nullable because system-wide jobs (e.g. mark-payments-overdue)
+/// span all tenants.
+model AutomationRun {
+  id         String              @id @default(cuid())
+  tenantId   String?
+  jobName    String              // e.g. 'daily-automation', 'mark-payments-overdue'
+  startedAt  DateTime            @default(now())
+  finishedAt DateTime?
+  status     AutomationRunStatus @default(RUNNING)
+  error      String?             // truncated error message if FAILED
+  resultJson Json?               // job-specific summary (counts, ids, etc.)
+
+  @@index([jobName, startedAt])
+  @@index([status])
+  @@map("automation_runs")
+}
