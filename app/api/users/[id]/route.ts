@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import type { Role } from '@prisma/client';
+import { ensureProfileForRole, deactivateProfileForRoleChange } from '@/lib/user-profile-sync';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -173,6 +175,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Role update (admin only, and can't change own role unless SUPERADMIN)
+    let roleChanged: { from: Role; to: Role; tenantId: string } | null = null;
     if (role && isAdminRole(session.user.role)) {
       if (session.user.id === id && session.user.role !== 'SUPERADMIN') {
         return NextResponse.json(
@@ -181,11 +184,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         );
       }
 
-      const validRoles = ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'];
+      const validRoles = ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'DIRECTOR', 'SECRETARY'];
       if (session.user.role === 'SUPERADMIN') {
         validRoles.push('SUPERADMIN');
       }
-      
+
       if (!validRoles.includes(role)) {
         return NextResponse.json(
           { error: 'Invalid role' },
@@ -193,36 +196,60 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         );
       }
 
-      // Update role in UserTenant
-      const userTenant = existingUser.tenants.find(ut => 
+      const userTenant = existingUser.tenants.find(ut =>
         session.user.role === 'SUPERADMIN' || ut.tenantId === session.user.tenantId
       );
 
-      if (userTenant) {
-        await prisma.userTenant.update({
-          where: { id: userTenant.id },
-          data: { role },
-        });
+      if (userTenant && userTenant.role !== role) {
+        roleChanged = {
+          from: userTenant.role as Role,
+          to: role as Role,
+          tenantId: userTenant.tenantId,
+        };
       }
     }
 
-    // Update user
-    const updatedUser = await prisma.user.update({
-      where: { id },
-      data: updateData,
-      include: {
-        tenants: {
-          include: {
-            tenant: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-              },
+    // Update user + sync profile in a single transaction so that a partial
+    // failure (e.g. profile creation throwing) rolls back the role change
+    // too, leaving the system in a consistent state.
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id },
+        data: updateData,
+        include: {
+          tenants: {
+            include: {
+              tenant: { select: { id: true, name: true, slug: true } },
             },
           },
         },
-      },
+      });
+
+      if (roleChanged) {
+        await tx.userTenant.update({
+          where: {
+            userId_tenantId: { userId: id, tenantId: roleChanged.tenantId },
+          },
+          data: { role: roleChanged.to },
+        });
+
+        // Demote: deactivate the old profile (preserve history).
+        await deactivateProfileForRoleChange(tx, {
+          userId: id,
+          tenantId: roleChanged.tenantId,
+          oldRole: roleChanged.from,
+          newRole: roleChanged.to,
+        });
+
+        // Promote: create the new profile if needed (idempotent).
+        await ensureProfileForRole(tx, {
+          userId: id,
+          tenantId: roleChanged.tenantId,
+          role: roleChanged.to,
+        });
+      }
+
+      return updated;
     });
 
     // Transform response
@@ -306,9 +333,41 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Delete user (cascade will handle UserTenant relationships)
-    await prisma.user.delete({
-      where: { id },
+    // Soft-delete pattern (consistent with /api/students/[id]):
+    //   - User.status → INACTIVE (preserves login audit, history)
+    //   - UserTenant rows removed for the active tenant only (if SUPERADMIN
+    //     deleting a cross-tenant user we still purge only the requested
+    //     scope; the User itself stays for other tenants)
+    //   - Student/Teacher profiles → status INACTIVE (cascade-equivalent
+    //     without losing grades/payrolls/etc that point to them)
+    //
+    // Hard-delete would also work via Prisma cascade, but it would lose
+    // historical references (e.g. AuditLog.userId, Payment.studentId chains)
+    // that are valuable for compliance.
+    const targetTenantId = session.user.role === 'SUPERADMIN'
+      ? user.tenants[0]?.tenantId
+      : session.user.tenantId;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id },
+        data: { status: 'INACTIVE' },
+      });
+
+      if (targetTenantId) {
+        await tx.userTenant.deleteMany({
+          where: { userId: id, tenantId: targetTenantId },
+        });
+
+        await tx.student.updateMany({
+          where: { userId: id, tenantId: targetTenantId },
+          data: { status: 'INACTIVE' as any },
+        });
+        await tx.teacher.updateMany({
+          where: { userId: id, tenantId: targetTenantId },
+          data: { status: 'INACTIVE' as any },
+        });
+      }
     });
 
     return NextResponse.json({

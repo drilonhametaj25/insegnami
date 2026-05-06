@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { parsePaginationParams, withBodySizeLimit } from '@/lib/api-middleware';
+import { ensureProfileForRole } from '@/lib/user-profile-sync';
 
 // BUG-033 fix: Use Zod for email validation
 const emailSchema = z.string().email('Email non valida');
@@ -237,9 +238,11 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user and user-tenant relationship in transaction
+    // Create user, user-tenant relationship, AND role-specific profile in
+    // a single transaction. Without the profile sync, creating a STUDENT or
+    // TEACHER from /dashboard/users would leave the role-specific list views
+    // empty — the bug that prompted this whole code path.
     const result = await prisma.$transaction(async (tx) => {
-      // Create user
       const user = await tx.user.create({
         data: {
           email,
@@ -252,7 +255,6 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create user-tenant relationship
       await tx.userTenant.create({
         data: {
           userId: user.id,
@@ -262,22 +264,37 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return user;
+      // Auto-create the matching Student/Teacher profile so the user shows
+      // up in /dashboard/students or /dashboard/teachers immediately.
+      // No-op for ADMIN/DIRECTOR/SECRETARY/PARENT/SUPERADMIN.
+      const profile = await ensureProfileForRole(tx, {
+        userId: user.id,
+        tenantId: targetTenantId,
+        role,
+      });
+
+      return { user, profile };
     });
 
-    // Return created user (without password)
+    const { user, profile } = result;
+
+    // Return created user (without password) plus profile-sync outcome so
+    // the UI can navigate the admin straight to /dashboard/students/[id]
+    // or /dashboard/teachers/[id] when applicable.
     const responseUser = {
-      id: result.id,
-      email: result.email,
-      firstName: result.firstName,
-      lastName: result.lastName,
-      phone: result.phone,
-      avatar: result.avatar,
-      status: result.status,
-      emailVerified: result.emailVerified,
-      createdAt: result.createdAt,
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      avatar: user.avatar,
+      status: user.status,
+      emailVerified: user.emailVerified,
+      createdAt: user.createdAt,
       role,
       tenantId: targetTenantId,
+      studentId: profile.studentId,
+      teacherId: profile.teacherId,
     };
 
     return NextResponse.json({
