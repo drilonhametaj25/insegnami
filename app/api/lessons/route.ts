@@ -3,6 +3,7 @@ import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
+import { findLessonConflicts, conflictMessage } from '@/lib/lessons/conflicts';
 
 // Schema for lesson validation
 const lessonSchema = z.object({
@@ -201,34 +202,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Docente non trovato' }, { status: 404 });
     }
 
-    // Check for overlapping lessons
-    const overlapping = await prisma.lesson.findFirst({
-      where: {
-        teacherId: validatedData.teacherId,
-        OR: [
-          {
-            startTime: {
-              lte: new Date(validatedData.startTime),
-            },
-            endTime: {
-              gt: new Date(validatedData.startTime),
-            },
-          },
-          {
-            startTime: {
-              lt: new Date(validatedData.endTime),
-            },
-            endTime: {
-              gte: new Date(validatedData.endTime),
-            },
-          },
-        ],
-      },
+    // Check for overlapping lessons (teacher + room).
+    const conflicts = await findLessonConflicts({
+      tenantId: session.user.tenantId,
+      teacherId: validatedData.teacherId,
+      room: validatedData.room ?? null,
+      startTime: new Date(validatedData.startTime),
+      endTime: new Date(validatedData.endTime),
     });
 
-    if (overlapping) {
+    if (conflicts.length > 0) {
       return NextResponse.json(
-        { error: 'Il docente ha già una lezione in questo orario' },
+        { error: conflictMessage(conflicts), conflicts },
         { status: 400 }
       );
     }

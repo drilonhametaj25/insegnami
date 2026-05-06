@@ -3,6 +3,7 @@ import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { getPublicErrorMessage } from '@/lib/api-middleware';
+import { calcSubjectAverages, calcBehaviorGrade, type GradeInput } from '@/lib/grades/avg-italian';
 
 const generateSchema = z.object({
   classId: z.string().min(1),
@@ -99,49 +100,32 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Group grades by student and subject
-    const gradesByStudentSubject: Record<string, Record<string, {
-      oral: number[];
-      written: number[];
-      practical: number[];
-      all: { value: number; weight: number }[];
-    }>> = {};
+    // Group grades by student → subject → array of GradeInput.
+    // The averaging math (per-channel + weighted overall + behavior) lives
+    // in lib/grades/avg-italian.ts so it can be reused by PDF/scrutinio code
+    // and unit-tested in isolation.
+    const gradesByStudentSubject: Record<string, Record<string, GradeInput[]>> = {};
+    const behaviorByStudent: Record<string, GradeInput[]> = {};
 
     for (const grade of grades) {
-      const studentId = grade.studentId;
-      const subjectId = grade.subjectId;
-
-      if (!gradesByStudentSubject[studentId]) {
-        gradesByStudentSubject[studentId] = {};
-      }
-      if (!gradesByStudentSubject[studentId][subjectId]) {
-        gradesByStudentSubject[studentId][subjectId] = { oral: [], written: [], practical: [], all: [] };
-      }
-
       const value = Number(grade.value);
-      const weight = Number(grade.weight);
+      const weight = Number(grade.weight) || 1;
+      const item: GradeInput = { type: grade.type, value, weight };
 
-      gradesByStudentSubject[studentId][subjectId].all.push({ value, weight });
-
-      if (grade.type === 'ORAL') {
-        gradesByStudentSubject[studentId][subjectId].oral.push(value);
-      } else if (grade.type === 'WRITTEN' || grade.type === 'TEST') {
-        gradesByStudentSubject[studentId][subjectId].written.push(value);
-      } else if (grade.type === 'PRACTICAL') {
-        gradesByStudentSubject[studentId][subjectId].practical.push(value);
+      if (grade.type === 'BEHAVIOR') {
+        if (!behaviorByStudent[grade.studentId]) behaviorByStudent[grade.studentId] = [];
+        behaviorByStudent[grade.studentId].push(item);
+        continue;
       }
+
+      if (!gradesByStudentSubject[grade.studentId]) {
+        gradesByStudentSubject[grade.studentId] = {};
+      }
+      if (!gradesByStudentSubject[grade.studentId][grade.subjectId]) {
+        gradesByStudentSubject[grade.studentId][grade.subjectId] = [];
+      }
+      gradesByStudentSubject[grade.studentId][grade.subjectId].push(item);
     }
-
-    // Helper functions
-    const calcAvg = (arr: number[]) =>
-      arr.length > 0 ? Math.round((arr.reduce((s, v) => s + v, 0) / arr.length) * 100) / 100 : null;
-
-    const calcWeightedAvg = (items: { value: number; weight: number }[]) => {
-      if (items.length === 0) return null;
-      const totalWeight = items.reduce((s, i) => s + i.weight, 0);
-      const totalValue = items.reduce((s, i) => s + i.value * i.weight, 0);
-      return totalWeight > 0 ? Math.round((totalValue / totalWeight) * 100) / 100 : null;
-    };
 
     // Create report cards for each student
     const results = {
@@ -177,6 +161,7 @@ export async function POST(request: NextRequest) {
 
         // Get grades for this student
         const studentGrades = gradesByStudentSubject[student.id] || {};
+        const behaviorGradeNum = calcBehaviorGrade(behaviorByStudent[student.id] ?? []);
 
         // Create report card with entries
         await prisma.reportCard.create({
@@ -186,23 +171,19 @@ export async function POST(request: NextRequest) {
             classId,
             periodId,
             status: 'DRAFT',
+            behaviorGrade: behaviorGradeNum != null ? String(behaviorGradeNum) : null,
             entries: {
               create: classSubjects.map((cs) => {
-                const subjectGrades = studentGrades[cs.subjectId];
-
-                const averageOral = subjectGrades ? calcAvg(subjectGrades.oral) : null;
-                const averageWritten = subjectGrades ? calcAvg(subjectGrades.written) : null;
-                const averagePractical = subjectGrades ? calcAvg(subjectGrades.practical) : null;
-                const overallAverage = subjectGrades ? calcWeightedAvg(subjectGrades.all) : null;
-                const finalGrade = overallAverage || 0;
+                const subjectGrades = studentGrades[cs.subjectId] ?? [];
+                const stats = calcSubjectAverages(subjectGrades);
 
                 return {
                   subjectId: cs.subjectId,
-                  finalGrade,
-                  averageOral,
-                  averageWritten,
-                  averagePractical,
-                  overallAverage,
+                  finalGrade: stats.finalProposed,
+                  averageOral: stats.averageOral,
+                  averageWritten: stats.averageWritten,
+                  averagePractical: stats.averagePractical,
+                  overallAverage: stats.overallAverage,
                 };
               }),
             },

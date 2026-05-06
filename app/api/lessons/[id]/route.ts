@@ -3,6 +3,7 @@ import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { getTeacherIdForUser, type AuthContext } from '@/lib/api-auth';
+import { findLessonConflicts, conflictMessage } from '@/lib/lessons/conflicts';
 
 const lessonUpdateSchema = z.object({
   title: z.string().min(1, 'Titolo richiesto').optional(),
@@ -160,31 +161,24 @@ export async function PUT(
       }
     }
 
-    // If updating times, check for conflicts
-    if (validatedData.startTime || validatedData.endTime) {
+    // If updating times or room, check for conflicts (teacher + room).
+    if (validatedData.startTime || validatedData.endTime || validatedData.room !== undefined) {
       const startTime = validatedData.startTime ? new Date(validatedData.startTime) : existingLesson.startTime;
       const endTime = validatedData.endTime ? new Date(validatedData.endTime) : existingLesson.endTime;
+      const room = validatedData.room !== undefined ? validatedData.room : existingLesson.room;
 
-      const overlapping = await prisma.lesson.findFirst({
-        where: {
-          id: { not: id },
-          teacherId: existingLesson.teacherId,
-          OR: [
-            {
-              startTime: { lte: startTime },
-              endTime: { gt: startTime },
-            },
-            {
-              startTime: { lt: endTime },
-              endTime: { gte: endTime },
-            },
-          ],
-        },
+      const conflicts = await findLessonConflicts({
+        tenantId: session.user.tenantId,
+        teacherId: existingLesson.teacherId,
+        room,
+        startTime,
+        endTime,
+        excludeLessonId: id,
       });
 
-      if (overlapping) {
+      if (conflicts.length > 0) {
         return NextResponse.json(
-          { error: 'Il docente ha già una lezione in questo orario' },
+          { error: conflictMessage(conflicts), conflicts },
           { status: 400 }
         );
       }

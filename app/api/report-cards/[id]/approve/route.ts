@@ -9,7 +9,10 @@ const approveSchema = z.object({
   comment: z.string().optional(),
 });
 
-// Workflow transitions
+// Workflow transitions.
+// DIRECTOR is included in approve/publish/archive because in Italian schools
+// it's the dirigente scolastico who formally signs off on the scrutinio.
+// SECRETARY is intentionally excluded — administrative role, not pedagogical.
 const WORKFLOW_TRANSITIONS: Record<string, {
   from: ReportCardStatus[];
   to: ReportCardStatus;
@@ -18,27 +21,27 @@ const WORKFLOW_TRANSITIONS: Record<string, {
   submit: {
     from: ['DRAFT'],
     to: 'IN_REVIEW',
-    allowedRoles: ['TEACHER', 'ADMIN', 'SUPERADMIN'],
+    allowedRoles: ['TEACHER', 'ADMIN', 'DIRECTOR', 'SUPERADMIN'],
   },
   approve: {
     from: ['IN_REVIEW'],
     to: 'APPROVED',
-    allowedRoles: ['ADMIN', 'SUPERADMIN'],
+    allowedRoles: ['DIRECTOR', 'ADMIN', 'SUPERADMIN'],
   },
   reject: {
     from: ['IN_REVIEW'],
     to: 'DRAFT',
-    allowedRoles: ['ADMIN', 'SUPERADMIN'],
+    allowedRoles: ['DIRECTOR', 'ADMIN', 'SUPERADMIN'],
   },
   publish: {
     from: ['APPROVED'],
     to: 'PUBLISHED',
-    allowedRoles: ['ADMIN', 'SUPERADMIN'],
+    allowedRoles: ['DIRECTOR', 'ADMIN', 'SUPERADMIN'],
   },
   archive: {
     from: ['PUBLISHED'],
     to: 'ARCHIVED',
-    allowedRoles: ['ADMIN', 'SUPERADMIN'],
+    allowedRoles: ['DIRECTOR', 'ADMIN', 'SUPERADMIN'],
   },
 };
 
