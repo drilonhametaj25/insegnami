@@ -203,44 +203,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const payment = await prisma.payment.create({
-      data: {
-        tenantId: session.user.tenantId,
-        studentId: validatedData.studentId,
-        classId: validatedData.classId,
-        amount: validatedData.amount,
-        paymentMethod: validatedData.paymentMethod,
-        status: validatedData.status,
-        dueDate: new Date(validatedData.dueDate),
-        paidDate: validatedData.paidDate ? new Date(validatedData.paidDate) : null,
-        description: validatedData.description,
-        notes: validatedData.notes,
-        reference: validatedData.reference,
-      },
-      include: {
-        student: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            studentCode: true,
-            email: true,
-          },
+    const payment = await prisma.$transaction(async (tx) => {
+      const created = await tx.payment.create({
+        data: {
+          tenantId: session.user.tenantId,
+          studentId: validatedData.studentId,
+          classId: validatedData.classId,
+          amount: validatedData.amount,
+          paymentMethod: validatedData.paymentMethod,
+          status: validatedData.status,
+          dueDate: new Date(validatedData.dueDate),
+          paidDate: validatedData.paidDate ? new Date(validatedData.paidDate) : null,
+          description: validatedData.description,
+          notes: validatedData.notes,
+          reference: validatedData.reference,
         },
-        class: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            course: {
-              select: {
-                id: true,
-                name: true,
-              },
+        include: {
+          student: { select: { id: true, firstName: true, lastName: true, studentCode: true, email: true } },
+          class: {
+            select: {
+              id: true, name: true, code: true,
+              course: { select: { id: true, name: true } },
             },
           },
         },
-      },
+      });
+
+      // If the payment is created already PAID (e.g. cassa registers a
+      // walk-in), record the revenue movement immediately. Otherwise the
+      // movement will be created later when an admin marks it PAID via PUT.
+      if (validatedData.status === 'PAID') {
+        const { syncPaymentMovement } = await import('@/lib/accounting/movements');
+        await syncPaymentMovement(tx, created.id);
+      }
+
+      return created;
     });
 
     return NextResponse.json(payment, { status: 201 });

@@ -152,33 +152,38 @@ export async function PUT(
       updateData.dueDate = new Date(validatedData.dueDate);
     }
 
-    const updatedPayment = await prisma.payment.update({
-      where: { id: id },
-      data: updateData,
-      include: {
-        student: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            studentCode: true,
-            email: true,
-          },
-        },
-        class: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            course: {
-              select: {
-                id: true,
-                name: true,
-              },
+    // Sync AccountingMovement (REVENUE) atomically with the status flip.
+    // Three transitions to handle:
+    //   - * → PAID:        create movement (idempotent via syncPaymentMovement)
+    //   - PAID → *:        reverse the movement (P&L would otherwise count it forever)
+    //   - PAID → PAID:     no-op (sync is idempotent)
+    const willBePaid = validatedData.status === 'PAID' && existingPayment.status !== 'PAID';
+    const wasPaid = existingPayment.status === 'PAID' && validatedData.status && validatedData.status !== 'PAID';
+
+    const updatedPayment = await prisma.$transaction(async (tx) => {
+      const updated = await tx.payment.update({
+        where: { id: id },
+        data: updateData,
+        include: {
+          student: { select: { id: true, firstName: true, lastName: true, studentCode: true, email: true } },
+          class: {
+            select: {
+              id: true, name: true, code: true,
+              course: { select: { id: true, name: true } },
             },
           },
         },
-      },
+      });
+
+      if (willBePaid) {
+        const { syncPaymentMovement } = await import('@/lib/accounting/movements');
+        await syncPaymentMovement(tx, id);
+      } else if (wasPaid) {
+        const { reversePaymentMovement } = await import('@/lib/accounting/movements');
+        await reversePaymentMovement(tx, id);
+      }
+
+      return updated;
     });
 
     return NextResponse.json(updatedPayment);
