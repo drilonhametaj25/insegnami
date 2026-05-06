@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { loadHolidayFingerprints } from '@/lib/scheduling/holidays';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -78,8 +79,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       currentDate.setDate(currentDate.getDate() + daysUntilMonday);
     }
 
+    // Load holidays once for the whole apply window — O(1) lookup per slot.
+    const holidayFp = await loadHolidayFingerprints(session.user.tenantId, startDate, endDate);
+
     const lessonsToCreate: any[] = [];
     let weeksCreated = 0;
+    let skippedHolidays = 0;
 
     while (currentDate <= endDate && (weekCount === -1 || weeksCreated < weekCount)) {
       // Per ogni slot dell'orario
@@ -90,6 +95,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         // Verifica che sia entro il range
         if (lessonDate > endDate) continue;
+
+        // Skip se cade in un giorno di vacanza (festività nazionale o specifica)
+        if (holidayFp.has(lessonDate)) {
+          skippedHolidays++;
+          continue;
+        }
 
         // Crea ora di inizio e fine
         const [startHour, startMin] = slot.startTime.split(':').map(Number);
@@ -125,16 +136,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (lessonsToCreate.length === 0) {
       return NextResponse.json(
-        { error: 'Nessuna lezione da creare nel periodo specificato' },
+        { error: 'Nessuna lezione da creare nel periodo specificato (potrebbero essere tutte in giorni di vacanza)' },
         { status: 400 }
       );
     }
 
-    // Crea le lezioni in batch
-    const result = await prisma.lesson.createMany({
-      data: lessonsToCreate,
-      skipDuplicates: true, // Evita duplicati se esistono già
+    // Idempotenza esplicita: rimuoviamo dalle creazioni le combinazioni
+    // [classId, startTime] già presenti. createMany con skipDuplicates non
+    // funziona qui perché Lesson non ha un unique index su quella tupla,
+    // e aggiungerlo retroattivamente potrebbe rompere lezioni manuali.
+    const candidates = lessonsToCreate.map((l) => ({ classId: l.classId, startTime: l.startTime }));
+    const existing = await prisma.lesson.findMany({
+      where: {
+        tenantId: session.user.tenantId,
+        OR: candidates.map((c) => ({ classId: c.classId, startTime: c.startTime })),
+      },
+      select: { classId: true, startTime: true },
     });
+    const existingKeys = new Set(existing.map((e) => `${e.classId}|${e.startTime.toISOString()}`));
+    const toInsert = lessonsToCreate.filter(
+      (l) => !existingKeys.has(`${l.classId}|${l.startTime.toISOString()}`),
+    );
+
+    const result = await prisma.lesson.createMany({ data: toInsert });
 
     // Aggiorna stato orario
     await prisma.schedule.update({
@@ -148,8 +172,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({
       success: true,
       lessonsCreated: result.count,
+      lessonsSkippedAsDuplicates: lessonsToCreate.length - result.count,
+      lessonsSkippedAsHolidays: skippedHolidays,
       weeksCreated,
-      message: `Create ${result.count} lezioni per ${weeksCreated} settimana/e`,
+      message: `Create ${result.count} lezioni per ${weeksCreated} settimana/e (saltate ${skippedHolidays} per vacanze)`,
     });
   } catch (error) {
     console.error('Error applying schedule:', error);

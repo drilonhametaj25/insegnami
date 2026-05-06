@@ -234,6 +234,9 @@ model Tenant {
   schedules         Schedule[]
   timeSlotConfigs   TimeSlotConfig[]
 
+  // Calendario scolastico — vacanze/giorni non lavorativi
+  holidays          Holiday[]
+
   @@map("tenants")
 }
 
@@ -1158,6 +1161,9 @@ model AcademicYear {
   // Smart Scheduling
   schedules Schedule[]
 
+  // Vacanze legate a questo anno (es. ponti specifici)
+  holidays  Holiday[]
+
   @@unique([tenantId, name])
   @@map("academic_years")
 }
@@ -1666,6 +1672,38 @@ model TimeSlotConfig {
 
   @@unique([tenantId, slotNumber])
   @@map("time_slot_configs")
+}
+
+// ========================================
+// CALENDARIO SCOLASTICO — VACANZE / GIORNI NON LAVORATIVI
+// ========================================
+
+/// Day on which lessons are NOT held: national holidays, school-specific
+/// closures, ponti, scrutini days, etc. Honored by the scheduler when
+/// applying ScheduleSlots → Lesson records (lib/scheduling/holidays.ts).
+///
+/// `recurring: true` means "this date repeats every year on the same
+/// month/day" — useful for fixed national holidays. The year component
+/// is then ignored at lookup time.
+model Holiday {
+  id             String   @id @default(cuid())
+  tenantId       String
+  academicYearId String?
+
+  date      DateTime  @db.Date
+  name      String
+  recurring Boolean   @default(false)
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear? @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date, name])
+  @@index([tenantId, date])
+  @@map("holidays")
 }
 
 // ========================================

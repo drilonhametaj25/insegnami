@@ -21,15 +21,16 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
     const status = searchParams.get('status');
 
+    // Tenant scope lives on Lesson (Attendance has no tenantId field).
+    // Without this, the previous `where.tenantId = ...` was a silent no-op
+    // and would have leaked attendance across tenants the moment the
+    // include/select changed.
     const where: any = {
-      tenantId: session.user.tenantId,
+      lesson: {
+        tenantId: session.user.tenantId,
+        ...(classId ? { classId } : {}),
+      },
     };
-
-    if (classId) {
-      where.lesson = {
-        classId: classId,
-      };
-    }
 
     if (startDate && endDate) {
       where.createdAt = {
@@ -121,12 +122,15 @@ export async function GET(request: NextRequest) {
         ].join(',');
       }).join('\n');
 
-      const csv = csvHeader + csvData;
+      // BOM forces Excel (in IT locale) to read the file as UTF-8 instead of
+      // the system codepage — without it accents in names render as mojibake.
+      const csv = '﻿' + csvHeader + csvData;
 
       return new Response(csv, {
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
           'Content-Disposition': `attachment; filename="attendance-export-${new Date().toISOString().split('T')[0]}.csv"`,
+          'Cache-Control': 'no-store',
         },
       });
     } else {
