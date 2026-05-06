@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { EmailNotificationService } from '@/lib/email-queue';
 
 export async function GET(request: NextRequest) {
   try {
@@ -146,14 +145,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the target user's email for sending notifications
-    const targetUser = await prisma.user.findUnique({
-      where: { id: targetUserId },
-      select: { email: true, firstName: true, lastName: true }
-    });
-
-    const notification = await prisma.notification.create({
-      data: {
+    // Delegate row creation + email enqueue to the dispatcher. Single source
+    // of truth for delivery: avoids the previous "create then maybe mark
+    // emailSent" duplication that drifted between callers.
+    const { createAndDispatch } = await import('@/lib/notifications/dispatcher');
+    const { notification, emailEnqueued } = await createAndDispatch(
+      {
         tenantId: targetUserTenant.tenantId,
         userId: targetUserId,
         title,
@@ -164,53 +161,13 @@ export async function POST(request: NextRequest) {
         actionLabel,
         sourceType,
         sourceId,
-        scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-        emailSent: false,
-        // Push notifications are not yet implemented. Always false on create;
-        // a future push-delivery worker will flip it once a real push provider
-        // (web-push/Firebase) is wired up.
-        pushSent: false,
-      }
-    });
+        scheduledFor: scheduledFor ? new Date(scheduledFor) : undefined,
+        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+      },
+      { sendEmail, sendPush },
+    );
 
-    // Send email notification if requested and user has email
-    if (sendEmail && targetUser?.email) {
-      try {
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">${title}</h2>
-            <div style="padding: 20px; background: #f5f5f5; border-radius: 8px; margin: 20px 0;">
-              <p style="color: #555; line-height: 1.6;">${content}</p>
-            </div>
-            ${actionUrl ? `<p><a href="${actionUrl}" style="display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 6px;">${actionLabel || 'Visualizza'}</a></p>` : ''}
-            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-            <p style="color: #999; font-size: 12px;">Questa notifica è stata inviata da InsegnaMi.pro</p>
-          </div>
-        `;
-
-        await EmailNotificationService.sendGenericEmail({
-          to: targetUser.email,
-          subject: `[InsegnaMi] ${title}`,
-          html: emailHtml,
-          text: `${title}\n\n${content}${actionUrl ? `\n\n${actionLabel || 'Visualizza'}: ${actionUrl}` : ''}`,
-        });
-
-        // Update notification to mark email as sent
-        await prisma.notification.update({
-          where: { id: notification.id },
-          data: { emailSent: true }
-        });
-      } catch (emailError) {
-        console.error('Failed to send notification email:', emailError);
-        // Don't fail the request, just log the error - notification is still created
-      }
-    }
-    // If sendEmail is false, leave emailSent as false. Marking it true would
-    // misrepresent delivery state in audit/analytics — the notification simply
-    // wasn't routed via email and that should be visible in the data.
-
-    return NextResponse.json(notification, { status: 201 });
+    return NextResponse.json({ ...notification, emailEnqueued }, { status: 201 });
 
   } catch (error) {
     console.error('Errore nella creazione notifica:', error);
