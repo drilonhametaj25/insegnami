@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { getTeacherIdForUser, type AuthContext } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,8 +23,18 @@ export async function GET(request: NextRequest) {
         tenantId: session.user.tenantId,
       };
 
+      // SECURITY: Class.teacherId references Teacher.id, NOT User.id.
       if (session.user.role === 'TEACHER') {
-        classesWhere.teacherId = session.user.id;
+        const ctx = {
+          userId: session.user.id ?? '',
+          tenantId: session.user.tenantId,
+          role: session.user.role,
+          email: session.user.email ?? '',
+          isSuperAdmin: false,
+          session,
+        } as AuthContext;
+        const tid = await getTeacherIdForUser(ctx);
+        classesWhere.teacherId = tid ?? '__no_teacher__';
       }
 
       const classes = await prisma.class.findMany({

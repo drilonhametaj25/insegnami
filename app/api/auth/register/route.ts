@@ -5,7 +5,8 @@ import { sendEmail } from '@/lib/email';
 import { isSaaSMode } from '@/lib/config';
 import { generateVerificationToken } from '@/lib/auth-utils';
 import { escapeHtml } from '@/lib/api-middleware';
-import { getOrCreateCustomer } from '@/lib/stripe';
+import { getOrCreateCustomer, stripe } from '@/lib/stripe';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +17,15 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
+
+    // Rate limit: 5 registrations per IP per hour. Throttles automated signup
+    // abuse without affecting genuine users (most retry within minutes).
+    const rl = await rateLimit(request, {
+      windowMs: 60 * 60 * 1000,
+      maxRequests: 5,
+      keyPrefix: 'rl:register',
+    });
+    if (!rl.success) return rl.error!;
 
     const body = await request.json();
     const { firstName, lastName, email, password, schoolName, role, planId } = body;
@@ -203,6 +213,16 @@ export async function POST(request: NextRequest) {
       await prisma.userTenant.deleteMany({ where: { userId: user.id } });
       await prisma.user.delete({ where: { id: user.id } });
       await prisma.tenant.delete({ where: { id: tenant.id } });
+
+      // Compensating cleanup: delete the orphan Stripe customer if it was created.
+      // Without this, every failed registration leaves a billable customer in Stripe.
+      if (stripeCustomerId) {
+        try {
+          await stripe.customers.del(stripeCustomerId);
+        } catch (cleanupError) {
+          console.error('Failed to delete orphan Stripe customer:', stripeCustomerId, cleanupError);
+        }
+      }
 
       return NextResponse.json(
         { error: 'Impossibile inviare email di verifica. Controlla l\'indirizzo email e riprova.' },

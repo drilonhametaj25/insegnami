@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { differenceInYears } from 'date-fns';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -79,11 +80,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       email: teacher.email,
       phone: teacher.phone,
       address: teacher.address,
-      avatar: null, // TODO: Add avatar support
+      avatar: null, // Avatar upload pending file storage backend (Wave 2)
       qualifications: teacher.qualifications,
       specializations: teacher.specializations,
       biography: teacher.biography,
-      experience: null, // TODO: Calculate from hireDate
+      experience: teacher.hireDate ? differenceInYears(new Date(), teacher.hireDate) : null,
       hourlyRate: teacher.hourlyRate,
       contractType: teacher.contractType,
       role: 'TEACHER',

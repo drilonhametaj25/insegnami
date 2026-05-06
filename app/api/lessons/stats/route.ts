@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,15 +23,25 @@ export async function GET(request: NextRequest) {
     }
 
     // Role-based filtering
+    // SECURITY: Lesson.teacherId references Teacher.id, NOT User.id.
+    const ctx = {
+      userId: session.user.id ?? '',
+      tenantId: session.user.tenantId,
+      role: session.user.role,
+      email: session.user.email ?? '',
+      isSuperAdmin: session.user.role === 'SUPERADMIN',
+      session,
+    } as AuthContext;
+
     if (session.user.role === 'TEACHER') {
-      where.teacherId = session.user.id;
+      const tid = await getTeacherIdForUser(ctx);
+      where.teacherId = tid ?? '__no_teacher__';
     } else if (session.user.role === 'STUDENT') {
+      const sid = await getStudentIdForUser(ctx);
       where.class = {
         students: {
           some: {
-            student: {
-              email: session.user.email,
-            },
+            studentId: sid ?? '__no_student__',
           },
         },
       };

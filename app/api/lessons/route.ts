@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
 
 // Schema for lesson validation
 const lessonSchema = z.object({
@@ -75,17 +76,25 @@ export async function GET(request: NextRequest) {
     }
 
     // Role-based filtering
+    // SECURITY: Lesson.teacherId references Teacher.id, NOT User.id.
+    const ctx = {
+      userId: session.user.id ?? '',
+      tenantId: session.user.tenantId,
+      role: session.user.role,
+      email: session.user.email ?? '',
+      isSuperAdmin: session.user.role === 'SUPERADMIN',
+      session,
+    } as AuthContext;
+
     if (session.user.role === 'TEACHER') {
-      where.teacherId = session.user.id;
+      const tid = await getTeacherIdForUser(ctx);
+      where.teacherId = tid ?? '__no_teacher__';
     } else if (session.user.role === 'STUDENT') {
+      const sid = await getStudentIdForUser(ctx);
       where.class = {
         students: {
           some: {
-            student: {
-              // We need to get the student record that matches this user
-              // This is a simplified approach - you might need to adjust based on your auth setup
-              email: session.user.email,
-            },
+            studentId: sid ?? '__no_student__',
           },
         },
       };

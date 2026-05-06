@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
 
 const attendanceSchema = z.object({
   lessonId: z.string().cuid(),
@@ -67,15 +68,27 @@ export async function GET(request: NextRequest) {
     }
 
     // Role-based filtering
+    // SECURITY: Lesson.teacherId references Teacher.id, NOT User.id.
+    // Resolving via getTeacherIdForUser also enforces tenantId scope.
+    const ctx = {
+      userId: session.user.id ?? '',
+      tenantId: session.user.tenantId,
+      role: session.user.role,
+      email: session.user.email ?? '',
+      isSuperAdmin: session.user.role === 'SUPERADMIN',
+      session,
+    } as AuthContext;
+
     if (session.user.role === 'TEACHER') {
+      const teacherId = await getTeacherIdForUser(ctx);
+      // If user has no Teacher record in this tenant, return empty result set.
       where.lesson = {
         ...where.lesson,
-        teacherId: session.user.id,
+        teacherId: teacherId ?? '__no_teacher__',
       };
     } else if (session.user.role === 'STUDENT') {
-      where.student = {
-        email: session.user.email,
-      };
+      const studentId = await getStudentIdForUser(ctx);
+      where.studentId = studentId ?? '__no_student__';
     } else if (session.user.role === 'PARENT') {
       // Parents can only see their children's attendance
       // SECURITY: Use parentUserId instead of parentEmail to prevent email substring attacks
@@ -168,15 +181,29 @@ export async function POST(request: NextRequest) {
     // Check if it's bulk attendance or single attendance
     const isBulk = Array.isArray(body.attendance);
     
+    // SECURITY: Lesson.teacherId references Teacher.id, NOT User.id.
+    const ctx = {
+      userId: session.user.id ?? '',
+      tenantId: session.user.tenantId,
+      role: session.user.role,
+      email: session.user.email ?? '',
+      isSuperAdmin: session.user.role === 'SUPERADMIN',
+      session,
+    } as AuthContext;
+    const teacherId = session.user.role === 'TEACHER' ? await getTeacherIdForUser(ctx) : null;
+    if (session.user.role === 'TEACHER' && !teacherId) {
+      return NextResponse.json({ error: 'Teacher record not found' }, { status: 403 });
+    }
+
     if (isBulk) {
       const validatedData = bulkAttendanceSchema.parse(body);
-      
+
       // Verify lesson belongs to tenant and teacher (if teacher role)
       const lesson = await prisma.lesson.findFirst({
         where: {
           id: validatedData.lessonId,
           tenantId: session.user.tenantId,
-          ...(session.user.role === 'TEACHER' && { teacherId: session.user.id }),
+          ...(teacherId && { teacherId }),
         },
       });
 
@@ -249,7 +276,7 @@ export async function POST(request: NextRequest) {
         where: {
           id: validatedData.lessonId,
           tenantId: session.user.tenantId,
-          ...(session.user.role === 'TEACHER' && { teacherId: session.user.id }),
+          ...(teacherId && { teacherId }),
         },
       });
 

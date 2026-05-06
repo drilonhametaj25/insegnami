@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
 
 const paymentSchema = z.object({
   studentId: z.string().min(1, 'Student ID required'),
@@ -50,10 +51,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Role-based filtering
+    // SECURITY: Class.teacherId references Teacher.id, NOT User.id.
+    const ctx = {
+      userId: session.user.id ?? '',
+      tenantId: session.user.tenantId,
+      role: session.user.role,
+      email: session.user.email ?? '',
+      isSuperAdmin: session.user.role === 'SUPERADMIN',
+      session,
+    } as AuthContext;
+
     if (session.user.role === 'STUDENT') {
-      where.student = {
-        email: session.user.email,
-      };
+      const sid = await getStudentIdForUser(ctx);
+      where.studentId = sid ?? '__no_student__';
     } else if (session.user.role === 'PARENT') {
       // SECURITY: Use parentUserId instead of parentEmail to prevent email substring attacks
       where.student = {
@@ -61,8 +71,9 @@ export async function GET(request: NextRequest) {
       };
     } else if (session.user.role === 'TEACHER') {
       // Teachers can only see payments for their classes
+      const tid = await getTeacherIdForUser(ctx);
       where.class = {
-        teacherId: session.user.id,
+        teacherId: tid ?? '__no_teacher__',
       };
     }
 

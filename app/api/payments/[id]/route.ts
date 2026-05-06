@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
 
 const paymentUpdateSchema = z.object({
   description: z.string().min(1, 'Descrizione richiesta').optional(),
@@ -32,18 +33,29 @@ export async function GET(
       tenantId: session.user.tenantId,
     };
 
+    // SECURITY: Class.teacherId references Teacher.id, NOT User.id.
+    // PARENT must filter by parentUserId, not parentEmail (substring attack).
+    const ctx = {
+      userId: session.user.id ?? '',
+      tenantId: session.user.tenantId,
+      role: session.user.role,
+      email: session.user.email ?? '',
+      isSuperAdmin: session.user.role === 'SUPERADMIN',
+      session,
+    } as AuthContext;
+
     // Role-based filtering
     if (session.user.role === 'STUDENT') {
-      where.student = {
-        email: session.user.email,
-      };
+      const sid = await getStudentIdForUser(ctx);
+      where.studentId = sid ?? '__no_student__';
     } else if (session.user.role === 'PARENT') {
       where.student = {
-        parentEmail: session.user.email,
+        parentUserId: session.user.id,
       };
     } else if (session.user.role === 'TEACHER') {
+      const tid = await getTeacherIdForUser(ctx);
       where.class = {
-        teacherId: session.user.id,
+        teacherId: tid ?? '__no_teacher__',
       };
     }
 

@@ -131,4 +131,37 @@ export const rateLimiters = {
   }),
 };
 
+/**
+ * Rate-limit by an arbitrary key (e.g. an email or user id).
+ * Useful in code paths that don't have a NextRequest available, like
+ * NextAuth's authorize() callback. Returns true when the request is allowed.
+ */
+export async function rateLimitByKey(
+  key: string,
+  maxRequests: number,
+  windowMs: number,
+  keyPrefix: string = 'rl:key',
+): Promise<boolean> {
+  try {
+    const client = redis.getClient();
+    if (!client) return true;
+
+    const fullKey = `${keyPrefix}:${key}`;
+    const now = Date.now();
+    const windowStart = now - windowMs;
+
+    await client.zremrangebyscore(fullKey, 0, windowStart);
+    const count = await client.zcard(fullKey);
+
+    if (count >= maxRequests) return false;
+
+    await client.zadd(fullKey, now, `${now}:${Math.random()}`);
+    await client.expire(fullKey, Math.ceil(windowMs / 1000));
+    return true;
+  } catch (error) {
+    console.error('rateLimitByKey error:', error);
+    return true;
+  }
+}
+
 export default rateLimit;

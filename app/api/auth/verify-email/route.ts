@@ -62,12 +62,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (userTenant) {
-      // Attiva tenant e setta trial (14 giorni da ORA, non dalla registrazione)
+      // SECURITY: Trial countdown starts at registration (set in register route),
+      // NOT at verification. Resetting trialUntil here would let users delay
+      // verification to extend their trial beyond the intended 14 days.
+      // Only activate the tenant — leave trialUntil untouched.
       await prisma.tenant.update({
         where: { id: userTenant.tenantId },
         data: {
           isActive: true,
-          trialUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 giorni trial
         },
       });
     }

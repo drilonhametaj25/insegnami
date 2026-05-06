@@ -4,6 +4,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { Role } from "@prisma/client";
+import { rateLimitByKey } from "@/lib/rate-limit";
 
 const authOptions = {
   trustHost: true, // Required for production behind reverse proxy
@@ -20,8 +21,15 @@ const authOptions = {
           return null;
         }
 
-        const email = credentials.email as string;
+        const email = (credentials.email as string).toLowerCase();
         const password = credentials.password as string;
+
+        // Rate limit per email: 10 attempts per minute, defends against
+        // credential stuffing without affecting legitimate users.
+        const allowed = await rateLimitByKey(email, 10, 60 * 1000, 'rl:login');
+        if (!allowed) {
+          return null;
+        }
 
         try {
           // Find user by email

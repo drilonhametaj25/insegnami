@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Decimal } from '@prisma/client/runtime/library';
 import { isPackageLowOnHours } from '@/lib/hours-package-service';
 import { sendEmail } from '@/lib/email';
+import { getTeacherIdForUser, type AuthContext } from '@/lib/api-auth';
 
 async function sendLowHoursEmail(pkg: any) {
   const remainingHours = parseFloat(pkg.remainingHours.toString());
@@ -98,8 +99,20 @@ export async function PUT(
     }
 
     // Teachers can only update attendance for their own lessons
-    if (session.user.role === 'TEACHER' && lesson.teacherId !== session.user.id) {
-      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+    // SECURITY: Lesson.teacherId references Teacher.id, NOT User.id.
+    if (session.user.role === 'TEACHER') {
+      const ctx = {
+        userId: session.user.id ?? '',
+        tenantId: session.user.tenantId,
+        role: session.user.role,
+        email: session.user.email ?? '',
+        isSuperAdmin: false,
+        session,
+      } as AuthContext;
+      const tid = await getTeacherIdForUser(ctx);
+      if (!tid || lesson.teacherId !== tid) {
+        return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+      }
     }
 
     // Verify student exists and is enrolled in the class

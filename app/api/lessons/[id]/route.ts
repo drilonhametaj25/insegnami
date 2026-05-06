@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { getTeacherIdForUser, type AuthContext } from '@/lib/api-auth';
 
 const lessonUpdateSchema = z.object({
   title: z.string().min(1, 'Titolo richiesto').optional(),
@@ -85,8 +86,20 @@ export async function GET(
     }
 
     // Role-based access control
-    if (session.user.role === 'TEACHER' && lesson.teacherId !== session.user.id) {
-      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+    // SECURITY: Lesson.teacherId references Teacher.id, NOT User.id.
+    if (session.user.role === 'TEACHER') {
+      const ctx = {
+        userId: session.user.id ?? '',
+        tenantId: session.user.tenantId,
+        role: session.user.role,
+        email: session.user.email ?? '',
+        isSuperAdmin: false,
+        session,
+      } as AuthContext;
+      const tid = await getTeacherIdForUser(ctx);
+      if (!tid || lesson.teacherId !== tid) {
+        return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+      }
     }
 
     return NextResponse.json(lesson);
@@ -131,8 +144,20 @@ export async function PUT(
     }
 
     // Teachers can only update their own lessons
-    if (session.user.role === 'TEACHER' && existingLesson.teacherId !== session.user.id) {
-      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+    // SECURITY: Lesson.teacherId references Teacher.id, NOT User.id.
+    if (session.user.role === 'TEACHER') {
+      const ctx = {
+        userId: session.user.id ?? '',
+        tenantId: session.user.tenantId,
+        role: session.user.role,
+        email: session.user.email ?? '',
+        isSuperAdmin: false,
+        session,
+      } as AuthContext;
+      const tid = await getTeacherIdForUser(ctx);
+      if (!tid || existingLesson.teacherId !== tid) {
+        return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+      }
     }
 
     // If updating times, check for conflicts
@@ -253,8 +278,20 @@ export async function DELETE(
     }
 
     // Teachers can only delete their own lessons
-    if (session.user.role === 'TEACHER' && existingLesson.teacherId !== session.user.id) {
-      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+    // SECURITY: Lesson.teacherId references Teacher.id, NOT User.id.
+    if (session.user.role === 'TEACHER') {
+      const ctx = {
+        userId: session.user.id ?? '',
+        tenantId: session.user.tenantId,
+        role: session.user.role,
+        email: session.user.email ?? '',
+        isSuperAdmin: false,
+        session,
+      } as AuthContext;
+      const tid = await getTeacherIdForUser(ctx);
+      if (!tid || existingLesson.teacherId !== tid) {
+        return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+      }
     }
 
     // Delete lesson (this will cascade delete attendance records)

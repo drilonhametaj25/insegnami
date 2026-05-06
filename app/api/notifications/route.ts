@@ -157,7 +157,10 @@ export async function POST(request: NextRequest) {
         scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         emailSent: false,
-        pushSent: !sendPush,   // Push notification not implemented yet
+        // Push notifications are not yet implemented. Always false on create;
+        // a future push-delivery worker will flip it once a real push provider
+        // (web-push/Firebase) is wired up.
+        pushSent: false,
       }
     });
 
@@ -192,13 +195,10 @@ export async function POST(request: NextRequest) {
         console.error('Failed to send notification email:', emailError);
         // Don't fail the request, just log the error - notification is still created
       }
-    } else if (!sendEmail) {
-      // If email not requested, mark as already sent
-      await prisma.notification.update({
-        where: { id: notification.id },
-        data: { emailSent: true }
-      });
     }
+    // If sendEmail is false, leave emailSent as false. Marking it true would
+    // misrepresent delivery state in audit/analytics — the notification simply
+    // wasn't routed via email and that should be visible in the data.
 
     return NextResponse.json(notification, { status: 201 });
 

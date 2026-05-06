@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { getTeacherIdForUser, type AuthContext } from '@/lib/api-auth';
 
 const BulkAttendanceSchema = z.object({
   attendance: z.array(z.object({
@@ -37,8 +38,18 @@ export async function POST(
     }
 
     // For teachers, only allow access to their own classes
+    // SECURITY: Class.teacherId references Teacher.id, NOT User.id.
     if (session.user.role === 'TEACHER') {
-      where.teacherId = session.user.id;
+      const ctx = {
+        userId: session.user.id ?? '',
+        tenantId: session.user.tenantId,
+        role: session.user.role,
+        email: session.user.email ?? '',
+        isSuperAdmin: false,
+        session,
+      } as AuthContext;
+      const tid = await getTeacherIdForUser(ctx);
+      where.teacherId = tid ?? '__no_teacher__';
     }
 
     const hasPermission = await prisma.class.findFirst({
