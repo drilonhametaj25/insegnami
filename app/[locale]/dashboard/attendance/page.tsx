@@ -30,17 +30,20 @@ import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconCheck,
-  IconX,
-  IconClock,
   IconCalendar,
-  IconUsers,
+  IconChartBar,
+  IconCheck,
+  IconCircleCheck,
+  IconCircleX,
+  IconClock,
   IconDownload,
-  IconEye,
   IconEdit,
+  IconEye,
   IconFileText,
   IconSearch,
-  IconChartBar,
+  IconTrendingUp,
+  IconUsers,
+  IconX,
 } from '@tabler/icons-react';
 import { DatePickerInput } from '@mantine/dates';
 import dayjs from 'dayjs';
@@ -350,7 +353,7 @@ export default function AttendancePage() {
               <ModernStatsCard
                 title={t('totalRecords')}
                 value={stats.totalRecords}
-                icon="📊"
+                icon={<IconChartBar size={28} />}
                 gradient="linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
               />
             </Grid.Col>
@@ -359,7 +362,7 @@ export default function AttendancePage() {
               <ModernStatsCard
                 title={t('attendanceRate')}
                 value={`${stats.attendanceRate.toFixed(1)}%`}
-                icon="📈"
+                icon={<IconTrendingUp size={28} />}
                 gradient="linear-gradient(135deg, #22c55e 0%, #15803d 100%)"
                 progress={{
                   value: stats.attendanceRate,
@@ -373,7 +376,7 @@ export default function AttendancePage() {
               <ModernStatsCard
                 title={t('presentCount')}
                 value={stats.presentCount}
-                icon="✅"
+                icon={<IconCircleCheck size={28} />}
                 gradient="linear-gradient(135deg, #10b981 0%, #059669 100%)"
               />
             </Grid.Col>
@@ -382,7 +385,7 @@ export default function AttendancePage() {
               <ModernStatsCard
                 title={t('absentCount')}
                 value={stats.absentCount}
-                icon="❌"
+                icon={<IconCircleX size={28} />}
                 gradient="linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
               />
             </Grid.Col>

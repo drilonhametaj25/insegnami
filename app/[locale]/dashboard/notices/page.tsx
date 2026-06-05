@@ -133,16 +133,39 @@ export default function NoticesPage() {
   });
 
   const handleSaveNotice = (values: NoticeFormData) => {
-    const noticeData: CreateNoticeData = {
+    // Mappa i valori del form sul contratto dell'API (model Notice):
+    // type → enum API, targetAudience → targetRoles, priority/status → flag.
+    const TYPE_MAP: Record<string, string> = {
+      GENERAL: 'ANNOUNCEMENT',
+      ANNOUNCEMENT: 'ANNOUNCEMENT',
+      EVENT: 'EVENT',
+      URGENT: 'URGENT',
+      REMINDER: 'REMINDER',
+    };
+    const AUDIENCE_MAP: Record<string, string[]> = {
+      ALL: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'],
+      STUDENTS: ['STUDENT'],
+      TEACHERS: ['TEACHER'],
+      PARENTS: ['PARENT'],
+      ADMINS: ['ADMIN'],
+    };
+    const targetRoles = Array.from(
+      new Set((values.targetAudience || []).flatMap((a) => AUDIENCE_MAP[a] || []))
+    );
+
+    const noticeData = {
       title: values.title,
       content: values.content,
-      type: values.type,
-      status: values.status,
-      priority: values.priority,
-      publishedAt: values.publishedAt?.toISOString(),
+      type: TYPE_MAP[values.type] || 'ANNOUNCEMENT',
+      isPublic: (values.targetAudience || []).includes('ALL'),
+      targetRoles: targetRoles.length ? targetRoles : ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'],
+      isUrgent: values.priority === 'HIGH' || values.type === 'URGENT',
+      publishAt:
+        values.status === 'PUBLISHED'
+          ? values.publishedAt?.toISOString() || new Date().toISOString()
+          : undefined,
       expiresAt: values.expiresAt?.toISOString(),
-      targetAudience: values.targetAudience,
-    };
+    } as unknown as CreateNoticeData;
 
     if (editingNotice) {
       updateNotice.mutate(

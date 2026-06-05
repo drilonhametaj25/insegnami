@@ -24,12 +24,15 @@ import {
   Box,
 } from '@mantine/core';
 import {
+  IconAlertTriangle,
+  IconBook,
+  IconCalendar,
+  IconChartBar,
+  IconChevronRight,
   IconInfoCircle,
   IconSchool,
-  IconBook,
-  IconChevronRight,
   IconUsers,
-  IconChartBar,
+  IconWriting,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
@@ -137,7 +140,7 @@ export default function GradesPage() {
             <ModernStatsCard
               title={t('totalGrades')}
               value={totalGrades}
-              icon="📝"
+              icon={<IconWriting size={28} />}
               gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
             />
           </Grid.Col>
@@ -145,7 +148,7 @@ export default function GradesPage() {
             <ModernStatsCard
               title={t('todayGrades')}
               value={todayGrades}
-              icon="📅"
+              icon={<IconCalendar size={28} />}
               gradient="linear-gradient(135deg, #48bb78 0%, #38a169 100%)"
             />
           </Grid.Col>
@@ -153,7 +156,7 @@ export default function GradesPage() {
             <ModernStatsCard
               title={t('averageGrade')}
               value={avgGrade}
-              icon="📊"
+              icon={<IconChartBar size={28} />}
               gradient="linear-gradient(135deg, #4fd1c7 0%, #3182ce 100%)"
             />
           </Grid.Col>
@@ -161,7 +164,7 @@ export default function GradesPage() {
             <ModernStatsCard
               title={t('insufficienti')}
               value={insufficienti}
-              icon="⚠️"
+              icon={<IconAlertTriangle size={28} />}
               gradient="linear-gradient(135deg, #f56565 0%, #c53030 100%)"
             />
           </Grid.Col>

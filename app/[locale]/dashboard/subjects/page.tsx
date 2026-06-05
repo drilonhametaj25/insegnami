@@ -23,14 +23,18 @@ import { useDisclosure } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
+  IconBooks,
   IconCheck,
-  IconX,
-  IconInfoCircle,
+  IconCircleCheck,
+  IconClipboardList,
+  IconEdit,
   IconEye,
+  IconInfoCircle,
   IconPlus,
   IconRefresh,
-  IconEdit,
   IconTrash,
+  IconWriting,
+  IconX,
 } from '@tabler/icons-react';
 import { DataTable } from '@/components/tables/DataTable';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
@@ -151,6 +155,8 @@ export default function SubjectsPage() {
     } else {
       await createSubject.mutateAsync(data);
     }
+    // Chiude il modal dopo un salvataggio riuscito
+    close();
   };
 
   // Table columns
@@ -304,7 +310,7 @@ export default function SubjectsPage() {
               <ModernStatsCard
                 title={t('totalSubjects')}
                 value={stats.totalSubjects}
-                icon="📚"
+                icon={<IconBooks size={28} />}
                 gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
               />
             </Grid.Col>
@@ -312,7 +318,7 @@ export default function SubjectsPage() {
               <ModernStatsCard
                 title={t('activeSubjects')}
                 value={stats.activeSubjects}
-                icon="✅"
+                icon={<IconCircleCheck size={28} />}
                 gradient="linear-gradient(135deg, #48bb78 0%, #38a169 100%)"
               />
             </Grid.Col>
@@ -320,7 +326,7 @@ export default function SubjectsPage() {
               <ModernStatsCard
                 title={t('totalGrades')}
                 value={stats.totalGrades}
-                icon="📝"
+                icon={<IconWriting size={28} />}
                 gradient="linear-gradient(135deg, #4fd1c7 0%, #3182ce 100%)"
               />
             </Grid.Col>
@@ -328,7 +334,7 @@ export default function SubjectsPage() {
               <ModernStatsCard
                 title={t('totalHomework')}
                 value={stats.totalHomework}
-                icon="📋"
+                icon={<IconClipboardList size={28} />}
                 gradient="linear-gradient(135deg, #f6ad55 0%, #ed8936 100%)"
               />
             </Grid.Col>

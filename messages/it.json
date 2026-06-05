@@ -4,7 +4,7 @@
       "admin": "Benvenuto, {name}",
       "adminSubtitle": "Panoramica generale della scuola",
       "teacher": "Benvenuto, Prof. {name}",
-      "teacherSubtitle": "Le tue classi e lezioni di oggi", 
+      "teacherSubtitle": "Le tue classi e lezioni di oggi",
       "student": "Ciao, {name}",
       "studentSubtitle": "I tuoi corsi e prossime lezioni",
       "parent": "Benvenuto, {name}",
@@ -29,7 +29,7 @@
   "roles": {
     "admin": "Amministratore",
     "teacher": "Docente",
-    "student": "Studente", 
+    "student": "Studente",
     "parent": "Genitore",
     "superadmin": "Super Admin",
     "user": "Utente"
@@ -114,7 +114,7 @@
   "students": {
     "title": "Gestione Studenti",
     "addStudent": "Aggiungi Studente",
-    "editStudent": "Modifica Studente", 
+    "editStudent": "Modifica Studente",
     "totalStudents": "Totale Studenti",
     "activeStudents": "Studenti Attivi",
     "inactiveStudents": "Studenti Inattivi",
@@ -129,7 +129,7 @@
     "deleteConfirm": "Sei sicuro di voler eliminare questo studente?",
     "deleteSuccess": "Studente eliminato con successo",
     "deleteError": "Errore nell'eliminazione dello studente",
-    "saveSuccess": "Studente salvato con successo", 
+    "saveSuccess": "Studente salvato con successo",
     "saveError": "Errore nel salvataggio dello studente",
     "updateSuccess": "Studente aggiornato con successo",
     "updateError": "Errore nell'aggiornamento dello studente",
@@ -140,7 +140,7 @@
     "updateStudent": "Aggiorna Studente",
     "createStudent": "Crea Studente",
     "ascending": "Crescente",
-    "descending": "Decrescente", 
+    "descending": "Decrescente",
     "loadError": "Errore nel caricamento studenti",
     "student": "Studente",
     "email": "Email",
@@ -422,7 +422,7 @@
     "printGrades": "Stampa"
   },
   "disciplinary": {
-    "title": "Note Disciplinari",
+    "title": "Titolo",
     "subtitle": "Gestisci le note disciplinari degli studenti",
     "addNote": "Nuova Nota",
     "editNote": "Modifica Nota",
@@ -444,7 +444,6 @@
     "type": "Tipo",
     "severity": "Gravità",
     "status": "Stato",
-    "title": "Titolo",
     "titlePlaceholder": "es. Comportamento in classe",
     "description": "Descrizione",
     "descriptionPlaceholder": "Descrivi l'accaduto...",
@@ -483,13 +482,13 @@
     }
   },
   "homework": {
-    "title": "Compiti a Casa",
+    "title": "Compiti",
     "subtitle": "Gestisci i compiti assegnati alle classi",
     "addHomework": "Nuovo Compito",
     "editHomework": "Modifica Compito",
     "deleteHomework": "Elimina Compito",
     "totalHomework": "Compiti Totali",
-    "upcoming": "In Scadenza",
+    "upcoming": "In arrivo",
     "overdue": "Scaduti",
     "past": "Passati",
     "all": "Tutti",
@@ -503,17 +502,17 @@
     "selectClass": "Seleziona classe",
     "selectSubject": "Seleziona materia",
     "titleField": "Titolo",
-    "titlePlaceholder": "es. Esercizi pagina 45-46",
+    "titlePlaceholder": "es. Esercizi pagine 45-46",
     "description": "Descrizione",
     "descriptionPlaceholder": "Descrizione dettagliata del compito...",
     "assignedDate": "Data Assegnazione",
-    "dueDate": "Data Scadenza",
+    "dueDate": "Scadenza",
     "submissions": "Consegne",
     "actions": "Azioni",
     "isPublished": "Pubblicato",
     "isPublishedDescription": "Se disabilitato, il compito non sarà visibile agli studenti",
     "confirmDelete": "Conferma eliminazione",
-    "confirmDeleteMessage": "Sei sicuro di voler eliminare questo compito? Verranno eliminate anche tutte le consegne.",
+    "confirmDeleteMessage": "Sei sicuro di voler eliminare questo compito? Anche tutte le consegne saranno eliminate.",
     "createSuccess": "Compito creato con successo",
     "updateSuccess": "Compito aggiornato con successo",
     "deleteSuccess": "Compito eliminato con successo",
@@ -523,10 +522,10 @@
     "submitSuccess": "Compito consegnato con successo",
     "submitError": "Errore nella consegna del compito",
     "gradeSubmission": "Valuta Consegna",
-    "gradeSuccess": "Valutazione salvata con successo",
-    "gradeError": "Errore nel salvare la valutazione",
+    "gradeSuccess": "Consegna valutata con successo",
+    "gradeError": "Errore nella valutazione della consegna",
     "feedback": "Feedback",
-    "feedbackPlaceholder": "Commento per lo studente...",
+    "feedbackPlaceholder": "Commenti per lo studente...",
     "grade": "Voto",
     "submittedAt": "Consegnato il",
     "gradedAt": "Valutato il",
@@ -537,8 +536,8 @@
       "titleRequired": "Il titolo è obbligatorio",
       "titleTooLong": "Il titolo non può superare i 200 caratteri",
       "descriptionRequired": "La descrizione è obbligatoria",
-      "dueDateRequired": "La data di scadenza è obbligatoria",
-      "dueDateAfterAssigned": "La scadenza deve essere dopo la data di assegnazione"
+      "dueDateRequired": "La scadenza è obbligatoria",
+      "dueDateAfterAssigned": "La scadenza deve essere successiva alla data di assegnazione"
     }
   },
   "reportCards": {
@@ -655,7 +654,7 @@
   },
   "teachers": {
     "title": "Gestione Insegnanti",
-    "addTeacher": "Aggiungi Insegnante", 
+    "addTeacher": "Aggiungi Insegnante",
     "editTeacher": "Modifica Insegnante",
     "totalTeachers": "Totale Insegnanti",
     "activeTeachers": "Insegnanti Attivi",
@@ -684,7 +683,7 @@
     "email": "Email",
     "phone": "Telefono",
     "qualifications": "Qualifiche",
-    "specializations": "Specializzazioni", 
+    "specializations": "Specializzazioni",
     "qualificationsPlaceholder": "es. Laurea in Lingue, Certificazione TEFL",
     "specializationsPlaceholder": "es. Inglese commerciale, Conversazione, Grammatica",
     "specialization": "Specializzazione",
@@ -779,7 +778,7 @@
   "lessons": {
     "pageTitle": "Calendario Lezioni",
     "createLesson": "Nuova Lezione",
-    "editLesson": "Modifica Lezione", 
+    "editLesson": "Modifica Lezione",
     "lessonDetails": "Dettagli Lezione",
     "confirmDelete": "Sei sicuro di voler eliminare questa lezione?",
     "noClassroom": "Nessuna aula",
@@ -1006,7 +1005,7 @@
     "create": "Crea",
     "types": {
       "general": "Generale",
-      "urgent": "Urgente", 
+      "urgent": "Urgente",
       "event": "Evento",
       "announcement": "Annuncio"
     },
@@ -1031,7 +1030,7 @@
       "publishError": "Errore durante la pubblicazione dell'avviso",
       "archivedSuccessfully": "Avviso archiviato con successo",
       "archiveError": "Errore durante l'archiviazione dell'avviso",
-      "deletedSuccessfully": "Avviso eliminato con successo", 
+      "deletedSuccessfully": "Avviso eliminato con successo",
       "deleteError": "Errore durante l'eliminazione dell'avviso",
       "savedSuccessfully": "Avviso salvato con successo",
       "saveError": "Errore durante il salvataggio dell'avviso",
@@ -1067,7 +1066,7 @@
     "passwordRequirements": "La password deve contenere almeno 8 caratteri, una lettera minuscola, una maiuscola e un numero",
     "passwordStrength": "Robustezza Password",
     "passwordWeak": "Debole",
-    "passwordFair": "Sufficiente", 
+    "passwordFair": "Sufficiente",
     "passwordGood": "Buona",
     "passwordStrong": "Forte",
     "passwordChangedSuccess": "Password modificata con successo",
@@ -1193,7 +1192,7 @@
     "welcome": "Benvenuto/a, Prof. {name}",
     "tabs": {
       "overview": "Panoramica",
-      "calendar": "Calendario", 
+      "calendar": "Calendario",
       "myClasses": "Le Mie Classi",
       "attendance": "Presenze",
       "today": "Oggi"
@@ -1303,7 +1302,7 @@
     "notifications": {
       "success": "Successo",
       "studentSaved": "Studente salvato con successo",
-      "teacherSaved": "Docente salvato con successo", 
+      "teacherSaved": "Docente salvato con successo",
       "classSaved": "Classe salvata con successo",
       "paymentSaved": "Pagamento salvato con successo"
     }
@@ -1315,7 +1314,7 @@
     "deleteError": "Errore nell'eliminazione del docente",
     "deleteConfirmation": "Sei sicuro di voler eliminare {name}? Questa azione non può essere annullata.",
     "teacherInfo": "Informazioni Docente",
-    "specializations": "Specializzazioni", 
+    "specializations": "Specializzazioni",
     "noSpecializations": "Nessuna specializzazione",
     "experience": "Esperienza",
     "years": "anni",
@@ -1333,7 +1332,7 @@
     "performanceMetrics": "Metriche Performance",
     "completionRate": "Tasso Completamento",
     "averageStudentsPerClass": "Studenti Medi per Classe",
-    "lessonsThisMonth": "Lezioni Questo Mese", 
+    "lessonsThisMonth": "Lezioni Questo Mese",
     "averageClassSize": "Dimensione Media Classe",
     "contactInfo": "Informazioni di Contatto",
     "address": "Indirizzo",
@@ -1378,7 +1377,6 @@
   "occupancyRate": "Tasso Occupazione",
   "averageAttendance": "Presenza Media",
   "occupancy": "Occupazione",
-  
   "communication": {
     "title": "Comunicazione",
     "messages": "Messaggi",
@@ -1410,7 +1408,7 @@
     "channels": {
       "title": "Canali di Comunicazione",
       "email": "Email",
-      "sms": "SMS", 
+      "sms": "SMS",
       "push": "Notifica Push"
     },
     "templates": {
@@ -1433,7 +1431,7 @@
         "CLASS": "Classe",
         "COURSE": "Corso",
         "TEACHERS": "Docenti",
-        "STUDENTS": "Studenti", 
+        "STUDENTS": "Studenti",
         "PARENTS": "Genitori",
         "ROLE": "Ruolo",
         "CUSTOM": "Personalizzato",
@@ -1524,7 +1522,7 @@
     "performanceMetrics": "Metriche Performance"
   },
   "search": "Cerca",
-  "sender": "Mittente", 
+  "sender": "Mittente",
   "status": "Stato",
   "priority": "Priorità",
   "dateCreated": "Data Creazione",
@@ -1545,7 +1543,6 @@
   "noExpiry": "Senza scadenza",
   "overview": "Panoramica",
   "content": "Contenuto",
-  "homework": "Compiti",
   "recurring": "Ricorrente",
   "Blog": {
     "title": "Blog | InsegnaMi.pro",
@@ -1615,5 +1612,7 @@
       "backToPlans": "Torna ai Piani",
       "backToHome": "Torna alla Home"
     }
-  }
+  },
+  "view": "Visualizza",
+  "recipients": "Destinatari"
 }

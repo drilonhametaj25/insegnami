@@ -156,6 +156,8 @@ export default function AcademicYearsPage() {
     } else {
       await createYear.mutateAsync(data);
     }
+    // Chiude il modal dopo un salvataggio riuscito
+    closeYear();
   };
 
   // Period handlers

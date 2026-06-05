@@ -157,6 +157,8 @@ export default function HomeworkPage() {
         icon: <IconCheck />,
       });
     }
+    // Chiude il modal dopo un salvataggio riuscito
+    close();
   };
 
   const homeworkList = homeworkData?.data || [];

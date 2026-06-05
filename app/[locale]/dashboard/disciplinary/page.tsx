@@ -22,12 +22,16 @@ import { useDisclosure } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
+  IconAlertTriangle,
+  IconCheck,
+  IconCircleCheck,
+  IconClipboardList,
+  IconFileText,
   IconInfoCircle,
   IconPlus,
   IconRefresh,
-  IconCheck,
+  IconStar,
   IconX,
-  IconFileText,
 } from '@tabler/icons-react';
 import {
   useDisciplinaryNotes,
@@ -195,7 +199,7 @@ export default function DisciplinaryNotesPage() {
             <ModernStatsCard
               title={t('totalNotes')}
               value={statistics.total}
-              icon="📋"
+              icon={<IconClipboardList size={28} />}
               gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
             />
           </Grid.Col>
@@ -203,7 +207,7 @@ export default function DisciplinaryNotesPage() {
             <ModernStatsCard
               title={t('openNotes')}
               value={statistics.unresolved}
-              icon="⚠️"
+              icon={<IconAlertTriangle size={28} />}
               gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
             />
           </Grid.Col>
@@ -211,7 +215,7 @@ export default function DisciplinaryNotesPage() {
             <ModernStatsCard
               title={t('resolvedNotes')}
               value={statistics.resolved}
-              icon="✅"
+              icon={<IconCircleCheck size={28} />}
               gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
             />
           </Grid.Col>
@@ -219,7 +223,7 @@ export default function DisciplinaryNotesPage() {
             <ModernStatsCard
               title={t('positiveNotes')}
               value={statistics.byType.POSITIVE}
-              icon="⭐"
+              icon={<IconStar size={28} />}
               gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
             />
           </Grid.Col>

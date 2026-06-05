@@ -4,7 +4,7 @@
       "admin": "Bem-vindo, {name}",
       "adminSubtitle": "Visão geral da escola",
       "teacher": "Bem-vindo, Prof. {name}",
-      "teacherSubtitle": "Suas turmas e aulas de hoje", 
+      "teacherSubtitle": "Suas turmas e aulas de hoje",
       "student": "Olá, {name}",
       "studentSubtitle": "Seus cursos e próximas aulas",
       "parent": "Bem-vindo, {name}",
@@ -29,7 +29,7 @@
   "roles": {
     "admin": "Administrador",
     "teacher": "Professor",
-    "student": "Estudante", 
+    "student": "Estudante",
     "parent": "Responsável",
     "superadmin": "Super Admin",
     "user": "Usuário"
@@ -111,7 +111,7 @@
     "noNotifications": "Nenhuma notificação"
   },
   "students": {
-    "title": "Gestão de Estudantes", 
+    "title": "Gestão de Estudantes",
     "addStudent": "Adicionar Estudante",
     "totalStudents": "Total Estudantes",
     "activeStudents": "Estudantes Ativos",
@@ -298,7 +298,7 @@
     }
   },
   "disciplinary": {
-    "title": "Notas Disciplinares",
+    "title": "Título",
     "subtitle": "Gerenciar notas disciplinares dos estudantes",
     "addNote": "Nova Nota",
     "editNote": "Editar Nota",
@@ -320,7 +320,6 @@
     "type": "Tipo",
     "severity": "Gravidade",
     "status": "Status",
-    "title": "Título",
     "titlePlaceholder": "ex. Comportamento em sala",
     "description": "Descrição",
     "descriptionPlaceholder": "Descreva o ocorrido...",
@@ -634,7 +633,7 @@
   "lessons": {
     "pageTitle": "Calendário de Aulas",
     "createLesson": "Nova Aula",
-    "editLesson": "Editar Aula", 
+    "editLesson": "Editar Aula",
     "lessonDetails": "Detalhes da Aula",
     "confirmDelete": "Tem certeza de que deseja excluir esta aula?",
     "noClassroom": "Nenhuma sala",
@@ -808,7 +807,7 @@
     "create": "Criar",
     "types": {
       "general": "Geral",
-      "urgent": "Urgente", 
+      "urgent": "Urgente",
       "event": "Evento",
       "announcement": "Anúncio"
     },
@@ -833,7 +832,7 @@
       "publishError": "Erro ao publicar aviso",
       "archivedSuccessfully": "Aviso arquivado com sucesso",
       "archiveError": "Erro ao arquivar aviso",
-      "deletedSuccessfully": "Aviso excluído com sucesso", 
+      "deletedSuccessfully": "Aviso excluído com sucesso",
       "deleteError": "Erro ao excluir aviso",
       "savedSuccessfully": "Aviso salvo com sucesso",
       "saveError": "Erro ao salvar aviso",
@@ -1076,5 +1075,7 @@
       "classSaved": "Turma salva com sucesso",
       "paymentSaved": "Pagamento salvo com sucesso"
     }
-  }
+  },
+  "view": "Visualizar",
+  "recipients": "Destinatários"
 }

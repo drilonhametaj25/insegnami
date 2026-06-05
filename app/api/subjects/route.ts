@@ -3,13 +3,20 @@ import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 
+// I campi opzionali possono arrivare come stringa vuota o null dal form:
+// li normalizziamo ad "assente" per non far fallire la validazione.
+const emptyToUndefined = (v: unknown) => (v === '' || v === null ? undefined : v);
+
 // Validation schema
 const subjectSchema = z.object({
   name: z.string().min(1, 'Nome materia obbligatorio'),
   code: z.string().min(1, 'Codice materia obbligatorio').max(10, 'Codice massimo 10 caratteri'),
-  color: z.string().optional().default('#3b82f6'),
-  icon: z.string().optional(),
-  weeklyHours: z.number().int().min(0).max(40).optional(),
+  color: z.preprocess(emptyToUndefined, z.string().optional().default('#3b82f6')),
+  icon: z.preprocess(emptyToUndefined, z.string().optional()),
+  weeklyHours: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+    z.number().int().min(0).max(40).optional()
+  ),
   isActive: z.boolean().optional().default(true),
 });
 

@@ -59,7 +59,7 @@
       "admin": "Welcome, {name}",
       "adminSubtitle": "General school overview",
       "teacher": "Welcome, Prof. {name}",
-      "teacherSubtitle": "Your classes and today's lessons", 
+      "teacherSubtitle": "Your classes and today's lessons",
       "student": "Hi, {name}",
       "studentSubtitle": "Your courses and upcoming lessons",
       "parent": "Welcome, {name}",
@@ -75,7 +75,7 @@
     "quickActions": "Quick Actions",
     "upcomingEvents": "Upcoming Events",
     "roles": {
-      "admin": "Administrator", 
+      "admin": "Administrator",
       "teacher": "Teacher",
       "student": "Student",
       "parent": "Parent"
@@ -84,7 +84,7 @@
   "roles": {
     "admin": "Administrator",
     "teacher": "Teacher",
-    "student": "Student", 
+    "student": "Student",
     "parent": "Parent",
     "superadmin": "Super Admin",
     "user": "User"
@@ -329,7 +329,7 @@
     "printGrades": "Print"
   },
   "disciplinary": {
-    "title": "Disciplinary Notes",
+    "title": "Title",
     "subtitle": "Manage student disciplinary notes",
     "addNote": "New Note",
     "editNote": "Edit Note",
@@ -351,7 +351,6 @@
     "type": "Type",
     "severity": "Severity",
     "status": "Status",
-    "title": "Title",
     "titlePlaceholder": "e.g. Classroom behavior",
     "description": "Description",
     "descriptionPlaceholder": "Describe what happened...",
@@ -561,7 +560,7 @@
     }
   },
   "teachers": {
-    "title": "Teacher Management", 
+    "title": "Teacher Management",
     "addTeacher": "Add Teacher",
     "editTeacher": "Edit Teacher",
     "totalTeachers": "Total Teachers",
@@ -569,7 +568,7 @@
     "inactiveTeachers": "Inactive Teachers",
     "statsError": "Failed to load statistics",
     "createSuccess": "Teacher created successfully",
-    "updateSuccess": "Teacher updated successfully", 
+    "updateSuccess": "Teacher updated successfully",
     "deleteSuccess": "Teacher deleted successfully",
     "saveError": "Failed to save teacher",
     "deleteError": "Failed to delete teacher",
@@ -592,7 +591,7 @@
     "qualifications": "Qualifications",
     "specializations": "Specializations",
     "qualificationsPlaceholder": "e.g., MA in English Literature, TEFL Certified",
-    "specializationsPlaceholder": "e.g., Business English, Conversation, Grammar", 
+    "specializationsPlaceholder": "e.g., Business English, Conversation, Grammar",
     "specialization": "Specialization",
     "hireDate": "Hire Date",
     "status": "Status",
@@ -627,7 +626,7 @@
   "lessons": {
     "pageTitle": "Lesson Calendar",
     "createLesson": "New Lesson",
-    "editLesson": "Edit Lesson", 
+    "editLesson": "Edit Lesson",
     "lessonDetails": "Lesson Details",
     "confirmDelete": "Are you sure you want to delete this lesson?",
     "noClassroom": "No classroom",
@@ -774,7 +773,7 @@
     "create": "Create",
     "types": {
       "general": "General",
-      "urgent": "Urgent", 
+      "urgent": "Urgent",
       "event": "Event",
       "announcement": "Announcement"
     },
@@ -799,7 +798,7 @@
       "publishError": "Error publishing notice",
       "archivedSuccessfully": "Notice archived successfully",
       "archiveError": "Error archiving notice",
-      "deletedSuccessfully": "Notice deleted successfully", 
+      "deletedSuccessfully": "Notice deleted successfully",
       "deleteError": "Error deleting notice",
       "savedSuccessfully": "Notice saved successfully",
       "saveError": "Error saving notice",
@@ -1092,5 +1091,7 @@
       "backToPlans": "Back to Plans",
       "backToHome": "Back to Home"
     }
-  }
+  },
+  "view": "View",
+  "recipients": "Recipients"
 }

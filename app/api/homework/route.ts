@@ -192,13 +192,6 @@ export async function POST(request: NextRequest) {
       teacherId = teacher.id;
     }
 
-    if (!teacherId) {
-      return NextResponse.json(
-        { error: 'teacherId è obbligatorio' },
-        { status: 400 }
-      );
-    }
-
     // Verify class exists
     const classEntity = await prisma.class.findFirst({
       where: {
@@ -209,6 +202,18 @@ export async function POST(request: NextRequest) {
 
     if (!classEntity) {
       return NextResponse.json({ error: 'Classe non trovata' }, { status: 404 });
+    }
+
+    // Se il teacherId non è specificato (es. admin), usa il docente
+    // assegnato alla classe come default.
+    if (!teacherId) {
+      teacherId = classEntity.teacherId;
+    }
+    if (!teacherId) {
+      return NextResponse.json(
+        { error: 'Nessun docente disponibile: assegna un docente alla classe o specificane uno.' },
+        { status: 400 }
+      );
     }
 
     // Verify subject exists

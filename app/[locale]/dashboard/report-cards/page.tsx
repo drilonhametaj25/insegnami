@@ -21,15 +21,18 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
+  IconArchive,
+  IconCheck,
+  IconCircleCheck,
+  IconClock,
+  IconEdit,
+  IconEye,
+  IconFileText,
   IconPlus,
   IconRefresh,
-  IconCheck,
-  IconX,
-  IconFileText,
-  IconClock,
-  IconEye,
-  IconArchive,
   IconSend,
+  IconSpeakerphone,
+  IconX,
 } from '@tabler/icons-react';
 import {
   useReportCards,
@@ -183,7 +186,7 @@ export default function ReportCardsPage() {
             <ModernStatsCard
               title="Totale"
               value={stats.total}
-              icon="📄"
+              icon={<IconFileText size={28} />}
               gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
             />
           </Grid.Col>
@@ -191,7 +194,7 @@ export default function ReportCardsPage() {
             <ModernStatsCard
               title="Bozze"
               value={stats.draft}
-              icon="✏️"
+              icon={<IconEdit size={28} />}
               gradient="linear-gradient(135deg, #868e96 0%, #495057 100%)"
             />
           </Grid.Col>
@@ -199,7 +202,7 @@ export default function ReportCardsPage() {
             <ModernStatsCard
               title="In Scrutinio"
               value={stats.inReview}
-              icon="👀"
+              icon={<IconEye size={28} />}
               gradient="linear-gradient(135deg, #fab005 0%, #fd7e14 100%)"
             />
           </Grid.Col>
@@ -207,7 +210,7 @@ export default function ReportCardsPage() {
             <ModernStatsCard
               title="Approvate"
               value={stats.approved}
-              icon="✅"
+              icon={<IconCircleCheck size={28} />}
               gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
             />
           </Grid.Col>
@@ -215,7 +218,7 @@ export default function ReportCardsPage() {
             <ModernStatsCard
               title="Pubblicate"
               value={stats.published}
-              icon="📢"
+              icon={<IconSpeakerphone size={28} />}
               gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
             />
           </Grid.Col>

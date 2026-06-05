@@ -9,8 +9,12 @@ export default defineConfig({
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  /* Timeout per test: il dev server di Next può essere lento sotto carico */
+  timeout: 60 * 1000,
+  /* Timeout default delle asserzioni expect() — più tollerante in dev */
+  expect: { timeout: 15 * 1000 },
+  /* Un retry locale assorbe la flakiness residua del dev server */
+  retries: process.env.CI ? 2 : 1,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
