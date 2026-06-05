@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import {
   Container,
@@ -42,6 +42,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import Link from 'next/link';
+import { AddonsManager } from '@/components/billing/AddonsManager';
 
 interface Plan {
   id: string;
@@ -106,7 +107,6 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function BillingPage() {
-  const t = useTranslations('billing');
   const locale = useLocale();
   const searchParams = useSearchParams();
   const [data, setData] = useState<SubscriptionData | null>(null);
@@ -114,6 +114,8 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [changingPlan, setChangingPlan] = useState<string | null>(null);
 
   // Check for success/cancelled from Stripe redirect
   useEffect(() => {
@@ -140,7 +142,47 @@ export default function BillingPage() {
   useEffect(() => {
     fetchSubscription();
     fetchUsage();
+    fetchPlans();
   }, []);
+
+  const fetchPlans = async () => {
+    try {
+      const res = await fetch('/api/subscriptions/plans');
+      if (!res.ok) return;
+      const result = await res.json();
+      setPlans(result.plans || []);
+    } catch {
+      // non-blocking
+    }
+  };
+
+  const handleChangePlan = async (targetPlanSlug: string) => {
+    setChangingPlan(targetPlanSlug);
+    try {
+      const res = await fetch('/api/subscriptions/change-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetPlanSlug }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Errore nel cambio piano');
+      notifications.show({
+        title: 'Piano aggiornato',
+        message: `Sei passato al piano ${result.newPlan?.name || targetPlanSlug}.`,
+        color: 'green',
+        icon: <IconCheck size={18} />,
+      });
+      await fetchSubscription();
+    } catch (err) {
+      notifications.show({
+        title: 'Errore',
+        message: err instanceof Error ? err.message : 'Errore imprevisto',
+        color: 'red',
+      });
+    } finally {
+      setChangingPlan(null);
+    }
+  };
 
   const fetchSubscription = async () => {
     try {
@@ -202,6 +244,17 @@ export default function BillingPage() {
 
       if (!response.ok) {
         throw new Error(result.error || 'Errore nell\'apertura del portale');
+      }
+
+      // In dev billing mode la gestione avviene in-app (sezioni qui sotto).
+      if (result.dev) {
+        notifications.show({
+          title: 'Gestione abbonamento',
+          message: 'Cambia piano e gestisci gli add-on nelle sezioni qui sotto.',
+          color: 'blue',
+        });
+        document.querySelector('[data-testid="addons-section"]')?.scrollIntoView({ behavior: 'smooth' });
+        return;
       }
 
       // BUG-022 fix: Open in new tab instead of hard redirect to preserve app state
@@ -555,6 +608,54 @@ export default function BillingPage() {
             </Stack>
           </Grid.Col>
         </Grid>
+
+        {/* Plan change (in-app upgrade/downgrade) */}
+        {subscription && plans.length > 0 && (
+          <Paper p="xl" radius="md" withBorder data-testid="plan-change-section">
+            <Title order={3} mb="xs">Cambia Piano</Title>
+            <Text c="dimmed" size="sm" mb="lg">
+              Passa a un piano superiore o inferiore. La modifica è immediata.
+            </Text>
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+              {plans.map((p) => {
+                const isCurrent = p.slug === plan?.slug;
+                return (
+                  <Card key={p.id} withBorder radius="md" p="lg" data-testid={`plan-option-${p.slug}`}>
+                    <Group justify="space-between" mb="xs">
+                      <Text fw={700}>{p.name}</Text>
+                      {isCurrent && <Badge color="violet">Attuale</Badge>}
+                    </Group>
+                    <Text size="xl" fw={900} c="violet" mb="xs">
+                      €{p.price}
+                      <Text span size="sm" c="dimmed" fw={400}>
+                        /{p.interval === 'MONTHLY' ? 'mese' : 'anno'}
+                      </Text>
+                    </Text>
+                    <Stack gap={4} mb="md">
+                      <Text size="xs" c="dimmed">{p.maxStudents ?? '∞'} studenti</Text>
+                      <Text size="xs" c="dimmed">{p.maxTeachers ?? '∞'} docenti</Text>
+                      <Text size="xs" c="dimmed">{p.maxClasses ?? '∞'} classi</Text>
+                    </Stack>
+                    <Button
+                      fullWidth
+                      variant={isCurrent ? 'light' : 'filled'}
+                      color="violet"
+                      disabled={isCurrent || changingPlan !== null}
+                      loading={changingPlan === p.slug}
+                      onClick={() => handleChangePlan(p.slug)}
+                      data-testid={`plan-change-${p.slug}`}
+                    >
+                      {isCurrent ? 'Piano attuale' : 'Scegli'}
+                    </Button>
+                  </Card>
+                );
+              })}
+            </SimpleGrid>
+          </Paper>
+        )}
+
+        {/* Add-on / espansioni */}
+        {subscription && <AddonsManager onChange={() => { fetchSubscription(); fetchUsage(); }} />}
       </Stack>
     </Container>
   );

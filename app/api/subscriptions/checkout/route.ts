@@ -6,6 +6,8 @@ import {
   getOrCreateCustomer,
   createSubscriptionCheckoutSession,
 } from '@/lib/stripe';
+import { isDevBilling } from '@/lib/billing/billing-mode';
+import { devActivateSubscription } from '@/lib/billing/dev-billing';
 
 const checkoutSchema = z.object({
   planId: z.string().min(1, 'Piano richiesto'),
@@ -23,14 +25,6 @@ export async function POST(request: NextRequest) {
     // Only admin can manage subscriptions
     if (!ADMIN_ROLES.includes(session.user.role)) {
       return NextResponse.json({ error: 'Permessi insufficienti' }, { status: 403 });
-    }
-
-    // Check if Stripe is configured
-    if (!process.env.STRIPE_SECRET_KEY) {
-      return NextResponse.json(
-        { error: 'Stripe non configurato' },
-        { status: 500 }
-      );
     }
 
     const body = await request.json();
@@ -99,6 +93,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+
+    // Dev billing mode: niente Stripe esterno. Attiviamo direttamente
+    // l'abbonamento (con trial) e rimandiamo alla pagina di fatturazione.
+    if (isDevBilling()) {
+      await devActivateSubscription({ tenantId: tenant.id, plan, withTrial: true });
+      return NextResponse.json({
+        url: `${baseUrl}/it/dashboard/billing?success=true`,
+        dev: true,
+      });
+    }
+
     // Get or create Stripe customer
     const customer = await getOrCreateCustomer({
       email: user.email,
@@ -116,7 +122,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create checkout session
-    const baseUrl = process.env.APP_URL || 'http://localhost:3000';
     const checkoutSession = await createSubscriptionCheckoutSession({
       customerId: customer.id,
       priceId: plan.stripePriceId,

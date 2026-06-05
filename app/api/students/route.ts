@@ -234,45 +234,57 @@ export async function POST(request: NextRequest) {
     let studentUser = null;
     let parentUser = null;
 
-    // Create student account if requested
-    if (createStudentAccount) {
-      if (!email) {
+    // Ogni studente è collegato a un account User (relazione obbligatoria).
+    // Se l'admin abilita "Crea account di accesso" creiamo un account con
+    // login reale; altrimenti generiamo un profilo "ombra" (email sintetica,
+    // password casuale) così il record studente è sempre valido e l'accesso
+    // potrà essere attivato in seguito dalla scheda utente.
+    {
+      const wantsLogin = Boolean(createStudentAccount);
+
+      if (wantsLogin && !studentPassword) {
         return NextResponse.json(
-          { error: 'Email richiesta per account studente' },
+          { error: 'Password richiesta per abilitare l\'account studente' },
           { status: 400 }
         );
       }
 
-      if (!studentPassword) {
-        return NextResponse.json(
-          { error: 'Password richiesta per account studente' },
-          { status: 400 }
-        );
+      // Email: usa quella fornita (deve essere univoca) oppure sintetica.
+      let userEmail = (email && String(email).trim()) || '';
+      if (userEmail) {
+        const existingUser = await prisma.user.findUnique({ where: { email: userEmail } });
+        if (existingUser) {
+          return NextResponse.json(
+            { error: 'Email già utilizzata da un altro utente' },
+            { status: 400 }
+          );
+        }
+      } else {
+        if (wantsLogin) {
+          return NextResponse.json(
+            { error: 'Email richiesta per abilitare l\'account studente' },
+            { status: 400 }
+          );
+        }
+        // Email sintetica univoca per il profilo senza login
+        const rand = Math.random().toString(36).slice(2, 8);
+        userEmail = `studente.${Date.now().toString(36)}${rand}@${session.user.tenantId}.local`;
       }
 
-      // Check if email is already used
-      const existingUser = await prisma.user.findUnique({
-        where: { email },
-      });
-
-      if (existingUser) {
-        return NextResponse.json(
-          { error: 'Email già utilizzata da un altro utente' },
-          { status: 400 }
-        );
-      }
-
-      const hashedStudentPassword = await bcrypt.hash(studentPassword, 10);
+      const rawPassword = wantsLogin
+        ? studentPassword
+        : `${Math.random().toString(36).slice(2)}A1!`;
+      const hashedStudentPassword = await bcrypt.hash(rawPassword, 10);
 
       studentUser = await prisma.user.create({
         data: {
-          email,
+          email: userEmail,
           password: hashedStudentPassword,
           firstName,
           lastName,
           phone: phone || null,
-          status: 'ACTIVE',
-          emailVerified: new Date(),
+          status: wantsLogin ? 'ACTIVE' : (status as any),
+          emailVerified: wantsLogin ? new Date() : null,
         } as any,
       });
 

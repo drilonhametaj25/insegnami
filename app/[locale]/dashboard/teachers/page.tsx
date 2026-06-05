@@ -19,7 +19,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCheck, IconX, IconInfoCircle, IconEye, IconPlus, IconRefresh, IconDownload, IconTrash } from '@tabler/icons-react';
+import { IconCheck, IconX, IconInfoCircle, IconEye, IconPlus, IconRefresh, IconDownload, IconTrash, IconSchool, IconUserCheck, IconUserOff } from '@tabler/icons-react';
 import { DataTable, TableRenderers } from '@/components/tables/DataTable';
 import { TeacherForm } from '@/components/forms/TeacherForm';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
@@ -178,7 +178,7 @@ export default function TeachersPage() {
       // Mostra notifica di caricamento
       const loadingNotification = notifications.show({
         id: 'saving-teacher',
-        title: editingTeacher ? '⏳ Aggiornamento in corso...' : '⏳ Creazione in corso...',
+        title: editingTeacher ? 'Aggiornamento in corso...' : 'Creazione in corso...',
         message: editingTeacher ? 'Salvataggio modifiche docente' : 'Creazione nuovo docente',
         loading: true,
         autoClose: false,
@@ -205,7 +205,7 @@ export default function TeachersPage() {
 
       notifications.show({
         id: `teacher-success-${Date.now()}`, // ID unico per evitare duplicati
-        title: '✅ Successo',
+        title: 'Successo',
         message: responseData.message || `Docente ${editingTeacher ? 'aggiornato' : 'creato'} con successo`,
         color: 'green',
         icon: <IconCheck size={18} />,
@@ -222,7 +222,7 @@ export default function TeachersPage() {
       console.error('Error saving teacher:', error);
       notifications.show({
         id: `teacher-error-${Date.now()}`, // ID unico per evitare duplicati
-        title: '❌ Errore',
+        title: 'Errore',
         message: error.message || 'Impossibile salvare il docente',
         color: 'red',
         icon: <IconX size={18} />,
@@ -389,7 +389,7 @@ export default function TeachersPage() {
               <ModernStatsCard
                 title="Docenti Totali"
                 value={stats?.total?.toString() || '0'}
-                icon="👨‍🏫"
+                icon={<IconSchool size={28} />}
                 gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
               />
             </Grid.Col>
@@ -397,7 +397,7 @@ export default function TeachersPage() {
               <ModernStatsCard
                 title="Docenti Attivi"
                 value={stats?.active?.toString() || '0'}
-                icon="✅"
+                icon={<IconUserCheck size={28} />}
                 gradient="linear-gradient(135deg, #11998e 0%, #38ef7d 100%)"
               />
             </Grid.Col>
@@ -405,7 +405,7 @@ export default function TeachersPage() {
               <ModernStatsCard
                 title="Docenti Inattivi"
                 value={stats?.inactive?.toString() || '0'}
-                icon="⏸️"
+                icon={<IconUserOff size={28} />}
                 gradient="linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%)"
               />
             </Grid.Col>

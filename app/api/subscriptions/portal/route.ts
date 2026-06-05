@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, ADMIN_ROLES } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { createBillingPortalSession } from '@/lib/stripe';
+import { isDevBilling } from '@/lib/billing/billing-mode';
 
 // POST /api/subscriptions/portal - Create Stripe billing portal session
 export async function POST(request: NextRequest) {
@@ -16,12 +17,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Permessi insufficienti' }, { status: 403 });
     }
 
-    // Check if Stripe is configured
-    if (!process.env.STRIPE_SECRET_KEY) {
-      return NextResponse.json(
-        { error: 'Stripe non configurato' },
-        { status: 500 }
-      );
+    const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+
+    // Dev billing mode: nessun portale Stripe. La gestione (cambio piano,
+    // add-on, annullamento) avviene nella pagina di fatturazione interna.
+    if (isDevBilling()) {
+      return NextResponse.json({
+        url: `${baseUrl}/it/dashboard/billing?manage=true`,
+        dev: true,
+      });
     }
 
     // Get tenant
@@ -38,7 +42,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create billing portal session
-    const baseUrl = process.env.APP_URL || 'http://localhost:3000';
     const portalSession = await createBillingPortalSession({
       customerId: tenant.stripeCustomerId,
       returnUrl: `${baseUrl}/it/dashboard/billing`,

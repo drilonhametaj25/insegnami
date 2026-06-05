@@ -24,9 +24,11 @@ const authOptions = {
         const email = (credentials.email as string).toLowerCase();
         const password = credentials.password as string;
 
-        // Rate limit per email: 10 attempts per minute, defends against
-        // credential stuffing without affecting legitimate users.
-        const allowed = await rateLimitByKey(email, 10, 60 * 1000, 'rl:login');
+        // Rate limit per email: difende dal credential stuffing senza
+        // penalizzare gli utenti legittimi. In sviluppo/test il limite è
+        // alto per non rendere instabili le suite E2E (login ripetuti).
+        const loginLimit = process.env.NODE_ENV === 'production' ? 10 : 1000;
+        const allowed = await rateLimitByKey(email, loginLimit, 60 * 1000, 'rl:login');
         if (!allowed) {
           return null;
         }

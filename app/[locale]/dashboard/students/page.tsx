@@ -19,7 +19,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCheck, IconX, IconInfoCircle, IconEye, IconPlus, IconRefresh, IconDownload, IconTrash } from '@tabler/icons-react';
+import { IconCheck, IconX, IconInfoCircle, IconEye, IconPlus, IconRefresh, IconDownload, IconTrash, IconUsers, IconUserCheck, IconUserOff, IconUserPlus } from '@tabler/icons-react';
 import { DataTable, TableRenderers } from '@/components/tables/DataTable';
 import { AdvancedStudentForm } from '@/components/forms/AdvancedStudentForm';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
@@ -383,7 +383,7 @@ export default function StudentsPage() {
               <ModernStatsCard
                 title="Studenti Totali"
                 value={stats.totalStudents}
-                icon="👥"
+                icon={<IconUsers size={28} />}
                 gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
               />
             </Grid.Col>
@@ -391,7 +391,7 @@ export default function StudentsPage() {
               <ModernStatsCard
                 title="Studenti Attivi"
                 value={stats.activeStudents}
-                icon="✅"
+                icon={<IconUserCheck size={28} />}
                 gradient="linear-gradient(135deg, #48bb78 0%, #38a169 100%)"
               />
             </Grid.Col>
@@ -399,7 +399,7 @@ export default function StudentsPage() {
               <ModernStatsCard
                 title="Studenti Inattivi"
                 value={stats.inactiveStudents}
-                icon="⏸️"
+                icon={<IconUserOff size={28} />}
                 gradient="linear-gradient(135deg, #a0aec0 0%, #718096 100%)"
               />
             </Grid.Col>
@@ -407,7 +407,7 @@ export default function StudentsPage() {
               <ModernStatsCard
                 title="Nuovi questo Mese"
                 value={stats.newStudentsThisMonth}
-                icon="🆕"
+                icon={<IconUserPlus size={28} />}
                 gradient="linear-gradient(135deg, #4fd1c7 0%, #3182ce 100%)"
               />
             </Grid.Col>

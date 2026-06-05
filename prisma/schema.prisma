@@ -179,6 +179,12 @@ model Tenant {
   domain String? @unique // For subdomain support in SaaS
   plan   String  @default("basic") // Legacy field, use subscription instead
 
+  // Dati di contatto della scuola (raccolti nell'onboarding)
+  address String?
+  phone   String?
+  email   String?
+  logo    String?
+
   // Feature flags
   featureFlags Json @default("{}")
 
@@ -229,6 +235,7 @@ model Tenant {
 
   // Subscription relation (SaaS billing)
   subscription Subscription?
+  addons       TenantAddon[]
 
   // Smart Scheduling
   schedules       Schedule[]
@@ -324,6 +331,48 @@ model Subscription {
   @@index([stripeCustomerId])
   @@index([status])
   @@map("subscriptions")
+}
+
+// ========================================
+// ADD-ON / ESPANSIONI (posti extra + storage)
+// ========================================
+
+enum AddonType {
+  EXTRA_STUDENTS // pacchetto di posti studente aggiuntivi
+  EXTRA_TEACHERS // pacchetto di posti docente aggiuntivi
+  EXTRA_CLASSES // pacchetto di classi aggiuntive
+  EXTRA_STORAGE // pacchetto di spazio storage aggiuntivo (GB)
+}
+
+enum AddonStatus {
+  ACTIVE
+  CANCELLED
+}
+
+// Un add-on acquistato da un tenant. quantity = numero di "pacchetti".
+// La dimensione del pacchetto e il prezzo sono definiti nel catalogo
+// (lib/billing/addons.ts) e congelati qui come snapshot all'acquisto.
+model TenantAddon {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  type     AddonType
+  quantity Int     @default(1) // numero di pacchetti acquistati
+  unitSize Int     @default(1) // entità per pacchetto (es. 50 studenti, 5 GB) — snapshot
+  unitPrice Decimal @db.Decimal(10, 2) // prezzo per pacchetto/mese — snapshot
+
+  status AddonStatus @default(ACTIVE)
+
+  // Stripe (quando il billing reale è attivo): subscription item id
+  stripeSubscriptionItemId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("tenant_addons")
 }
 
 model User {

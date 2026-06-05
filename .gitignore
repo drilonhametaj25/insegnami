@@ -57,3 +57,9 @@ public/uploads/
 
 # Generated files
 prisma/migrations/*.sql
+
+# Playwright auth states
+tests/e2e/.auth/
+.playwright-mcp/
+test-results/
+playwright-report/

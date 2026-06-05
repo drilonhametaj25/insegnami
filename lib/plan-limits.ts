@@ -1,9 +1,22 @@
 import { prisma } from '@/lib/db';
+import type { AddonType } from '@prisma/client';
 
 interface PlanLimits {
   maxStudents: number | null;
   maxTeachers: number | null;
   maxClasses: number | null;
+}
+
+/** Somma i posti extra acquistati via add-on, per tipo. */
+async function getAddonExtras(tenantId: string): Promise<{ students: number; teachers: number; classes: number }> {
+  const addons = await prisma.tenantAddon.findMany({ where: { tenantId, status: 'ACTIVE' } });
+  const sum = (type: AddonType) =>
+    addons.filter((a) => a.type === type).reduce((s, a) => s + a.quantity * a.unitSize, 0);
+  return {
+    students: sum('EXTRA_STUDENTS'),
+    teachers: sum('EXTRA_TEACHERS'),
+    classes: sum('EXTRA_CLASSES'),
+  };
 }
 
 interface LimitCheckResult {
@@ -39,12 +52,15 @@ export async function getTenantPlanLimits(tenantId: string): Promise<PlanLimits 
     return null;
   }
 
-  // If tenant has active subscription with plan, use those limits
+  // If tenant has active subscription with plan, use those limits + add-on extras.
+  // null (illimitato) resta illimitato.
   if (tenant.subscription?.plan) {
+    const extras = await getAddonExtras(tenantId);
+    const withExtra = (base: number | null, extra: number) => (base == null ? null : base + extra);
     return {
-      maxStudents: tenant.subscription.plan.maxStudents,
-      maxTeachers: tenant.subscription.plan.maxTeachers,
-      maxClasses: tenant.subscription.plan.maxClasses,
+      maxStudents: withExtra(tenant.subscription.plan.maxStudents, extras.students),
+      maxTeachers: withExtra(tenant.subscription.plan.maxTeachers, extras.teachers),
+      maxClasses: withExtra(tenant.subscription.plan.maxClasses, extras.classes),
     };
   }
 

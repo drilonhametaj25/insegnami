@@ -208,7 +208,8 @@ export async function POST(request: NextRequest) {
         data: {
           tenantId: session.user.tenantId,
           studentId: validatedData.studentId,
-          classId: validatedData.classId,
+          // classId vuoto (form senza classe) → null per non violare la FK
+          classId: validatedData.classId || null,
           amount: validatedData.amount,
           paymentMethod: validatedData.paymentMethod,
           status: validatedData.status,

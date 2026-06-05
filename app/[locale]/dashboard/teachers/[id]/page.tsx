@@ -119,7 +119,7 @@ export default function TeacherDetailPage() {
       // Mostra notifica di caricamento
       const loadingNotification = notifications.show({
         id: 'updating-teacher',
-        title: '⏳ Salvataggio in corso...',
+        title: 'Salvataggio in corso...',
         message: 'Aggiornamento dei dati del docente',
         loading: true,
         autoClose: false,
@@ -148,7 +148,7 @@ export default function TeacherDetailPage() {
       setTeacher(updatedTeacher);
 
       notifications.show({
-        title: '✅ Successo',
+        title: 'Successo',
         message: responseData.message || 'Docente aggiornato con successo',
         color: 'green',
         icon: <IconCheck size={18} />,
@@ -162,7 +162,7 @@ export default function TeacherDetailPage() {
       
       console.error('Error updating teacher:', error);
       notifications.show({
-        title: '❌ Errore',
+        title: 'Errore',
         message: error.message || 'Impossibile aggiornare il docente',
         color: 'red',
         icon: <IconX size={18} />,

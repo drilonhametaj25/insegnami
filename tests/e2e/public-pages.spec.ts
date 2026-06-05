@@ -22,6 +22,8 @@ test.describe('Public Pages', () => {
   });
 
   test('tools pages load', async ({ page }) => {
+    // In dev ogni pagina compila al primo accesso: serve più tempo per le 7 pagine
+    test.setTimeout(120_000);
     const toolPaths = [
       '/it/tools/calcolatore-costo-studente',
       '/it/tools/calcolatore-presenze',

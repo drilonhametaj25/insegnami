@@ -73,6 +73,15 @@ interface PaymentFormData {
   reference?: string;
 }
 
+/** Formatta un importo (number | string | Prisma.Decimal) come valuta €. */
+function euro(value: unknown): string {
+  const n = Number(value ?? 0);
+  return `€${(isNaN(n) ? 0 : n).toLocaleString('it-IT', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 export default function PaymentsPage() {
   const t = useTranslations('payments');
   const tCommon = useTranslations('common');
@@ -369,8 +378,8 @@ export default function PaymentsPage() {
                 <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                   <ModernStatsCard
                     title={t('totalRevenue')}
-                    value={`€${stats?.totalPayments?.toLocaleString() || '0'}`}
-                    icon="💰"
+                    value={euro(stats?.totalPayments)}
+                    icon={<IconCurrencyEuro size={28} />}
                     gradient="linear-gradient(135deg, #10b981 0%, #059669 100%)"
                   />
                 </Grid.Col>
@@ -378,8 +387,8 @@ export default function PaymentsPage() {
                 <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                   <ModernStatsCard
                     title="In Attesa"
-                    value={`€${stats.pendingAmount.toLocaleString()}`}
-                    icon="⏳"
+                    value={euro(stats.pendingAmount)}
+                    icon={<IconClock size={28} />}
                     gradient="linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
                     badge={{
                       text: `${stats.pendingPayments} pagamenti`,
@@ -391,8 +400,8 @@ export default function PaymentsPage() {
                 <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                   <ModernStatsCard
                     title="Scaduti"
-                    value={`€${stats.overdueAmount.toLocaleString()}`}
-                    icon="⚠️"
+                    value={euro(stats.overdueAmount)}
+                    icon={<IconAlertTriangle size={28} />}
                     gradient="linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
                     badge={{
                       text: `${stats.overduePayments} pagamenti`,
@@ -404,8 +413,8 @@ export default function PaymentsPage() {
                 <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                   <ModernStatsCard
                     title="Questo Mese"
-                    value={`€${stats.monthlyRevenue.toLocaleString()}`}
-                    icon="📈"
+                    value={euro(stats.monthlyRevenue)}
+                    icon={<IconTrendingUp size={28} />}
                     gradient="linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)"
                   />
                 </Grid.Col>
@@ -413,39 +422,23 @@ export default function PaymentsPage() {
             ) : null}
 
             {/* Recent Payments */}
-            <Paper 
-              p="lg" 
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(10px)',
-                borderRadius: '16px'
-              }}
-            >
-              <Title order={3} mb="md" style={{ color: 'white' }}>
+            <Paper p="lg" radius="md" withBorder>
+              <Title order={3} mb="md">
                 Pagamenti Recenti
               </Title>
               <div style={{
-                background: 'rgba(0, 0, 0, 0.2)',
                 borderRadius: '12px',
                 overflow: 'hidden',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
+                border: '1px solid var(--mantine-color-gray-2)'
               }}>
-                <Table 
-                  striped 
-                  highlightOnHover
-                  style={{
-                    '--table-hover-color': 'rgba(255, 255, 255, 0.05)',
-                    '--table-striped-color': 'rgba(255, 255, 255, 0.02)'
-                  }}
-                >
-                  <Table.Thead style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
+                <Table striped highlightOnHover>
+                  <Table.Thead style={{ background: 'var(--mantine-color-gray-0)' }}>
                     <Table.Tr>
-                      <Table.Th style={{ color: 'white', fontWeight: 600 }}>Studente</Table.Th>
-                      <Table.Th style={{ color: 'white', fontWeight: 600 }}>Importo</Table.Th>
-                      <Table.Th style={{ color: 'white', fontWeight: 600 }}>Stato</Table.Th>
-                      <Table.Th style={{ color: 'white', fontWeight: 600 }}>Scadenza</Table.Th>
-                      <Table.Th style={{ color: 'white', fontWeight: 600 }}>Azioni</Table.Th>
+                      <Table.Th style={{ fontWeight: 600 }}>Studente</Table.Th>
+                      <Table.Th style={{ fontWeight: 600 }}>Importo</Table.Th>
+                      <Table.Th style={{ fontWeight: 600 }}>Stato</Table.Th>
+                      <Table.Th style={{ fontWeight: 600 }}>Scadenza</Table.Th>
+                      <Table.Th style={{ fontWeight: 600 }}>Azioni</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -453,23 +446,23 @@ export default function PaymentsPage() {
                       <Table.Tr key={payment.id}>
                         <Table.Td>
                           <div>
-                            <Text size="sm" fw={500} style={{ color: 'white' }}>
+                            <Text size="sm" fw={500}>
                               {payment.student.firstName} {payment.student.lastName}
                             </Text>
-                            <Text size="xs" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                            <Text size="xs" c="dimmed">
                               {payment.class?.name || 'Nessuna classe'}
                             </Text>
                           </div>
                         </Table.Td>
-                        <Table.Td style={{ color: 'white', fontWeight: 500 }}>
-                          €{payment.amount.toLocaleString()}
+                        <Table.Td style={{ fontWeight: 500 }}>
+                          {euro(payment.amount)}
                         </Table.Td>
                         <Table.Td>
                           <Badge color={getStatusColor(payment.status)} variant="light">
                             {getStatusLabel(payment.status)}
                           </Badge>
                         </Table.Td>
-                        <Table.Td style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                        <Table.Td>
                           {dayjs(payment.dueDate).format('DD/MM/YYYY')}
                         </Table.Td>
                         <Table.Td>
@@ -503,40 +496,24 @@ export default function PaymentsPage() {
           </Tabs.Panel>
 
           <Tabs.Panel value="payments" pt="lg">
-            <Paper 
-              p="lg" 
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(10px)',
-                borderRadius: '16px'
-              }}
-            >
+            <Paper p="lg" radius="md" withBorder>
               <LoadingOverlay visible={isLoading} />
               
               <div style={{
-                background: 'rgba(0, 0, 0, 0.2)',
                 borderRadius: '12px',
                 overflow: 'hidden',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
+                border: '1px solid var(--mantine-color-gray-2)'
               }}>
-                <Table 
-                  striped 
-                  highlightOnHover
-                  style={{
-                    '--table-hover-color': 'rgba(255, 255, 255, 0.05)',
-                    '--table-striped-color': 'rgba(255, 255, 255, 0.02)'
-                  }}
-                >
-                  <Table.Thead style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
+                <Table striped highlightOnHover>
+                  <Table.Thead style={{ background: 'var(--mantine-color-gray-0)' }}>
                     <Table.Tr>
-                      <Table.Th style={{ color: 'white', fontWeight: 600 }}>Studente</Table.Th>
-                      <Table.Th style={{ color: 'white', fontWeight: 600 }}>Classe</Table.Th>
-                      <Table.Th style={{ color: 'white', fontWeight: 600 }}>Importo</Table.Th>
-                      <Table.Th style={{ color: 'white', fontWeight: 600 }}>Metodo</Table.Th>
-                      <Table.Th style={{ color: 'white', fontWeight: 600 }}>Stato</Table.Th>
-                      <Table.Th style={{ color: 'white', fontWeight: 600 }}>Scadenza</Table.Th>
-                      <Table.Th style={{ color: 'white', fontWeight: 600 }}>Azioni</Table.Th>
+                      <Table.Th style={{ fontWeight: 600 }}>Studente</Table.Th>
+                      <Table.Th style={{ fontWeight: 600 }}>Classe</Table.Th>
+                      <Table.Th style={{ fontWeight: 600 }}>Importo</Table.Th>
+                      <Table.Th style={{ fontWeight: 600 }}>Metodo</Table.Th>
+                      <Table.Th style={{ fontWeight: 600 }}>Stato</Table.Th>
+                      <Table.Th style={{ fontWeight: 600 }}>Scadenza</Table.Th>
+                      <Table.Th style={{ fontWeight: 600 }}>Azioni</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -544,21 +521,21 @@ export default function PaymentsPage() {
                       <Table.Tr key={payment.id}>
                         <Table.Td>
                           <div>
-                            <Text size="sm" fw={500} style={{ color: 'white' }}>
+                            <Text size="sm" fw={500}>
                               {payment.student.firstName} {payment.student.lastName}
                             </Text>
-                            <Text size="xs" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                            <Text size="xs" c="dimmed">
                               {payment.student.email}
                             </Text>
                           </div>
                         </Table.Td>
-                        <Table.Td style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                        <Table.Td>
                           {payment.class?.name || '-'}
                         </Table.Td>
-                        <Table.Td style={{ color: 'white', fontWeight: 500 }}>
-                          €{payment.amount.toLocaleString()}
+                        <Table.Td style={{ fontWeight: 500 }}>
+                          {euro(payment.amount)}
                         </Table.Td>
-                        <Table.Td style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                        <Table.Td>
                           {getMethodLabel(payment.method || '')}
                         </Table.Td>
                         <Table.Td>
@@ -567,7 +544,7 @@ export default function PaymentsPage() {
                           </Badge>
                         </Table.Td>
                         <Table.Td>
-                          <Text size="sm" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                          <Text size="sm">
                             {dayjs(payment.dueDate).format('DD/MM/YYYY')}
                           </Text>
                           {payment.status === 'OVERDUE' && (
@@ -629,10 +606,6 @@ export default function PaymentsPage() {
                     value={currentPage}
                     onChange={setCurrentPage}
                     total={totalPages}
-                    style={{
-                      '--pagination-color': 'rgba(255, 255, 255, 0.8)',
-                      '--pagination-hover': 'rgba(255, 255, 255, 0.1)'
-                    }}
                   />
                 </Group>
               )}
@@ -640,49 +613,25 @@ export default function PaymentsPage() {
           </Tabs.Panel>
 
           <Tabs.Panel value="overdue" pt="lg">
-            <Paper 
-              p="lg" 
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(10px)',
-                borderRadius: '16px'
-              }}
-            >
+            <Paper p="lg" radius="md" withBorder>
               <Stack gap="md">
-                <Alert 
-                  icon={<IconAlertTriangle size={16} />} 
-                  color="red"
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                    color: '#fca5a5'
-                  }}
-                >
-                  Ci sono {stats?.overduePayments || 0} pagamenti scaduti per un totale di €{stats?.overdueAmount.toLocaleString() || 0}
+                <Alert icon={<IconAlertTriangle size={16} />} color="red" variant="light">
+                  Ci sono {stats?.overduePayments || 0} pagamenti scaduti per un totale di {euro(stats?.overdueAmount)}
                 </Alert>
 
                 <div style={{
-                  background: 'rgba(0, 0, 0, 0.2)',
                   borderRadius: '12px',
                   overflow: 'hidden',
-                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                  border: '1px solid var(--mantine-color-gray-2)'
                 }}>
-                  <Table 
-                    striped 
-                    highlightOnHover
-                    style={{
-                      '--table-hover-color': 'rgba(255, 255, 255, 0.05)',
-                      '--table-striped-color': 'rgba(255, 255, 255, 0.02)'
-                    }}
-                  >
-                    <Table.Thead style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
+                  <Table striped highlightOnHover>
+                    <Table.Thead style={{ background: 'var(--mantine-color-gray-0)' }}>
                       <Table.Tr>
-                        <Table.Th style={{ color: 'white', fontWeight: 600 }}>Studente</Table.Th>
-                        <Table.Th style={{ color: 'white', fontWeight: 600 }}>Classe</Table.Th>
-                        <Table.Th style={{ color: 'white', fontWeight: 600 }}>Importo</Table.Th>
-                        <Table.Th style={{ color: 'white', fontWeight: 600 }}>Giorni di ritardo</Table.Th>
-                        <Table.Th style={{ color: 'white', fontWeight: 600 }}>Azioni</Table.Th>
+                        <Table.Th style={{ fontWeight: 600 }}>Studente</Table.Th>
+                        <Table.Th style={{ fontWeight: 600 }}>Classe</Table.Th>
+                        <Table.Th style={{ fontWeight: 600 }}>Importo</Table.Th>
+                        <Table.Th style={{ fontWeight: 600 }}>Giorni di ritardo</Table.Th>
+                        <Table.Th style={{ fontWeight: 600 }}>Azioni</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
@@ -690,19 +639,19 @@ export default function PaymentsPage() {
                         <Table.Tr key={payment.id}>
                           <Table.Td>
                             <div>
-                              <Text size="sm" fw={500} style={{ color: 'white' }}>
+                              <Text size="sm" fw={500}>
                                 {payment.student.firstName} {payment.student.lastName}
                               </Text>
-                              <Text size="xs" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                              <Text size="xs" c="dimmed">
                                 {payment.student.email}
                               </Text>
                             </div>
                           </Table.Td>
-                          <Table.Td style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                          <Table.Td>
                             {payment.class?.name || '-'}
                           </Table.Td>
-                          <Table.Td style={{ color: 'white', fontWeight: 500 }}>
-                            €{payment.amount.toLocaleString()}
+                          <Table.Td style={{ fontWeight: 500 }}>
+                            {euro(payment.amount)}
                           </Table.Td>
                           <Table.Td>
                             <Text size="sm" c="red">
@@ -746,27 +695,6 @@ export default function PaymentsPage() {
         onClose={closeModal}
         title={editingPayment ? 'Modifica Pagamento' : 'Nuovo Pagamento'}
         size="lg"
-        styles={{
-          content: {
-            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-          },
-          header: {
-            background: 'transparent',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          },
-          title: {
-            color: 'white',
-            fontSize: '1.25rem',
-            fontWeight: 600,
-          },
-          close: {
-            color: 'rgba(255, 255, 255, 0.7)',
-            '&:hover': {
-              background: 'rgba(255, 255, 255, 0.1)',
-            },
-          },
-        }}
       >
         <form onSubmit={form.onSubmit(handleSavePayment)}>
           <Stack gap="md">
@@ -779,25 +707,6 @@ export default function PaymentsPage() {
               }))}
               {...form.getInputProps('studentId')}
               searchable
-              styles={{
-                label: { color: 'white', fontWeight: 500 },
-                input: {
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: 'white',
-                  '&::placeholder': { color: 'rgba(255, 255, 255, 0.5)' },
-                },
-                dropdown: {
-                  background: '#1e293b',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                },
-                option: {
-                  color: 'white',
-                  '&[data-selected]': {
-                    background: 'rgba(59, 130, 246, 0.3)',
-                  },
-                },
-              }}
             />
 
             <Grid>
@@ -809,16 +718,6 @@ export default function PaymentsPage() {
                   step={0.01}
                   leftSection={<IconCurrencyEuro size={16} />}
                   {...form.getInputProps('amount')}
-                  styles={{
-                    label: { color: 'white', fontWeight: 500 },
-                    input: {
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      color: 'white',
-                      '&::placeholder': { color: 'rgba(255, 255, 255, 0.5)' },
-                    },
-                    section: { color: 'rgba(255, 255, 255, 0.7)' },
-                  }}
                 />
               </Grid.Col>
               <Grid.Col span={6}>
@@ -832,24 +731,6 @@ export default function PaymentsPage() {
                     { value: 'OTHER', label: 'Altro' },
                   ]}
                   {...form.getInputProps('paymentMethod')}
-                  styles={{
-                    label: { color: 'white', fontWeight: 500 },
-                    input: {
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      color: 'white',
-                    },
-                    dropdown: {
-                      background: '#1e293b',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                    },
-                    option: {
-                      color: 'white',
-                      '&[data-selected]': {
-                        background: 'rgba(59, 130, 246, 0.3)',
-                      },
-                    },
-                  }}
                 />
               </Grid.Col>
             </Grid>
@@ -858,37 +739,13 @@ export default function PaymentsPage() {
               label="Descrizione"
               placeholder="Es: Quota mensile corso inglese"
               {...form.getInputProps('description')}
-              styles={{
-                label: { color: 'white', fontWeight: 500 },
-                input: {
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: 'white',
-                  '&::placeholder': { color: 'rgba(255, 255, 255, 0.5)' },
-                },
-              }}
             />
 
             <Group justify="flex-end" mt="md">
-              <Button 
-                variant="light" 
-                onClick={closeModal}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  border: 'none',
-                }}
-              >
+              <Button variant="light" color="gray" onClick={closeModal}>
                 Annulla
               </Button>
-              <Button 
-                type="submit" 
-                loading={isSaving}
-                style={{
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                  border: 'none',
-                }}
-              >
+              <Button type="submit" loading={isSaving}>
                 {editingPayment ? 'Aggiorna' : 'Crea'}
               </Button>
             </Group>

@@ -9,12 +9,16 @@ const updateStageSchema = z.object({
   stage: z.enum(SETUP_STAGES),
 });
 
+// I campi opzionali del form possono arrivare come stringa vuota: la
+// trattiamo come "assente" per non far fallire la validazione email/url.
+const emptyToUndefined = (v: unknown) => (v === '' || v === null ? undefined : v);
+
 const updateSchoolSchema = z.object({
   name: z.string().min(2, 'Nome scuola richiesto'),
-  address: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email().optional(),
-  logo: z.string().url().optional(),
+  address: z.preprocess(emptyToUndefined, z.string().optional()),
+  phone: z.preprocess(emptyToUndefined, z.string().optional()),
+  email: z.preprocess(emptyToUndefined, z.string().email().optional()),
+  logo: z.preprocess(emptyToUndefined, z.string().url().optional()),
 });
 
 // GET /api/onboarding - Get current onboarding status
@@ -106,12 +110,17 @@ export async function PUT(request: NextRequest) {
       where: { id: session.user.tenantId },
       data: {
         name: schoolData.name,
-        // Note: address, phone, email, logo fields would need to be added to Tenant model
-        // For now, we just update the name
+        address: schoolData.address ?? undefined,
+        phone: schoolData.phone ?? undefined,
+        email: schoolData.email ?? undefined,
+        logo: schoolData.logo ?? undefined,
       },
       select: {
         id: true,
         name: true,
+        address: true,
+        phone: true,
+        email: true,
         setupStage: true,
       },
     });

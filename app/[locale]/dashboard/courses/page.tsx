@@ -275,7 +275,7 @@ export default function CoursesPage() {
       
       notifications.show({
         id: 'saving-course',
-        title: editingCourse ? '⏳ Aggiornamento in corso...' : '⏳ Creazione in corso...',
+        title: editingCourse ? 'Aggiornamento in corso...' : 'Creazione in corso...',
         message: editingCourse ? 'Salvataggio modifiche corso' : 'Creazione nuovo corso',
         loading: true,
         autoClose: false,
@@ -301,7 +301,7 @@ export default function CoursesPage() {
 
       notifications.show({
         id: `course-success-${Date.now()}`,
-        title: '✅ Successo',
+        title: 'Successo',
         message: responseData.message || `Corso ${editingCourse ? 'aggiornato' : 'creato'} con successo`,
         color: 'green',
         icon: <IconCheck size={18} />,
@@ -317,7 +317,7 @@ export default function CoursesPage() {
       console.error('Error saving course:', error);
       notifications.show({
         id: `course-error-${Date.now()}`,
-        title: '❌ Errore',
+        title: 'Errore',
         message: error.message || 'Impossibile salvare il corso',
         color: 'red',
         icon: <IconX size={18} />,

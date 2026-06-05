@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { getAuth, ADMIN_ROLES } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { updateSubscriptionPlan, retrieveSubscription } from '@/lib/stripe';
+import { isDevBilling } from '@/lib/billing/billing-mode';
+import { devChangePlan } from '@/lib/billing/dev-billing';
 
 const ChangePlanSchema = z.object({
   targetPlanSlug: z.string().min(1),
@@ -71,6 +73,23 @@ export async function POST(request: NextRequest) {
         { error: 'Piano non trovato o non disponibile' },
         { status: 404 }
       );
+    }
+
+    // Dev billing mode: cambio piano immediato sul DB, senza Stripe.
+    if (isDevBilling()) {
+      const updated = await devChangePlan({ tenantId: session.user.tenantId, plan: targetPlan });
+      return NextResponse.json({
+        success: true,
+        subscriptionId: updated.id,
+        currentPeriodEnd: updated.currentPeriodEnd,
+        newPlan: {
+          id: targetPlan.id,
+          slug: targetPlan.slug,
+          name: targetPlan.name,
+          price: targetPlan.price,
+          interval: targetPlan.interval,
+        },
+      });
     }
 
     if (!targetPlan.stripePriceId) {

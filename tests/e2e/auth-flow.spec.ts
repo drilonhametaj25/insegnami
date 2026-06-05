@@ -1,48 +1,31 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Auth Flow', () => {
-  test('login page renders form with email and password fields', async ({ page }) => {
+  test('la pagina di login mostra i campi email e password', async ({ page }) => {
     await page.goto('/it/auth/login');
-
-    const emailInput = page.locator('input[type="email"], input[name="email"]');
-    const passwordInput = page.locator('input[type="password"], input[name="password"]');
-
-    await expect(emailInput.first()).toBeVisible();
-    await expect(passwordInput.first()).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Email' })).toBeVisible();
+    await expect(page.getByPlaceholder('La tua password')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Accedi' })).toBeVisible();
   });
 
-  test('login with invalid credentials shows error', async ({ page }) => {
+  test('credenziali non valide non effettuano il login', async ({ page }) => {
     await page.goto('/it/auth/login');
-
-    const emailInput = page.locator('input[type="email"], input[name="email"]').first();
-    const passwordInput = page.locator('input[type="password"], input[name="password"]').first();
-
-    await emailInput.fill('invalid@test.com');
-    await passwordInput.fill('wrongpassword123');
-
-    // Submit the form
-    const submitButton = page.locator('button[type="submit"]').first();
-    await submitButton.click();
-
-    // Wait for error feedback (either alert, notification, or error text)
-    await page.waitForTimeout(2000);
-    const body = await page.textContent('body');
-    // Page should still be on login (not redirected to dashboard)
-    const url = page.url();
-    expect(url).toContain('login');
+    await page.getByRole('textbox', { name: 'Email' }).fill('invalid@test.com');
+    await page.getByPlaceholder('La tua password').fill('wrongpassword123');
+    await page.getByRole('button', { name: 'Accedi' }).click();
+    await page.waitForTimeout(2500);
+    // Rimane sulla pagina di login (nessun redirect alla dashboard)
+    await expect(page).toHaveURL(/auth\/login/);
   });
 
-  test('register page renders form', async ({ page }) => {
+  test('la pagina di registrazione mostra il form', async ({ page }) => {
     await page.goto('/it/auth/register');
-
-    const inputs = await page.locator('input').count();
-    expect(inputs).toBeGreaterThanOrEqual(2);
+    await expect(page.getByPlaceholder('Il tuo nome')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Crea Account' })).toBeVisible();
   });
 
-  test('forgot password page renders', async ({ page }) => {
+  test('la pagina password dimenticata mostra il campo email', async ({ page }) => {
     await page.goto('/it/auth/forgot-password');
-
-    const emailInput = page.locator('input[type="email"], input[name="email"]');
-    await expect(emailInput.first()).toBeVisible();
+    await expect(page.getByRole('textbox', { name: /email/i }).first()).toBeVisible();
   });
 });

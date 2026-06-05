@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const status = searchParams.get('status');
+    const search = searchParams.get('search');
 
     const skip = (page - 1) * limit;
 
@@ -48,6 +49,16 @@ export async function GET(request: NextRequest) {
     if (classId) where.classId = classId;
     if (teacherId) where.teacherId = teacherId;
     if (status) where.status = status;
+
+    // Ricerca testuale su titolo/descrizione e nome classe
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { class: { name: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
 
     // Handle date filtering
     if (date) {

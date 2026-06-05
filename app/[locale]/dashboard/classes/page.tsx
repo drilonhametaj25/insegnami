@@ -325,7 +325,7 @@ export default function ClassesPage() {
       // Show loading notification
       notifications.show({
         id: 'saving-class',
-        title: editingClass ? '⏳ Aggiornamento in corso...' : '⏳ Creazione in corso...',
+        title: editingClass ? 'Aggiornamento in corso...' : 'Creazione in corso...',
         message: editingClass ? 'Salvataggio modifiche classe' : 'Creazione nuova classe',
         loading: true,
         autoClose: false,
@@ -352,7 +352,7 @@ export default function ClassesPage() {
 
       notifications.show({
         id: `class-success-${Date.now()}`,
-        title: '✅ Successo',
+        title: 'Successo',
         message: responseData.message || `Classe ${editingClass ? 'aggiornata' : 'creata'} con successo`,
         color: 'green',
         icon: <IconCheck size={18} />,
@@ -368,7 +368,7 @@ export default function ClassesPage() {
       console.error('Error saving class:', error);
       notifications.show({
         id: `class-error-${Date.now()}`,
-        title: '❌ Errore',
+        title: 'Errore',
         message: error.message || 'Impossibile salvare la classe',
         color: 'red',
         icon: <IconX size={18} />,

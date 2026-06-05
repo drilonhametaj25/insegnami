@@ -44,7 +44,11 @@
       "Bash(npm audit:*)",
       "Bash(npx jest:*)",
       "Bash(rm:*)",
-      "Bash(read f:*)"
+      "Bash(read f:*)",
+      "Bash(mkdir:*)",
+      "Bash(curl:*)",
+      "mcp__playwright__browser_navigate",
+      "Bash(sed:*)"
     ]
   }
 }

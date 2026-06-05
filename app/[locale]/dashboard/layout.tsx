@@ -5,10 +5,20 @@ import { useDisclosure } from '@mantine/hooks';
 import { Sidebar } from '@/components/Sidebar';
 import { Navbar } from '@/components/Navbar';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { IconSchool } from '@tabler/icons-react';
+
+// Protezione delle route sensibili per ruolo (difesa in profondità lato
+// client; l'enforcement autorevole resta a livello API). I prefissi sono
+// scelti per evitare collisioni (es. /dashboard/admin non tocca le pagine
+// condivise come /dashboard/students).
+const ROUTE_GUARDS: { prefix: string; allow: string[] }[] = [
+  { prefix: '/dashboard/superadmin', allow: ['SUPERADMIN'] },
+  { prefix: '/dashboard/admin', allow: ['ADMIN', 'SUPERADMIN', 'DIRECTOR', 'SECRETARY'] },
+  { prefix: '/dashboard/billing', allow: ['ADMIN', 'SUPERADMIN', 'DIRECTOR'] },
+];
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -18,6 +28,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [opened, { toggle }] = useDisclosure();
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const locale = useLocale();
 
   const [onboardingChecked, setOnboardingChecked] = useState(false);
@@ -28,6 +39,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       router.push(`/${locale}/auth/login`); // Redirect to localized login
     }
   }, [session, status, router, locale]);
+
+  // Guardia di ruolo sulle route sensibili: reindirizza i ruoli non
+  // autorizzati alla dashboard generale.
+  useEffect(() => {
+    if (status !== 'authenticated' || !session?.user) return;
+    const role = session.user.role;
+    const pathNoLocale = pathname.replace(/^\/(it|en|fr|pt)/, '') || '/';
+    const guard = ROUTE_GUARDS.find((g) => pathNoLocale.startsWith(g.prefix));
+    if (guard && !guard.allow.includes(role)) {
+      router.replace(`/${locale}/dashboard`);
+    }
+  }, [pathname, session, status, locale, router]);
 
   // Onboarding guard: redirect admin roles to onboarding if not complete
   useEffect(() => {

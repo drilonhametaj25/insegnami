@@ -295,6 +295,7 @@ export default function PricingPage() {
                           loading={isLoading}
                           onClick={() => handleSubscribe(plan.id)}
                           rightSection={!isLoading && <IconRocket size={18} />}
+                          data-testid={`subscribe-${plan.slug}`}
                         >
                           {status === 'authenticated' ? 'Inizia Ora' : 'Prova Gratis'}
                         </Button>

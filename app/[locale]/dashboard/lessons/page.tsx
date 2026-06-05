@@ -361,7 +361,7 @@ export default function LessonsPage() {
 
       notifications.show({
         id: 'saving-lesson',
-        title: editingLesson ? '⏳ Aggiornamento in corso...' : '⏳ Creazione in corso...',
+        title: editingLesson ? 'Aggiornamento in corso...' : 'Creazione in corso...',
         message: editingLesson ? 'Salvataggio modifiche lezione' : 'Creazione nuova lezione',
         loading: true,
         autoClose: false,
@@ -387,7 +387,7 @@ export default function LessonsPage() {
 
       notifications.show({
         id: `lesson-success-${Date.now()}`,
-        title: '✅ Successo',
+        title: 'Successo',
         message: responseData.message || `Lezione ${editingLesson ? 'aggiornata' : 'creata'} con successo`,
         color: 'green',
         icon: <IconCheck size={18} />,
@@ -403,7 +403,7 @@ export default function LessonsPage() {
       console.error('Error saving lesson:', error);
       notifications.show({
         id: `lesson-error-${Date.now()}`,
-        title: '❌ Errore',
+        title: 'Errore',
         message: error.message || 'Impossibile salvare la lezione',
         color: 'red',
         icon: <IconX size={18} />,

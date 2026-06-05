@@ -218,7 +218,7 @@ export default function LessonDetailPage() {
 
       notifications.show({
         id: `attendance-success-${Date.now()}`,
-        title: '✅ Successo',
+        title: 'Successo',
         message: 'Presenza aggiornata con successo',
         color: 'green',
         icon: <IconCheck size={18} />,
@@ -229,7 +229,7 @@ export default function LessonDetailPage() {
       console.error('Error updating attendance:', error);
       notifications.show({
         id: `attendance-error-${Date.now()}`,
-        title: '❌ Errore',
+        title: 'Errore',
         message: 'Impossibile aggiornare la presenza',
         color: 'red',
         icon: <IconX size={18} />,
@@ -254,7 +254,7 @@ export default function LessonDetailPage() {
 
       notifications.show({
         id: `notes-success-${Date.now()}`,
-        title: '✅ Successo',
+        title: 'Successo',
         message: 'Note salvate con successo',
         color: 'green',
         icon: <IconCheck size={18} />,
@@ -265,7 +265,7 @@ export default function LessonDetailPage() {
       console.error('Error saving notes:', error);
       notifications.show({
         id: `notes-error-${Date.now()}`,
-        title: '❌ Errore',
+        title: 'Errore',
         message: 'Impossibile salvare le note',
         color: 'red',
         icon: <IconX size={18} />,
@@ -283,7 +283,7 @@ export default function LessonDetailPage() {
 
       notifications.show({
         id: `delete-success-${Date.now()}`,
-        title: '✅ Successo',
+        title: 'Successo',
         message: 'Lezione eliminata con successo',
         color: 'green',
         icon: <IconCheck size={18} />,
@@ -294,7 +294,7 @@ export default function LessonDetailPage() {
       console.error('Error deleting lesson:', error);
       notifications.show({
         id: `delete-error-${Date.now()}`,
-        title: '❌ Errore',
+        title: 'Errore',
         message: 'Impossibile eliminare la lezione',
         color: 'red',
         icon: <IconX size={18} />,
