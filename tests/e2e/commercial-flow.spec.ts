@@ -7,9 +7,27 @@ import { login, completeOnboarding, resetBilling, setTrial, testApi, SEED_TENANT
  * Serial: i test condividono lo stato dell'abbonamento del tenant.
  */
 test.describe.serial('Flusso commerciale (billing)', () => {
+  // Docenti creati dai test di validazione limiti (ripuliti in afterAll)
+  const TEACHER_PREFIX = 'TestDocLimite';
+  const TEACHERS_TO_CREATE = 6; // seed ha ~1 docente → totale > 5 (limite Starter)
+
   test.beforeAll(async ({ request }) => {
     await completeOnboarding(request);
     await setTrial(request, SEED_TENANT_SLUG, 14);
+    await resetBilling(request);
+    await testApi(request, {
+      action: 'delete-teachers-by-prefix',
+      slug: SEED_TENANT_SLUG,
+      prefix: TEACHER_PREFIX,
+    });
+  });
+
+  test.afterAll(async ({ request }) => {
+    await testApi(request, {
+      action: 'delete-teachers-by-prefix',
+      slug: SEED_TENANT_SLUG,
+      prefix: TEACHER_PREFIX,
+    });
     await resetBilling(request);
   });
 
@@ -70,6 +88,85 @@ test.describe.serial('Flusso commerciale (billing)', () => {
     await page.getByTestId('addon-EXTRA_STORAGE-remove').click();
     await expect(page.getByTestId('addon-EXTRA_STORAGE-qty')).toHaveText('0', { timeout: 15000 });
   });
+
+  // ── Validazione limiti su downgrade e add-on ─────────────────────────────
+  // Il downgrade è bloccato (409 + bottone disabilitato) se l'uso attivo
+  // eccede i limiti del piano target; un add-on che alza il limite lo
+  // sblocca; la rimozione di un add-on necessario a coprire l'uso è bloccata.
+  // Stato di partenza (dai test precedenti): piano Starter, EXTRA_STUDENTS=1.
+
+  test('downgrade bloccato quando i docenti attivi superano il limite del piano target', async ({ page }) => {
+    await login(page, 'admin');
+
+    // Passa a Professional (20 docenti) e crea docenti oltre il limite Starter (5)
+    await page.goto('/it/dashboard/billing');
+    await page.getByTestId('plan-change-professional').click();
+    await expect(
+      page.getByTestId('plan-option-professional').getByText('Attuale', { exact: true })
+    ).toBeVisible({ timeout: 15000 });
+
+    for (let i = 0; i < TEACHERS_TO_CREATE; i++) {
+      const res = await page.request.post('/api/teachers', {
+        data: {
+          firstName: TEACHER_PREFIX,
+          lastName: `Numero${i}`,
+          email: `testdoclimite${i}+${Date.now()}@scuolatest.it`,
+        },
+      });
+      expect(res.ok()).toBeTruthy();
+    }
+
+    // API: il cambio piano verso Starter risponde 409 con le violazioni
+    const change = await page.request.post('/api/subscriptions/change-plan', {
+      data: { targetPlanSlug: 'starter' },
+    });
+    expect(change.status()).toBe(409);
+    const body = await change.json();
+    expect(body.code).toBe('LIMITS_EXCEEDED');
+    expect(body.violations.some((v: any) => v.resource === 'teachers')).toBeTruthy();
+
+    // UI: bottone disabilitato + motivo visibile
+    await page.goto('/it/dashboard/billing');
+    await expect(page.getByTestId('plan-change-starter')).toBeDisabled();
+    await expect(page.getByTestId('plan-change-blocked-starter')).toBeVisible();
+  });
+
+  test('acquisto add-on docenti extra sblocca il downgrade', async ({ page }) => {
+    await login(page, 'admin');
+    await page.goto('/it/dashboard/billing');
+
+    // +5 posti docente → limite Starter effettivo 10 ≥ docenti attivi
+    await page.getByTestId('addon-EXTRA_TEACHERS-add').click();
+    await expect(page.getByTestId('addon-EXTRA_TEACHERS-qty')).toHaveText('1', { timeout: 15000 });
+
+    // L'eligibility si aggiorna e il downgrade ora riesce
+    await expect(page.getByTestId('plan-change-starter')).toBeEnabled({ timeout: 15000 });
+    await page.getByTestId('plan-change-starter').click();
+    await expect(
+      page.getByTestId('plan-option-starter').getByText('Attuale', { exact: true })
+    ).toBeVisible({ timeout: 15000 });
+  });
+
+  test('rimozione add-on bloccata se il limite scenderebbe sotto l\'uso attivo', async ({ page }) => {
+    await login(page, 'admin');
+
+    // API: rimozione rifiutata con 409
+    const removal = await page.request.delete('/api/subscriptions/addons', {
+      data: { type: 'EXTRA_TEACHERS', quantity: 1 },
+    });
+    expect(removal.status()).toBe(409);
+    const body = await removal.json();
+    expect(body.code).toBe('LIMITS_EXCEEDED');
+
+    // UI: il click mostra l'errore e la quantità resta invariata
+    await page.goto('/it/dashboard/billing');
+    await expect(page.getByTestId('addon-EXTRA_TEACHERS-qty')).toHaveText('1');
+    await page.getByTestId('addon-EXTRA_TEACHERS-remove').click();
+    await expect(
+      page.getByText(/Non puoi rimuovere questo add-on/i).first()
+    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('addon-EXTRA_TEACHERS-qty')).toHaveText('1');
+  });
 });
 
 /**
@@ -83,6 +180,8 @@ test.describe.serial('Registrazione nuova scuola', () => {
 
   test.beforeAll(async ({ request }) => {
     await testApi(request, { action: 'delete-user-by-email', email });
+    // Run ripetuti della suite esauriscono le 5 registrazioni/ora per IP
+    await testApi(request, { action: 'clear-rate-limits' });
   });
 
   test('registrazione → verifica email → onboarding', async ({ page, request }) => {

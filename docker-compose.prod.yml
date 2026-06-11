@@ -76,7 +76,9 @@ services:
     restart: unless-stopped
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    # noeviction obbligatorio per BullMQ: con allkeys-lru Redis può scartare
+    # lo stato dei job in coda (email, PDF, notifiche) sotto pressione di memoria.
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

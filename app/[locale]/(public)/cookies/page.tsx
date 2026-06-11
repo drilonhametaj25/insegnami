@@ -1,4 +1,4 @@
-import { Container, Title, Text, Stack, Paper, List, ThemeIcon, Anchor, Box, Divider, Group, Badge, Table, Alert } from '@mantine/core';
+import { Container, Title, Text, Stack, Paper, List, ListItem, ThemeIcon, Anchor, Box, Divider, Group, Badge, Table, TableThead, TableTbody, TableTr, TableTh, TableTd, Alert } from '@mantine/core';
 import { IconCookie, IconCheck, IconSettings, IconShield, IconAlertCircle } from '@tabler/icons-react';
 import Link from 'next/link';
 import { Metadata } from 'next';
@@ -95,9 +95,9 @@ export default async function CookiePolicyPage({
                   <IconCheck size={10} />
                 </ThemeIcon>
               }>
-                <List.Item>Autenticazione e gestione sessione</List.Item>
-                <List.Item>Sicurezza e protezione CSRF</List.Item>
-                <List.Item>Memorizzazione preferenze essenziali</List.Item>
+                <ListItem>Autenticazione e gestione sessione</ListItem>
+                <ListItem>Sicurezza e protezione CSRF</ListItem>
+                <ListItem>Memorizzazione preferenze essenziali</ListItem>
               </List>
             </Paper>
 
@@ -116,8 +116,8 @@ export default async function CookiePolicyPage({
                   <IconCheck size={10} />
                 </ThemeIcon>
               }>
-                <List.Item>Preferenza lingua</List.Item>
-                <List.Item>Impostazioni di visualizzazione</List.Item>
+                <ListItem>Preferenza lingua</ListItem>
+                <ListItem>Impostazioni di visualizzazione</ListItem>
               </List>
             </Paper>
 
@@ -136,28 +136,28 @@ export default async function CookiePolicyPage({
         <Paper p="lg" radius="md" withBorder>
           <Title order={2} size="h3" mb="md">3. Elenco Cookie Utilizzati</Title>
           <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Nome</Table.Th>
-                <Table.Th>Scopo</Table.Th>
-                <Table.Th>Durata</Table.Th>
-                <Table.Th>Tipo</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
+            <TableThead>
+              <TableTr>
+                <TableTh>Nome</TableTh>
+                <TableTh>Scopo</TableTh>
+                <TableTh>Durata</TableTh>
+                <TableTh>Tipo</TableTh>
+              </TableTr>
+            </TableThead>
+            <TableTbody>
               {technicalCookies.map((cookie) => (
-                <Table.Tr key={cookie.name}>
-                  <Table.Td><Text size="sm" ff="monospace">{cookie.name}</Text></Table.Td>
-                  <Table.Td><Text size="sm">{cookie.purpose}</Text></Table.Td>
-                  <Table.Td><Text size="sm">{cookie.duration}</Text></Table.Td>
-                  <Table.Td>
+                <TableTr key={cookie.name}>
+                  <TableTd><Text size="sm" ff="monospace">{cookie.name}</Text></TableTd>
+                  <TableTd><Text size="sm">{cookie.purpose}</Text></TableTd>
+                  <TableTd><Text size="sm">{cookie.duration}</Text></TableTd>
+                  <TableTd>
                     <Badge size="sm" color={cookie.type === 'Essenziale' ? 'green' : 'blue'}>
                       {cookie.type}
                     </Badge>
-                  </Table.Td>
-                </Table.Tr>
+                  </TableTd>
+                </TableTr>
               ))}
-            </Table.Tbody>
+            </TableTbody>
           </Table>
         </Paper>
 
@@ -201,18 +201,18 @@ export default async function CookiePolicyPage({
             <Paper p="md" radius="md" bg="gray.0">
               <Text size="sm" fw={500} mb="xs">Link alle guide dei principali browser:</Text>
               <List size="sm" spacing="xs">
-                <List.Item>
+                <ListItem>
                   <Anchor href="https://support.google.com/chrome/answer/95647" target="_blank">Google Chrome</Anchor>
-                </List.Item>
-                <List.Item>
+                </ListItem>
+                <ListItem>
                   <Anchor href="https://support.mozilla.org/it/kb/Gestione%20dei%20cookie" target="_blank">Mozilla Firefox</Anchor>
-                </List.Item>
-                <List.Item>
+                </ListItem>
+                <ListItem>
                   <Anchor href="https://support.apple.com/it-it/guide/safari/sfri11471/mac" target="_blank">Safari</Anchor>
-                </List.Item>
-                <List.Item>
+                </ListItem>
+                <ListItem>
                   <Anchor href="https://support.microsoft.com/it-it/windows/gestire-i-cookie-in-microsoft-edge-visualizzare-consentire-bloccare-eliminare-e-usare-168dab11-0753-043d-7c16-ede5947fc64d" target="_blank">Microsoft Edge</Anchor>
-                </List.Item>
+                </ListItem>
               </List>
             </Paper>
 

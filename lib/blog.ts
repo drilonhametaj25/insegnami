@@ -5,6 +5,10 @@ import readingTime from 'reading-time';
 
 const BLOG_DIR = path.join(process.cwd(), 'content', 'blog');
 
+// Slug validi: solo caratteri alfanumerici, trattini e underscore.
+// Blocca probe dei bot (/blog/.env, /blog/../..) prima di toccare il filesystem.
+const SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/i;
+
 export interface BlogPost {
   slug: string;
   title: string;
@@ -38,9 +42,8 @@ export interface BlogPostMeta {
 export async function getBlogPosts(locale: string = 'it'): Promise<BlogPostMeta[]> {
   const localeDir = path.join(BLOG_DIR, locale);
 
-  // Create directory if it doesn't exist
+  // Mai creare directory a runtime: in produzione il filesystem è read-only.
   if (!fs.existsSync(localeDir)) {
-    fs.mkdirSync(localeDir, { recursive: true });
     return [];
   }
 
@@ -75,6 +78,10 @@ export async function getBlogPosts(locale: string = 'it'): Promise<BlogPostMeta[
  * Get a single blog post by slug
  */
 export async function getBlogPost(slug: string, locale: string = 'it'): Promise<BlogPost | null> {
+  if (!SLUG_RE.test(slug)) {
+    return null;
+  }
+
   const filePath = path.join(BLOG_DIR, locale, `${slug}.mdx`);
 
   if (!fs.existsSync(filePath)) {

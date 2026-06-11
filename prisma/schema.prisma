@@ -375,6 +375,23 @@ model TenantAddon {
   @@map("tenant_addons")
 }
 
+// Mappa AddonType → prodotto/prezzo Stripe. Il catalogo (nomi, prezzi,
+// dimensioni pacchetto) resta definito in lib/billing/addons.ts; qui si
+// persistono solo gli ID Stripe creati dalla sync idempotente
+// (scripts/sync-stripe.ts / POST /api/superadmin/addons).
+model AddonCatalog {
+  id              String    @id @default(cuid())
+  type            AddonType @unique
+  stripeProductId String?   @unique
+  stripePriceId   String?   @unique
+  priceAmount     Decimal?  @db.Decimal(10, 2) // snapshot del prezzo sincronizzato (€/mese)
+  syncedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("addon_catalog")
+}
+
 model User {
   id        String  @id @default(cuid())
   email     String  @unique

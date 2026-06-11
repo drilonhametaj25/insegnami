@@ -1,11 +1,14 @@
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+// NB: niente componenti dot-notation (Card.Section) nei Server Components:
+// in build di produzione risolvono a undefined ("Element type is invalid").
 import {
   Container,
   Title,
   Text,
   SimpleGrid,
   Card,
+  CardSection,
   Image,
   Badge,
   Group,
@@ -92,14 +95,14 @@ export default async function BlogPage({
                 style={{ textDecoration: 'none' }}
               >
                 {post.image && (
-                  <Card.Section>
+                  <CardSection>
                     <Image
                       src={post.image}
                       height={180}
                       alt={post.title}
                       fallbackSrc="/images/blog-placeholder.jpg"
                     />
-                  </Card.Section>
+                  </CardSection>
                 )}
 
                 <Stack gap="sm" mt="md">

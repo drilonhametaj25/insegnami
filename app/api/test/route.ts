@@ -158,6 +158,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    case 'clear-rate-limits': {
+      // Azzera i contatori di rate limiting (rl:*) così i test ripetuti
+      // (registrazione, contact) non si bloccano a vicenda tra run.
+      const { redis } = await import('@/lib/redis');
+      const client = redis.getClient();
+      if (client) {
+        const keys = await client.keys('rl:*');
+        if (keys.length) await client.del(...keys);
+        return NextResponse.json({ ok: true, cleared: keys.length });
+      }
+      return NextResponse.json({ ok: true, cleared: 0 });
+    }
+
     case 'delete-user-by-email': {
       const user = await prisma.user.findUnique({
         where: { email: body.email },

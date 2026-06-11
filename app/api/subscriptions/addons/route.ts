@@ -4,6 +4,13 @@ import { getAuth, ADMIN_ROLES } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { ADDON_CATALOG, ADDON_TYPES } from '@/lib/billing/addons';
 import { devPurchaseAddon, devRemoveAddon } from '@/lib/billing/dev-billing';
+import { isDevBilling } from '@/lib/billing/billing-mode';
+import {
+  stripePurchaseAddon,
+  stripeRemoveAddon,
+  AddonBillingError,
+} from '@/lib/billing/stripe-addons';
+import { validateAddonRemoval } from '@/lib/billing/plan-change';
 import { getEffectiveLimits, getStorageUsedBytes } from '@/lib/billing/limits';
 import type { AddonType } from '@prisma/client';
 
@@ -64,10 +71,20 @@ export async function POST(request: NextRequest) {
   }
 
   const { type, quantity } = parsed.data;
-  const addon = await devPurchaseAddon({ tenantId: session.user.tenantId, type, quantity });
-  const limits = await getEffectiveLimits(session.user.tenantId);
+  try {
+    const addon = isDevBilling()
+      ? await devPurchaseAddon({ tenantId: session.user.tenantId, type, quantity })
+      : await stripePurchaseAddon({ tenantId: session.user.tenantId, type, quantity });
+    const limits = await getEffectiveLimits(session.user.tenantId);
 
-  return NextResponse.json({ success: true, addon: { ...addon, unitPrice: Number(addon.unitPrice) }, limits });
+    return NextResponse.json({ success: true, addon: { ...addon, unitPrice: Number(addon.unitPrice) }, limits });
+  } catch (err) {
+    if (err instanceof AddonBillingError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    console.error('addon purchase error:', err);
+    return NextResponse.json({ error: "Errore nell'acquisto dell'add-on" }, { status: 500 });
+  }
 }
 
 /** DELETE /api/subscriptions/addons — riduce/rimuove un add-on. */
@@ -90,8 +107,30 @@ export async function DELETE(request: NextRequest) {
   }
 
   const { type, quantity } = parsed.data;
-  await devRemoveAddon({ tenantId: session.user.tenantId, type, quantity });
-  const limits = await getEffectiveLimits(session.user.tenantId);
 
-  return NextResponse.json({ success: true, limits });
+  // La rimozione non può far scendere il limite effettivo sotto l'uso attivo
+  const removal = await validateAddonRemoval(session.user.tenantId, type, quantity);
+  if (!removal.allowed) {
+    return NextResponse.json(
+      { error: removal.message, code: 'LIMITS_EXCEEDED', violations: removal.violations },
+      { status: 409 }
+    );
+  }
+
+  try {
+    if (isDevBilling()) {
+      await devRemoveAddon({ tenantId: session.user.tenantId, type, quantity });
+    } else {
+      await stripeRemoveAddon({ tenantId: session.user.tenantId, type, quantity });
+    }
+    const limits = await getEffectiveLimits(session.user.tenantId);
+
+    return NextResponse.json({ success: true, limits });
+  } catch (err) {
+    if (err instanceof AddonBillingError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    console.error('addon removal error:', err);
+    return NextResponse.json({ error: "Errore nella rimozione dell'add-on" }, { status: 500 });
+  }
 }

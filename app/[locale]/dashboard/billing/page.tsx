@@ -116,6 +116,9 @@ export default function BillingPage() {
   const [error, setError] = useState<string | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [changingPlan, setChangingPlan] = useState<string | null>(null);
+  const [eligibility, setEligibility] = useState<
+    Record<string, { allowed: boolean; message?: string }>
+  >({});
 
   // Check for success/cancelled from Stripe redirect
   useEffect(() => {
@@ -143,6 +146,7 @@ export default function BillingPage() {
     fetchSubscription();
     fetchUsage();
     fetchPlans();
+    fetchEligibility();
   }, []);
 
   const fetchPlans = async () => {
@@ -151,6 +155,22 @@ export default function BillingPage() {
       if (!res.ok) return;
       const result = await res.json();
       setPlans(result.plans || []);
+    } catch {
+      // non-blocking
+    }
+  };
+
+  // Per ogni piano: il passaggio è permesso con le risorse attualmente in uso?
+  const fetchEligibility = async () => {
+    try {
+      const res = await fetch('/api/subscriptions/change-plan');
+      if (!res.ok) return;
+      const result = await res.json();
+      const map: Record<string, { allowed: boolean; message?: string }> = {};
+      for (const e of result.eligibility || []) {
+        map[e.planSlug] = { allowed: e.allowed, message: e.message };
+      }
+      setEligibility(map);
     } catch {
       // non-blocking
     }
@@ -173,6 +193,7 @@ export default function BillingPage() {
         icon: <IconCheck size={18} />,
       });
       await fetchSubscription();
+      await fetchEligibility();
     } catch (err) {
       notifications.show({
         title: 'Errore',
@@ -619,6 +640,7 @@ export default function BillingPage() {
             <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
               {plans.map((p) => {
                 const isCurrent = p.slug === plan?.slug;
+                const blocked = !isCurrent && eligibility[p.slug]?.allowed === false;
                 return (
                   <Card key={p.id} withBorder radius="md" p="lg" data-testid={`plan-option-${p.slug}`}>
                     <Group justify="space-between" mb="xs">
@@ -640,13 +662,18 @@ export default function BillingPage() {
                       fullWidth
                       variant={isCurrent ? 'light' : 'filled'}
                       color="violet"
-                      disabled={isCurrent || changingPlan !== null}
+                      disabled={isCurrent || blocked || changingPlan !== null}
                       loading={changingPlan === p.slug}
                       onClick={() => handleChangePlan(p.slug)}
                       data-testid={`plan-change-${p.slug}`}
                     >
                       {isCurrent ? 'Piano attuale' : 'Scegli'}
                     </Button>
+                    {blocked && (
+                      <Text size="xs" c="red" mt="xs" data-testid={`plan-change-blocked-${p.slug}`}>
+                        {eligibility[p.slug]?.message}
+                      </Text>
+                    )}
                   </Card>
                 );
               })}
@@ -655,7 +682,9 @@ export default function BillingPage() {
         )}
 
         {/* Add-on / espansioni */}
-        {subscription && <AddonsManager onChange={() => { fetchSubscription(); fetchUsage(); }} />}
+        {subscription && (
+          <AddonsManager onChange={() => { fetchSubscription(); fetchUsage(); fetchEligibility(); }} />
+        )}
       </Stack>
     </Container>
   );

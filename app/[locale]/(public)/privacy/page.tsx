@@ -1,4 +1,4 @@
-import { Container, Title, Text, Stack, Paper, List, ThemeIcon, Anchor, Box, Divider, Group, Badge } from '@mantine/core';
+import { Container, Title, Text, Stack, Paper, List, ListItem, ThemeIcon, Anchor, Box, Divider, Group, Badge } from '@mantine/core';
 import { IconShield, IconLock, IconUser, IconDatabase, IconMail, IconCookie, IconScale, IconCheck } from '@tabler/icons-react';
 import Link from 'next/link';
 import { Metadata } from 'next';
@@ -74,37 +74,37 @@ export default async function PrivacyPage({
             <Paper p="md" radius="md" bg="gray.0">
               <Text fw={500} mb="xs">Dati identificativi</Text>
               <List size="sm" spacing="xs">
-                <List.Item>Nome e cognome</List.Item>
-                <List.Item>Indirizzo email</List.Item>
-                <List.Item>Numero di telefono</List.Item>
-                <List.Item>Indirizzo di residenza</List.Item>
+                <ListItem>Nome e cognome</ListItem>
+                <ListItem>Indirizzo email</ListItem>
+                <ListItem>Numero di telefono</ListItem>
+                <ListItem>Indirizzo di residenza</ListItem>
               </List>
             </Paper>
 
             <Paper p="md" radius="md" bg="gray.0">
               <Text fw={500} mb="xs">Dati di accesso</Text>
               <List size="sm" spacing="xs">
-                <List.Item>Credenziali di autenticazione (password criptate)</List.Item>
-                <List.Item>Log di accesso e indirizzi IP</List.Item>
-                <List.Item>Informazioni sul dispositivo e browser</List.Item>
+                <ListItem>Credenziali di autenticazione (password criptate)</ListItem>
+                <ListItem>Log di accesso e indirizzi IP</ListItem>
+                <ListItem>Informazioni sul dispositivo e browser</ListItem>
               </List>
             </Paper>
 
             <Paper p="md" radius="md" bg="gray.0">
               <Text fw={500} mb="xs">Dati scolastici (per scuole e utenti)</Text>
               <List size="sm" spacing="xs">
-                <List.Item>Informazioni sugli studenti e genitori</List.Item>
-                <List.Item>Presenze e registri scolastici</List.Item>
-                <List.Item>Pagamenti e fatturazione</List.Item>
-                <List.Item>Comunicazioni scuola-famiglia</List.Item>
+                <ListItem>Informazioni sugli studenti e genitori</ListItem>
+                <ListItem>Presenze e registri scolastici</ListItem>
+                <ListItem>Pagamenti e fatturazione</ListItem>
+                <ListItem>Comunicazioni scuola-famiglia</ListItem>
               </List>
             </Paper>
 
             <Paper p="md" radius="md" bg="gray.0">
               <Text fw={500} mb="xs">Dati di pagamento</Text>
               <List size="sm" spacing="xs">
-                <List.Item>Dati di fatturazione</List.Item>
-                <List.Item>Storico transazioni (processate da Stripe)</List.Item>
+                <ListItem>Dati di fatturazione</ListItem>
+                <ListItem>Storico transazioni (processate da Stripe)</ListItem>
               </List>
             </Paper>
           </Stack>
@@ -125,13 +125,13 @@ export default async function PrivacyPage({
               <IconCheck size={12} />
             </ThemeIcon>
           }>
-            <List.Item><strong>Erogazione del servizio:</strong> Fornire accesso alla piattaforma e alle sue funzionalità</List.Item>
-            <List.Item><strong>Gestione account:</strong> Creazione e mantenimento del tuo account utente</List.Item>
-            <List.Item><strong>Comunicazioni di servizio:</strong> Invio di notifiche importanti relative al servizio</List.Item>
-            <List.Item><strong>Fatturazione:</strong> Gestione pagamenti e invio fatture</List.Item>
-            <List.Item><strong>Supporto clienti:</strong> Risposta alle tue richieste di assistenza</List.Item>
-            <List.Item><strong>Miglioramento del servizio:</strong> Analisi aggregate per migliorare la piattaforma</List.Item>
-            <List.Item><strong>Obblighi legali:</strong> Adempimento di obblighi di legge</List.Item>
+            <ListItem><strong>Erogazione del servizio:</strong> Fornire accesso alla piattaforma e alle sue funzionalità</ListItem>
+            <ListItem><strong>Gestione account:</strong> Creazione e mantenimento del tuo account utente</ListItem>
+            <ListItem><strong>Comunicazioni di servizio:</strong> Invio di notifiche importanti relative al servizio</ListItem>
+            <ListItem><strong>Fatturazione:</strong> Gestione pagamenti e invio fatture</ListItem>
+            <ListItem><strong>Supporto clienti:</strong> Risposta alle tue richieste di assistenza</ListItem>
+            <ListItem><strong>Miglioramento del servizio:</strong> Analisi aggregate per migliorare la piattaforma</ListItem>
+            <ListItem><strong>Obblighi legali:</strong> Adempimento di obblighi di legge</ListItem>
           </List>
         </Paper>
 
@@ -179,10 +179,10 @@ export default async function PrivacyPage({
           </Text>
 
           <List spacing="sm">
-            <List.Item><strong>Stripe:</strong> Per l'elaborazione sicura dei pagamenti</List.Item>
-            <List.Item><strong>Resend:</strong> Per l'invio di email transazionali</List.Item>
-            <List.Item><strong>Hetzner:</strong> Provider di hosting con server in UE</List.Item>
-            <List.Item><strong>Autorità competenti:</strong> Quando richiesto dalla legge</List.Item>
+            <ListItem><strong>Stripe:</strong> Per l'elaborazione sicura dei pagamenti</ListItem>
+            <ListItem><strong>Resend:</strong> Per l'invio di email transazionali</ListItem>
+            <ListItem><strong>Hetzner:</strong> Provider di hosting con server in UE</ListItem>
+            <ListItem><strong>Autorità competenti:</strong> Quando richiesto dalla legge</ListItem>
           </List>
 
           <Text mt="md" size="sm" c="dimmed">
@@ -221,13 +221,13 @@ export default async function PrivacyPage({
               <IconCheck size={12} />
             </ThemeIcon>
           }>
-            <List.Item><strong>Accesso:</strong> Ottenere copia dei tuoi dati personali</List.Item>
-            <List.Item><strong>Rettifica:</strong> Correggere dati inesatti o incompleti</List.Item>
-            <List.Item><strong>Cancellazione:</strong> Richiedere la cancellazione dei tuoi dati ("diritto all'oblio")</List.Item>
-            <List.Item><strong>Limitazione:</strong> Limitare il trattamento in determinate circostanze</List.Item>
-            <List.Item><strong>Portabilità:</strong> Ricevere i tuoi dati in formato strutturato</List.Item>
-            <List.Item><strong>Opposizione:</strong> Opporti al trattamento basato su legittimo interesse</List.Item>
-            <List.Item><strong>Revoca del consenso:</strong> Revocare il consenso in qualsiasi momento</List.Item>
+            <ListItem><strong>Accesso:</strong> Ottenere copia dei tuoi dati personali</ListItem>
+            <ListItem><strong>Rettifica:</strong> Correggere dati inesatti o incompleti</ListItem>
+            <ListItem><strong>Cancellazione:</strong> Richiedere la cancellazione dei tuoi dati ("diritto all'oblio")</ListItem>
+            <ListItem><strong>Limitazione:</strong> Limitare il trattamento in determinate circostanze</ListItem>
+            <ListItem><strong>Portabilità:</strong> Ricevere i tuoi dati in formato strutturato</ListItem>
+            <ListItem><strong>Opposizione:</strong> Opporti al trattamento basato su legittimo interesse</ListItem>
+            <ListItem><strong>Revoca del consenso:</strong> Revocare il consenso in qualsiasi momento</ListItem>
           </List>
 
           <Paper p="md" radius="md" bg="blue.0" mt="md">
@@ -255,12 +255,12 @@ export default async function PrivacyPage({
           <Text mb="md">Adottiamo misure tecniche e organizzative adeguate per proteggere i tuoi dati:</Text>
 
           <List spacing="sm">
-            <List.Item>Crittografia SSL/TLS per tutte le comunicazioni</List.Item>
-            <List.Item>Password criptate con algoritmi sicuri</List.Item>
-            <List.Item>Accesso ai dati limitato al personale autorizzato</List.Item>
-            <List.Item>Backup regolari e disaster recovery</List.Item>
-            <List.Item>Monitoraggio continuo della sicurezza</List.Item>
-            <List.Item>Server ubicati in data center UE certificati</List.Item>
+            <ListItem>Crittografia SSL/TLS per tutte le comunicazioni</ListItem>
+            <ListItem>Password criptate con algoritmi sicuri</ListItem>
+            <ListItem>Accesso ai dati limitato al personale autorizzato</ListItem>
+            <ListItem>Backup regolari e disaster recovery</ListItem>
+            <ListItem>Monitoraggio continuo della sicurezza</ListItem>
+            <ListItem>Server ubicati in data center UE certificati</ListItem>
           </List>
         </Paper>
 

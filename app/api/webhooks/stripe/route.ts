@@ -5,6 +5,7 @@ import Stripe from 'stripe';
 import { SubscriptionStatus } from '@prisma/client';
 import { redis } from '@/lib/redis';
 import { sanitizeError } from '@/lib/api-middleware';
+import { reconcileAddonItems } from '@/lib/billing/stripe-addons';
 
 // Check if event has already been processed (deduplication)
 async function isEventProcessed(eventId: string): Promise<boolean> {
@@ -17,6 +18,14 @@ async function isEventProcessed(eventId: string): Promise<boolean> {
 async function markEventProcessed(eventId: string): Promise<void> {
   const key = `stripe:event:${eventId}`;
   await redis.set(key, 'processed', 86400); // 24 hours TTL
+}
+
+// L'abbonamento può contenere item add-on oltre all'item del piano:
+// l'item piano è quello il cui prezzo NON ha metadata.addonType.
+// items.data[0] non è più affidabile da quando esistono gli add-on.
+function findPlanPriceId(items: Array<{ price?: { id?: string; metadata?: Record<string, string> } }>): string | undefined {
+  const planItem = items.find((it) => !it.price?.metadata?.addonType) ?? items[0];
+  return planItem?.price?.id;
 }
 
 // Map Stripe subscription status to our SubscriptionStatus enum
@@ -91,7 +100,7 @@ export async function POST(request: NextRequest) {
 
           // Retrieve full subscription details
           const stripeSubscription = await retrieveSubscription(subscriptionId) as any;
-          const priceId = stripeSubscription.items.data[0]?.price?.id;
+          const priceId = findPlanPriceId(stripeSubscription.items.data);
 
           if (!priceId) {
             console.error('No price found in subscription');
@@ -241,7 +250,7 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        const priceId = subscription.items.data[0]?.price?.id;
+        const priceId = findPlanPriceId(subscription.items.data);
         if (!priceId) {
           console.error('No price found in subscription');
           break;
@@ -282,6 +291,13 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        // Allinea gli eventuali item add-on presenti già alla creazione
+        await reconcileAddonItems({
+          tenantId,
+          stripeSubscriptionId: subscription.id,
+          items: subscription.items.data,
+        });
+
         console.log(`Subscription created: ${subscription.id} for tenant ${tenantId}`);
         break;
       }
@@ -290,16 +306,62 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object as any;
 
         // Find subscription by Stripe ID
-        const existingSubscription = await prisma.subscription.findUnique({
+        let existingSubscription = await prisma.subscription.findUnique({
           where: { stripeSubscriptionId: subscription.id },
         });
 
         if (!existingSubscription) {
-          console.log(`Subscription not found: ${subscription.id}`);
-          break;
+          // Backfill: l'evento updated può arrivare prima/al posto di created
+          // (race) o riferirsi a una subscription creata fuori dall'app.
+          // Risali al tenant via metadata o stripeCustomerId e crea la riga.
+          const tenantId =
+            subscription.metadata?.tenantId ??
+            (
+              await prisma.tenant.findUnique({
+                where: { stripeCustomerId: subscription.customer as string },
+                select: { id: true },
+              })
+            )?.id;
+
+          const backfillPriceId = findPlanPriceId(subscription.items.data);
+          const backfillPlan = backfillPriceId
+            ? await prisma.plan.findUnique({ where: { stripePriceId: backfillPriceId } })
+            : null;
+
+          if (tenantId && backfillPlan) {
+            existingSubscription = await prisma.subscription.upsert({
+              where: { tenantId },
+              create: {
+                tenantId,
+                planId: backfillPlan.id,
+                stripeSubscriptionId: subscription.id,
+                stripeCustomerId: subscription.customer as string,
+                status: mapStripeStatus(subscription.status),
+                currentPeriodStart: new Date(subscription.current_period_start * 1000),
+                currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+                trialStart: subscription.trial_start
+                  ? new Date(subscription.trial_start * 1000)
+                  : null,
+                trialEnd: subscription.trial_end
+                  ? new Date(subscription.trial_end * 1000)
+                  : null,
+              },
+              update: {
+                planId: backfillPlan.id,
+                stripeSubscriptionId: subscription.id,
+                stripeCustomerId: subscription.customer as string,
+                status: mapStripeStatus(subscription.status),
+              },
+            });
+            console.log(`Backfilled subscription ${subscription.id} for tenant ${tenantId}`);
+          } else {
+            // Non riconducibile a un tenant: ack (200) per fermare i retry Stripe
+            console.warn(`Subscription not found and not backfillable, acking: ${subscription.id}`);
+            break;
+          }
         }
 
-        const priceId = subscription.items.data[0]?.price?.id;
+        const priceId = findPlanPriceId(subscription.items.data);
         let planId = existingSubscription.planId;
 
         // Check if plan changed
@@ -336,6 +398,14 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        // Allinea gli add-on (quantità cambiate, item aggiunti/rimossi anche
+        // fuori dall'app, es. dashboard Stripe o billing portal)
+        await reconcileAddonItems({
+          tenantId: existingSubscription.tenantId,
+          stripeSubscriptionId: subscription.id,
+          items: subscription.items.data,
+        });
+
         console.log(`Subscription updated: ${subscription.id}, status: ${subscription.status}`);
         break;
       }
@@ -349,7 +419,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (!existingSubscription) {
-          console.log(`Subscription not found for deletion: ${subscription.id}`);
+          console.warn(`Subscription not found for deletion, acking: ${subscription.id}`);
           break;
         }
 
@@ -366,6 +436,16 @@ export async function POST(request: NextRequest) {
           await tx.tenant.update({
             where: { id: existingSubscription.tenantId },
             data: { plan: 'FREE' },
+          });
+
+          // Gli add-on muoiono con l'abbonamento (solo quelli legati a Stripe;
+          // le righe dev-billing, senza item id, non vengono toccate)
+          await tx.tenantAddon.updateMany({
+            where: {
+              tenantId: existingSubscription.tenantId,
+              stripeSubscriptionItemId: { not: null },
+            },
+            data: { status: 'CANCELLED', quantity: 0 },
           });
         });
 

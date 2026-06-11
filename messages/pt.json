@@ -1077,5 +1077,20 @@
     }
   },
   "view": "Visualizar",
-  "recipients": "Destinatários"
+  "recipients": "Destinatários",
+  "Blog": {
+    "title": "Blog | InsegnaMi.pro",
+    "description": "Artigos, guias e dicas para a gestão da sua escola. Descubra as últimas novidades do mundo da educação.",
+    "readMore": "Leia mais",
+    "relatedPosts": "Artigos relacionados",
+    "categories": "Categorias",
+    "tags": "Tags",
+    "author": "Autor",
+    "publishedOn": "Publicado em",
+    "readingTime": "Tempo de leitura",
+    "backToBlog": "Voltar ao blog",
+    "noArticles": "Nenhum artigo disponível no momento.",
+    "tryFree": "Experimente o InsegnaMi.pro gratuitamente",
+    "tryFreeDescription": "Descubra como o InsegnaMi.pro pode simplificar a gestão da sua escola. 14 dias de teste grátis."
+  }
 }

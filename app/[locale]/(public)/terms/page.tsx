@@ -1,4 +1,4 @@
-import { Container, Title, Text, Stack, Paper, List, ThemeIcon, Anchor, Box, Divider, Group, Badge, Alert } from '@mantine/core';
+import { Container, Title, Text, Stack, Paper, List, ListItem, ThemeIcon, Anchor, Box, Divider, Group, Badge, Alert } from '@mantine/core';
 import { IconFileText, IconCheck, IconAlertCircle, IconCreditCard, IconShieldCheck, IconScale, IconBan, IconRefresh } from '@tabler/icons-react';
 import Link from 'next/link';
 import { Metadata } from 'next';
@@ -74,10 +74,10 @@ export default async function TermsPage({
                 <IconCheck size={12} />
               </ThemeIcon>
             }>
-              <List.Item>Avere almeno 18 anni o l'autorizzazione di un tutore legale</List.Item>
-              <List.Item>Possedere la capacità legale di stipulare contratti</List.Item>
-              <List.Item>Accettare integralmente questi Termini di Servizio</List.Item>
-              <List.Item>Accettare la nostra Privacy Policy</List.Item>
+              <ListItem>Avere almeno 18 anni o l'autorizzazione di un tutore legale</ListItem>
+              <ListItem>Possedere la capacità legale di stipulare contratti</ListItem>
+              <ListItem>Accettare integralmente questi Termini di Servizio</ListItem>
+              <ListItem>Accettare la nostra Privacy Policy</ListItem>
             </List>
           </Stack>
         </Paper>
@@ -92,12 +92,12 @@ export default async function TermsPage({
           </Group>
           <Text mb="md">InsegnaMi.pro è una piattaforma SaaS (Software as a Service) per la gestione scolastica che offre:</Text>
           <List spacing="sm">
-            <List.Item>Gestione anagrafica studenti, docenti e genitori</List.Item>
-            <List.Item>Calendario lezioni e presenze digitali</List.Item>
-            <List.Item>Gestione pagamenti e fatturazione</List.Item>
-            <List.Item>Comunicazioni scuola-famiglia</List.Item>
-            <List.Item>Report e statistiche</List.Item>
-            <List.Item>Registro voti e pagelle</List.Item>
+            <ListItem>Gestione anagrafica studenti, docenti e genitori</ListItem>
+            <ListItem>Calendario lezioni e presenze digitali</ListItem>
+            <ListItem>Gestione pagamenti e fatturazione</ListItem>
+            <ListItem>Comunicazioni scuola-famiglia</ListItem>
+            <ListItem>Report e statistiche</ListItem>
+            <ListItem>Registro voti e pagelle</ListItem>
           </List>
         </Paper>
 
@@ -118,10 +118,10 @@ export default async function TermsPage({
 
             <Text fw={500}>4.2 Responsabilità</Text>
             <List spacing="xs" size="sm">
-              <List.Item>Mantieni riservate le tue credenziali di accesso</List.Item>
-              <List.Item>Sei responsabile di tutte le attività svolte con il tuo account</List.Item>
-              <List.Item>Notificaci immediatamente qualsiasi uso non autorizzato</List.Item>
-              <List.Item>Non condividere l'accesso con persone non autorizzate</List.Item>
+              <ListItem>Mantieni riservate le tue credenziali di accesso</ListItem>
+              <ListItem>Sei responsabile di tutte le attività svolte con il tuo account</ListItem>
+              <ListItem>Notificaci immediatamente qualsiasi uso non autorizzato</ListItem>
+              <ListItem>Non condividere l'accesso con persone non autorizzate</ListItem>
             </List>
           </Stack>
         </Paper>
@@ -149,10 +149,10 @@ export default async function TermsPage({
 
             <Text fw={500}>5.3 Fatturazione</Text>
             <List spacing="xs" size="sm">
-              <List.Item>Gli abbonamenti sono fatturati mensilmente o annualmente (con sconto)</List.Item>
-              <List.Item>I pagamenti sono processati tramite Stripe in modo sicuro</List.Item>
-              <List.Item>Le fatture sono emesse elettronicamente</List.Item>
-              <List.Item>I prezzi sono IVA esclusa dove applicabile</List.Item>
+              <ListItem>Gli abbonamenti sono fatturati mensilmente o annualmente (con sconto)</ListItem>
+              <ListItem>I pagamenti sono processati tramite Stripe in modo sicuro</ListItem>
+              <ListItem>Le fatture sono emesse elettronicamente</ListItem>
+              <ListItem>I prezzi sono IVA esclusa dove applicabile</ListItem>
             </List>
 
             <Text fw={500}>5.4 Rinnovo Automatico</Text>
@@ -214,13 +214,13 @@ export default async function TermsPage({
               <IconBan size={12} />
             </ThemeIcon>
           }>
-            <List.Item>Violare leggi o regolamenti applicabili</List.Item>
-            <List.Item>Caricare contenuti illegali, diffamatori o offensivi</List.Item>
-            <List.Item>Interferire con il funzionamento del Servizio</List.Item>
-            <List.Item>Tentare di accedere a dati di altri utenti</List.Item>
-            <List.Item>Utilizzare bot, scraper o strumenti automatizzati non autorizzati</List.Item>
-            <List.Item>Rivendere o sublicenziare l'accesso al Servizio</List.Item>
-            <List.Item>Effettuare attività di reverse engineering</List.Item>
+            <ListItem>Violare leggi o regolamenti applicabili</ListItem>
+            <ListItem>Caricare contenuti illegali, diffamatori o offensivi</ListItem>
+            <ListItem>Interferire con il funzionamento del Servizio</ListItem>
+            <ListItem>Tentare di accedere a dati di altri utenti</ListItem>
+            <ListItem>Utilizzare bot, scraper o strumenti automatizzati non autorizzati</ListItem>
+            <ListItem>Rivendere o sublicenziare l'accesso al Servizio</ListItem>
+            <ListItem>Effettuare attività di reverse engineering</ListItem>
           </List>
         </Paper>
 
@@ -260,10 +260,10 @@ export default async function TermsPage({
               Nei limiti consentiti dalla legge, InsegnaMi.pro non sarà responsabile per:
             </Text>
             <List spacing="xs" size="sm">
-              <List.Item>Danni indiretti, incidentali o consequenziali</List.Item>
-              <List.Item>Perdita di dati causata da eventi al di fuori del nostro controllo</List.Item>
-              <List.Item>Interruzioni del servizio dovute a manutenzione programmata</List.Item>
-              <List.Item>Azioni di terze parti o cause di forza maggiore</List.Item>
+              <ListItem>Danni indiretti, incidentali o consequenziali</ListItem>
+              <ListItem>Perdita di dati causata da eventi al di fuori del nostro controllo</ListItem>
+              <ListItem>Interruzioni del servizio dovute a manutenzione programmata</ListItem>
+              <ListItem>Azioni di terze parti o cause di forza maggiore</ListItem>
             </List>
 
             <Text>

@@ -133,26 +133,16 @@ else
     echo "Database already seeded (demo user exists), skipping..."
 fi
 
-# Create SUPERADMIN user if not exists
-echo "Checking if superadmin user exists..."
-SUPERADMIN_EXISTS=$(docker compose -f $COMPOSE_FILE exec -T postgres psql -U insegnami -d insegnami -tAc "SELECT COUNT(*) FROM users WHERE email='admin@insegnami.pro'" 2>/dev/null || echo "0")
-
-if [ "$SUPERADMIN_EXISTS" = "0" ] || [ -z "$SUPERADMIN_EXISTS" ]; then
-    echo "Creating superadmin user..."
-    docker compose -f $COMPOSE_FILE exec -T postgres psql -U insegnami -d insegnami << 'EOSQL'
--- Create superadmin user (password: SuperAdmin123!)
-INSERT INTO users (id, email, password, "firstName", "lastName", status, "createdAt", "updatedAt")
-VALUES ('superadmin-001', 'admin@insegnami.pro', '$2a$12$wAOBnAkLLvNsa8AgULDgm.xFNkHmVR6TPNLzCoYLcB6KkYZB6ej7W', 'Super', 'Admin', 'ACTIVE', NOW(), NOW())
-ON CONFLICT (id) DO NOTHING;
-
--- Link to demo tenant with SUPERADMIN role
-INSERT INTO user_tenants (id, "userId", "tenantId", role, permissions, "createdAt", "updatedAt")
-VALUES ('superadmin-ut-001', 'superadmin-001', 'demo-tenant-001', 'SUPERADMIN', '{}', NOW(), NOW())
-ON CONFLICT (id) DO NOTHING;
-EOSQL
-    echo "Superadmin user created"
+# Ensure SUPERADMIN user (idempotent, credentials from /opt/insegnami/.env).
+# Note: rerunning with the same SUPERADMIN_EMAIL resets the password (recovery path).
+if [ -n "$SUPERADMIN_EMAIL" ] && [ -n "$SUPERADMIN_PASSWORD" ]; then
+    echo "Ensuring superadmin user ($SUPERADMIN_EMAIL)..."
+    docker compose -f $COMPOSE_FILE exec -T \
+        -e SUPERADMIN_EMAIL="$SUPERADMIN_EMAIL" \
+        -e SUPERADMIN_PASSWORD="$SUPERADMIN_PASSWORD" \
+        app node scripts/create-superadmin.mjs
 else
-    echo "Superadmin user already exists, skipping..."
+    echo "SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD not set in .env, skipping superadmin provisioning"
 fi
 
 # Health check

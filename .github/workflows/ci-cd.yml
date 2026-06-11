@@ -88,7 +88,7 @@ jobs:
         run: npx prisma generate
 
       - name: Run database migrations
-        run: npx prisma db push
+        run: npx prisma migrate deploy
 
       - name: Run unit tests
         run: npm test || echo "Tests failed but continuing deployment"

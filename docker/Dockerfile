@@ -66,6 +66,9 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
+# Copy ops scripts (create-superadmin.mjs etc.) runnable with plain node
+COPY --from=builder /app/scripts ./scripts
+
 # Remove unnecessary tools that could be used by attackers
 # No wget, curl, or shell download tools in production
 RUN apk --no-cache del wget 2>/dev/null; true

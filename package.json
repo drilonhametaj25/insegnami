@@ -13,6 +13,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx scripts/seed.ts",
+    "superadmin:create": "node scripts/create-superadmin.mjs",
+    "sync:stripe": "tsx scripts/sync-stripe.ts",
     "worker": "tsx scripts/start-workers.ts",
     "dev:worker": "tsx watch scripts/start-workers.ts",
     "dev:setup": "powershell -ExecutionPolicy Bypass -File scripts/dev-setup.ps1",

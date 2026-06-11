@@ -1,5 +1,10 @@
 import Stripe from 'stripe';
 
+// Identifica la piattaforma di provenienza su ogni entità Stripe creata
+// (customer, subscription, product, price, checkout session): utile quando
+// lo stesso account Stripe serve più prodotti SaaS.
+export const PLATFORM_METADATA = { platform: 'InsegnaMi' } as const;
+
 // Initialize Stripe lazily to avoid build-time errors
 let stripeInstance: Stripe | null = null;
 
@@ -36,6 +41,9 @@ export const stripe = {
   },
   get subscriptions() {
     return getStripeClient().subscriptions;
+  },
+  get subscriptionItems() {
+    return getStripeClient().subscriptionItems;
   },
   get billingPortal() {
     return getStripeClient().billingPortal;
@@ -85,6 +93,7 @@ export async function createCheckoutSession({
     success_url: successUrl,
     cancel_url: cancelUrl,
     metadata: {
+      ...PLATFORM_METADATA,
       paymentId,
       ...metadata,
     },
@@ -164,6 +173,7 @@ export async function getOrCreateCustomer({
     email,
     name,
     metadata: {
+      ...PLATFORM_METADATA,
       tenantId,
     },
   });
@@ -198,12 +208,14 @@ export async function createSubscriptionCheckoutSession({
     subscription_data: {
       trial_period_days: trialDays,
       metadata: {
+        ...PLATFORM_METADATA,
         tenantId,
       },
     },
     success_url: successUrl,
     cancel_url: cancelUrl,
     metadata: {
+      ...PLATFORM_METADATA,
       tenantId,
     },
     allow_promotion_codes: true,
@@ -321,6 +333,7 @@ export async function createStripeProduct({
     name,
     description,
     metadata: {
+      ...PLATFORM_METADATA,
       ...metadata,
       createdBy: 'superadmin',
     },
@@ -334,7 +347,7 @@ export async function createStripeProduct({
     recurring: {
       interval,
     },
-    metadata,
+    metadata: { ...PLATFORM_METADATA, ...metadata },
   });
 
   return { product, price };
@@ -379,7 +392,7 @@ export async function createNewPrice({
     recurring: {
       interval,
     },
-    metadata,
+    metadata: { ...PLATFORM_METADATA, ...metadata },
   });
 }
 
@@ -397,5 +410,54 @@ export async function getStripeProduct(productId: string): Promise<Stripe.Produc
 export async function getStripePrice(priceId: string): Promise<Stripe.Price> {
   return stripe.prices.retrieve(priceId, {
     expand: ['product'],
+  });
+}
+
+// ========================================
+// SUBSCRIPTION ITEM HELPERS (add-on)
+// ========================================
+
+// Add an add-on line item to an existing subscription (prorated)
+export async function createSubscriptionItem({
+  subscriptionId,
+  priceId,
+  quantity,
+  metadata,
+}: {
+  subscriptionId: string;
+  priceId: string;
+  quantity: number;
+  metadata?: Record<string, string>;
+}): Promise<Stripe.SubscriptionItem> {
+  return stripe.subscriptionItems.create({
+    subscription: subscriptionId,
+    price: priceId,
+    quantity,
+    proration_behavior: 'create_prorations',
+    metadata: { ...PLATFORM_METADATA, ...metadata },
+  });
+}
+
+// Change the quantity of an add-on line item (prorated)
+export async function updateSubscriptionItemQuantity({
+  itemId,
+  quantity,
+}: {
+  itemId: string;
+  quantity: number;
+}): Promise<Stripe.SubscriptionItem> {
+  return stripe.subscriptionItems.update(itemId, {
+    quantity,
+    proration_behavior: 'create_prorations',
+  });
+}
+
+// Remove an add-on line item (prorated credit). Stripe non accetta quantity 0:
+// la rimozione completa passa da qui.
+export async function deleteSubscriptionItem(
+  itemId: string
+): Promise<Stripe.DeletedSubscriptionItem> {
+  return stripe.subscriptionItems.del(itemId, {
+    proration_behavior: 'create_prorations',
   });
 }

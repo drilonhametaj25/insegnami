@@ -2,107 +2,53 @@
  * Seed idempotente dei piani di abbonamento SaaS.
  * Eseguibile in sicurezza più volte: usa upsert per slug.
  *   npx tsx scripts/seed-plans.ts
+ *
+ * Il catalogo vive in lib/billing/plans-catalog.ts. Gli ID prezzo Stripe
+ * reali vengono creati/aggiornati da `npm run sync:stripe`; questo seed
+ * imposta stripePriceId solo alla creazione (da env o placeholder) e NON
+ * sovrascrive mai un priceId già sincronizzato, a meno che l'env var
+ * corrispondente sia esplicitamente valorizzata.
  */
 import { PrismaClient } from '@prisma/client';
+import { PLAN_CATALOG } from '../lib/billing/plans-catalog';
 
 const prisma = new PrismaClient();
 
-const PLANS = [
-  {
-    name: 'Starter',
-    slug: 'starter',
-    stripePriceId: process.env.STRIPE_STARTER_PRICE_ID || 'price_starter_dev',
-    price: 29,
-    interval: 'MONTHLY' as const,
-    maxStudents: 50,
-    maxTeachers: 5,
-    maxClasses: 10,
-    features: {
-      attendance: true,
-      payments: true,
-      communications: true,
-      calendar: true,
-      reports: true,
-      parentPortal: true,
-    },
-    description: 'Per piccole scuole e centri di formazione',
-    isPopular: false,
-    sortOrder: 1,
-  },
-  {
-    name: 'Professional',
-    slug: 'professional',
-    stripePriceId: process.env.STRIPE_PROFESSIONAL_PRICE_ID || 'price_professional_dev',
-    price: 79,
-    interval: 'MONTHLY' as const,
-    maxStudents: 200,
-    maxTeachers: 20,
-    maxClasses: 50,
-    features: {
-      attendance: true,
-      payments: true,
-      communications: true,
-      calendar: true,
-      reports: true,
-      parentPortal: true,
-      analytics: true,
-      integrations: true,
-      whiteLabel: true,
-    },
-    description: 'Per scuole in crescita con più sedi',
-    isPopular: true,
-    sortOrder: 2,
-  },
-  {
-    name: 'Enterprise',
-    slug: 'enterprise',
-    stripePriceId: process.env.STRIPE_ENTERPRISE_PRICE_ID || 'price_enterprise_dev',
-    price: 199,
-    interval: 'MONTHLY' as const,
-    maxStudents: null,
-    maxTeachers: null,
-    maxClasses: null,
-    features: {
-      attendance: true,
-      payments: true,
-      communications: true,
-      calendar: true,
-      reports: true,
-      parentPortal: true,
-      analytics: true,
-      integrations: true,
-      whiteLabel: true,
-      advancedReporting: true,
-      multiCampus: true,
-      slaGuarantee: true,
-      dedicatedSupport: true,
-      customIntegrations: true,
-    },
-    description: 'Per grandi istituti e franchising',
-    isPopular: false,
-    sortOrder: 3,
-  },
-];
+const ENV_PRICE_IDS: Record<string, string | undefined> = {
+  starter: process.env.STRIPE_STARTER_PRICE_ID,
+  professional: process.env.STRIPE_PROFESSIONAL_PRICE_ID,
+  enterprise: process.env.STRIPE_ENTERPRISE_PRICE_ID,
+};
 
 async function main() {
-  for (const plan of PLANS) {
+  for (const plan of PLAN_CATALOG) {
+    const envPriceId = ENV_PRICE_IDS[plan.slug];
+    const baseData = {
+      name: plan.name,
+      price: plan.price,
+      interval: plan.interval,
+      maxStudents: plan.maxStudents,
+      maxTeachers: plan.maxTeachers,
+      maxClasses: plan.maxClasses,
+      features: plan.features,
+      description: plan.description,
+      isPopular: plan.isPopular,
+      sortOrder: plan.sortOrder,
+      isActive: true,
+    };
+
     await prisma.plan.upsert({
       where: { slug: plan.slug },
       update: {
-        name: plan.name,
-        stripePriceId: plan.stripePriceId,
-        price: plan.price,
-        interval: plan.interval,
-        maxStudents: plan.maxStudents,
-        maxTeachers: plan.maxTeachers,
-        maxClasses: plan.maxClasses,
-        features: plan.features,
-        description: plan.description,
-        isPopular: plan.isPopular,
-        sortOrder: plan.sortOrder,
-        isActive: true,
+        ...baseData,
+        // non clobberare un priceId sincronizzato con un placeholder
+        ...(envPriceId ? { stripePriceId: envPriceId } : {}),
       },
-      create: { ...plan, isActive: true },
+      create: {
+        ...baseData,
+        slug: plan.slug,
+        stripePriceId: envPriceId || `price_${plan.slug}_dev`,
+      },
     });
     console.log(`✔ Plan upserted: ${plan.name} (${plan.slug})`);
   }

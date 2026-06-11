@@ -1,10 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { emailService } from '@/lib/email';
 import { escapeHtml } from '@/lib/api-middleware';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
+  // Rate limit: i bot bombardano questo endpoint con payload malformati.
+  const rl = await rateLimit(request, {
+    windowMs: 60 * 60 * 1000,
+    maxRequests: 10,
+    keyPrefix: 'rl:contact',
+  });
+  if (!rl.success) return rl.error!;
+
+  // Body malformato (probe automatizzati) → 400, non 500.
+  let body: { name?: string; email?: string; subject?: string; message?: string };
   try {
-    const body = await request.json();
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Richiesta non valida' }, { status: 400 });
+  }
+
+  try {
     const { name, email, subject, message } = body;
 
     // Validate input
