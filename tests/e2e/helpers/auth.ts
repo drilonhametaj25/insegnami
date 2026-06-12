@@ -7,13 +7,17 @@ export type Role = 'admin' | 'teacher' | 'student' | 'parent' | 'admin2';
 export const AUTH_DIR = path.join(__dirname, '..', '.auth');
 export const storageStateFor = (role: Role) => path.join(AUTH_DIR, `${role}.json`);
 
+// Credenziali sovrascrivibili via env (CI/ambienti dedicati) con fallback ai
+// valori del seed locale: zero cambi di comportamento se le env non sono settate.
+const E2E_PASSWORD = process.env.E2E_PASSWORD ?? 'password';
+
 export const ACCOUNTS: Record<Role, { email: string; password: string }> = {
-  admin: { email: 'admin@englishplus.it', password: 'password' },
-  teacher: { email: 'teacher@englishplus.it', password: 'password' },
-  student: { email: 'student@englishplus.it', password: 'password' },
-  parent: { email: 'parent@englishplus.it', password: 'password' },
+  admin: { email: process.env.E2E_ADMIN_EMAIL ?? 'admin@englishplus.it', password: E2E_PASSWORD },
+  teacher: { email: process.env.E2E_TEACHER_EMAIL ?? 'teacher@englishplus.it', password: E2E_PASSWORD },
+  student: { email: process.env.E2E_STUDENT_EMAIL ?? 'student@englishplus.it', password: E2E_PASSWORD },
+  parent: { email: process.env.E2E_PARENT_EMAIL ?? 'parent@englishplus.it', password: E2E_PASSWORD },
   // Admin del SECONDO tenant del seed: usato dai test di isolamento tenant
-  admin2: { email: 'admin2@secondschool.it', password: 'password' },
+  admin2: { email: process.env.E2E_ADMIN2_EMAIL ?? 'admin2@secondschool.it', password: E2E_PASSWORD },
 };
 
 export const SEED_TENANT_SLUG = 'english-plus';

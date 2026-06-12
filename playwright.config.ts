@@ -18,7 +18,9 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  // In CI si aggiunge il reporter 'github' (annotazioni inline sui PR) mantenendo
+  // l'html, che viene caricato come artifact in caso di fallimento.
+  reporter: process.env.CI ? [['html'], ['github']] : 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -63,9 +65,13 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run dev',
+    // In CI si esercita la build di produzione (next build + next start),
+    // più stabile e realistica del dev server; in locale resta il dev server
+    // con riuso dell'istanza eventualmente già attiva.
+    command: process.env.CI ? 'npm run build && npm run start' : 'npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    // La build di Next in CI può richiedere diversi minuti: timeout esteso
+    timeout: (process.env.CI ? 300 : 120) * 1000,
   },
 });
