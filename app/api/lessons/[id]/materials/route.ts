@@ -6,6 +6,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { z } from 'zod';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { getTeacherIdForUser, type AuthContext } from '@/lib/api-auth';
 
 // Schema for creating material from URL/link
 const createMaterialSchema = z.object({
@@ -99,6 +100,24 @@ export async function POST(
       return NextResponse.json({ error: 'Lezione non trovata' }, { status: 404 });
     }
 
+    // I teacher possono caricare materiali solo sulle proprie lezioni.
+    // SECURITY: Lesson.teacherId referenzia Teacher.id, NON User.id —
+    // stesso pattern del PUT di lessons/[id]/route.ts.
+    if (session.user.role === 'TEACHER') {
+      const ctx = {
+        userId: session.user.id ?? '',
+        tenantId: session.user.tenantId,
+        role: session.user.role,
+        email: session.user.email ?? '',
+        isSuperAdmin: false,
+        session,
+      } as AuthContext;
+      const tid = await getTeacherIdForUser(ctx);
+      if (!tid || lesson.teacherId !== tid) {
+        return NextResponse.json({ error: 'Permessi insufficienti' }, { status: 403 });
+      }
+    }
+
     const contentType = request.headers.get('content-type') || '';
 
     // Handle file upload (multipart/form-data)
@@ -110,6 +129,26 @@ export async function POST(
 
       if (!file) {
         return NextResponse.json({ error: 'File richiesto' }, { status: 400 });
+      }
+
+      // Validazione type/size del file (stessa whitelist del POST di
+      // classes/[id]/materials) PRIMA di scrivere su disco.
+      const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'image/jpeg',
+        'image/png',
+        'text/plain',
+      ];
+
+      if (!allowedTypes.includes(file.type)) {
+        return NextResponse.json({ error: 'Tipo di file non consentito' }, { status: 400 });
+      }
+
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        return NextResponse.json({ error: 'File troppo grande (max 10MB)' }, { status: 400 });
       }
 
       // Create uploads directory if it doesn't exist

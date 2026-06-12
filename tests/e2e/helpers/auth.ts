@@ -1,7 +1,7 @@
 import { Page, APIRequestContext, expect } from '@playwright/test';
 import path from 'path';
 
-export type Role = 'admin' | 'teacher' | 'student' | 'parent';
+export type Role = 'admin' | 'teacher' | 'student' | 'parent' | 'admin2';
 
 /** Cartella e path degli storage state salvati dal progetto di setup. */
 export const AUTH_DIR = path.join(__dirname, '..', '.auth');
@@ -12,9 +12,12 @@ export const ACCOUNTS: Record<Role, { email: string; password: string }> = {
   teacher: { email: 'teacher@englishplus.it', password: 'password' },
   student: { email: 'student@englishplus.it', password: 'password' },
   parent: { email: 'parent@englishplus.it', password: 'password' },
+  // Admin del SECONDO tenant del seed: usato dai test di isolamento tenant
+  admin2: { email: 'admin2@secondschool.it', password: 'password' },
 };
 
 export const SEED_TENANT_SLUG = 'english-plus';
+export const SECOND_TENANT_SLUG = 'second-school';
 
 /** Esegue il login via UI e attende l'atterraggio su dashboard o onboarding. */
 export async function login(page: Page, role: Role): Promise<void> {

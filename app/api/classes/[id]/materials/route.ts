@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
+import { resolveSafeUploadPath } from '@/lib/uploads/safe-path';
 
 // GET /api/classes/[id]/materials - Get materials for a class
 export async function GET(
@@ -211,6 +212,27 @@ export async function POST(
       return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 });
     }
 
+    // SECURITY: se viene passato un lessonId, verifichiamo PRIMA di scrivere
+    // su disco che la lezione appartenga a questa classe e al tenant della
+    // sessione, altrimenti un client potrebbe agganciare materiali a lezioni
+    // di altre classi/tenant (FK cross-tenant).
+    const lessonId = formData.get('lessonId') as string;
+    if (lessonId) {
+      const lessonInClass = await prisma.lesson.findFirst({
+        where: {
+          id: lessonId,
+          classId: id,
+          tenantId: session.user.tenantId,
+        },
+      });
+      if (!lessonInClass) {
+        return NextResponse.json(
+          { error: 'Lesson not found in this class' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Create uploads directory if it doesn't exist
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'materials');
     try {
@@ -232,9 +254,7 @@ export async function POST(
     await writeFile(filePath, buffer);
 
     // Get a lesson from this class to attach the material to
-    // Materials are tied to lessons in our schema
-    const lessonId = formData.get('lessonId') as string;
-
+    // Materials are tied to lessons in our schema (lessonId già validato sopra)
     let targetLessonId = lessonId;
 
     // If no lessonId provided, get the most recent lesson for this class
@@ -370,13 +390,21 @@ export async function DELETE(
 
     // Optionally delete the file from disk
     // Note: In production, you might want to soft delete or use cloud storage
-    try {
-      const fs = await import('fs/promises');
-      const filePath = path.join(process.cwd(), 'public', material.url);
-      await fs.unlink(filePath);
-    } catch (err) {
-      // File might not exist, that's okay
-      console.warn('Could not delete file:', err);
+    // SECURITY: material.url va validato prima di toccare il filesystem.
+    // resolveSafeUploadPath rifiuta payload di path traversal (es.
+    // "/uploads/../../.env") che altrimenti permetterebbero di cancellare
+    // file arbitrari fuori da public/uploads.
+    const filePath = resolveSafeUploadPath(material.url);
+    if (filePath) {
+      try {
+        await unlink(filePath);
+      } catch (err) {
+        // File might not exist, that's okay
+        console.warn('Could not delete file:', err);
+      }
+    } else {
+      // Path non sicuro: saltiamo l'unlink ma il record è già stato eliminato
+      console.warn('Skipping file deletion, unsafe material url:', material.url);
     }
 
     return NextResponse.json({

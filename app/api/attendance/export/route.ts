@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { prisma } from '@/lib/db';
 
@@ -17,6 +17,10 @@ export async function GET(request: NextRequest) {
     if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
+
+    // I contatti del genitore (email/telefono) sono PII riservate ai ruoli
+    // amministrativi: per i TEACHER non vengono né letti dal DB né esportati.
+    const canSeeParentContacts = isAdminRole(session.user.role);
 
     const { searchParams } = new URL(request.url);
     const format = searchParams.get('format') || 'csv';
@@ -63,8 +67,8 @@ export async function GET(request: NextRequest) {
               select: {
                 firstName: true,
                 lastName: true,
-                email: true,
-                phone: true,
+                // Email/telefono solo per i ruoli amministrativi
+                ...(canSeeParentContacts ? { email: true, phone: true } : {}),
               },
             },
           },
@@ -99,7 +103,13 @@ export async function GET(request: NextRequest) {
 
     if (format === 'csv') {
       // Generate CSV with comprehensive attendance data
-      const csvHeader = 'Date,Student,Student Code,Student Email,Parent,Parent Email,Parent Phone,Class,Course,Teacher,Lesson Title,Status,Notes,Recorded At\n';
+      // Le colonne dei contatti genitore sono incluse solo per i ruoli
+      // amministrativi, mantenendo coerenza header/righe.
+      const csvHeader = [
+        'Date,Student,Student Code,Student Email,Parent',
+        ...(canSeeParentContacts ? ['Parent Email,Parent Phone'] : []),
+        'Class,Course,Teacher,Lesson Title,Status,Notes,Recorded At',
+      ].join(',') + '\n';
       const csvData = attendanceRecords.map((record: any) => {
         const student = record.student;
         const studentUser = student.user;
@@ -107,22 +117,24 @@ export async function GET(request: NextRequest) {
         const lesson = record.lesson;
         const teacher = lesson.teacher;
         const classInfo = lesson.class;
-        
+
         return [
           lesson.startTime ? new Date(lesson.startTime).toLocaleDateString('it-IT') : '',
           `"${studentUser?.firstName || ''} ${studentUser?.lastName || ''}"`,
           student.studentCode || '',
           studentUser?.email || '',
           `"${parentUser ? `${parentUser.firstName} ${parentUser.lastName}` : ''}"`,
-          parentUser?.email || '',
-          parentUser?.phone || '',
+          ...(canSeeParentContacts
+            ? [parentUser?.email || '', parentUser?.phone || '']
+            : []),
           `"${classInfo?.name || ''}"`,
           `"${classInfo?.course?.name || ''}"`,
           `"${teacher ? `${teacher.firstName} ${teacher.lastName}` : ''}"`,
           `"${lesson.title || ''}"`,
           record.status,
           `"${record.notes || ''}"`,
-          new Date(record.createdAt).toLocaleString('it-IT'),
+          // Quotato: il formato it-IT contiene una virgola tra data e ora
+          `"${new Date(record.createdAt).toLocaleString('it-IT')}"`,
         ].join(',');
       }).join('\n');
 

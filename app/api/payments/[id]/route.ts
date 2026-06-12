@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { z } from 'zod';
 import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
+import { logAudit } from '@/lib/audit';
 
 const paymentUpdateSchema = z.object({
   description: z.string().min(1, 'Descrizione richiesta').optional(),
@@ -184,7 +185,8 @@ export async function PUT(
 
       if (willBePaid) {
         const { syncPaymentMovement } = await import('@/lib/accounting/movements');
-        await syncPaymentMovement(tx, id);
+        // Tracciabilità: chi ha marcato il pagamento come PAID finisce sul movimento contabile
+        await syncPaymentMovement(tx, id, { createdBy: session.user.id });
       } else if (wasPaid) {
         const { reversePaymentMovement } = await import('@/lib/accounting/movements');
         await reversePaymentMovement(tx, id);
@@ -250,8 +252,28 @@ export async function DELETE(
       );
     }
 
-    await prisma.payment.delete({
-      where: { id: id },
+    // Audit DELETE (C0.4): snapshot minimo nella stessa transazione del delete,
+    // così la riga di audit non può divergere dall'operazione tracciata
+    await prisma.$transaction(async (tx) => {
+      await logAudit(tx, {
+        tenantId: existingPayment.tenantId,
+        userId: session.user.id ?? '',
+        action: 'DELETE',
+        entity: 'Payment',
+        entityId: id,
+        oldData: {
+          id: existingPayment.id,
+          amount: Number(existingPayment.amount),
+          status: existingPayment.status,
+          studentId: existingPayment.studentId,
+          description: existingPayment.description,
+        },
+        request,
+      });
+
+      await tx.payment.delete({
+        where: { id: id },
+      });
     });
 
     return NextResponse.json({ message: 'Pagamento eliminato con successo' });

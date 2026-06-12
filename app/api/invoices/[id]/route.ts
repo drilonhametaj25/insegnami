@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { requireAuth, authError, tenantScope } from '@/lib/api-auth';
+import { logAudit } from '@/lib/audit';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -99,7 +100,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const existing = await prisma.invoice.findFirst({
       where: tenantScope(ctx, { id }),
-      select: { id: true, status: true, number: true },
+      select: { id: true, tenantId: true, seriesId: true, number: true, year: true, status: true, total: true },
     });
     if (!existing) return NextResponse.json({ error: 'Fattura non trovata' }, { status: 404 });
     if (existing.status !== 'DRAFT') {
@@ -111,7 +112,27 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    await prisma.invoice.delete({ where: { id } });
+    // Audit DELETE (C0.4): snapshot della bozza nella stessa transazione del delete
+    await prisma.$transaction(async (tx) => {
+      await logAudit(tx, {
+        tenantId: existing.tenantId,
+        userId: ctx.userId,
+        action: 'DELETE',
+        entity: 'Invoice',
+        entityId: id,
+        oldData: {
+          id: existing.id,
+          seriesId: existing.seriesId,
+          number: existing.number,
+          year: existing.year,
+          status: existing.status,
+          total: Number(existing.total),
+        },
+        request,
+      });
+
+      await tx.invoice.delete({ where: { id } });
+    });
     return NextResponse.json({ success: true });
   } catch (err) {
     const r = authError(err);

@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '@/lib/db';
 import { requireAuth, authError, tenantScope, getTeacherIdForUser } from '@/lib/api-auth';
+import { logAudit } from '@/lib/audit';
 import { recomputePayrollTotals } from '@/lib/payroll/payroll-generator';
 
 interface RouteParams {
@@ -154,7 +155,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
 
     const existing = await prisma.payroll.findFirst({
       where: tenantScope(ctx, { id }),
-      select: { id: true, status: true },
+      select: { id: true, tenantId: true, teacherId: true, periodId: true, status: true, netAmount: true },
     });
     if (!existing) return NextResponse.json({ error: 'Cedolino non trovato' }, { status: 404 });
     if (existing.status !== 'DRAFT') {
@@ -164,7 +165,26 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    await prisma.payroll.delete({ where: { id } });
+    // Audit DELETE (C0.4): snapshot del cedolino nella stessa transazione del delete
+    await prisma.$transaction(async (tx) => {
+      await logAudit(tx, {
+        tenantId: existing.tenantId,
+        userId: ctx.userId,
+        action: 'DELETE',
+        entity: 'Payroll',
+        entityId: id,
+        oldData: {
+          id: existing.id,
+          teacherId: existing.teacherId,
+          periodId: existing.periodId,
+          status: existing.status,
+          netAmount: Number(existing.netAmount),
+        },
+        request: _request,
+      });
+
+      await tx.payroll.delete({ where: { id } });
+    });
     return NextResponse.json({ success: true });
   } catch (err) {
     const r = authError(err);

@@ -1,5 +1,5 @@
 import { test as setup, expect } from '@playwright/test';
-import { ACCOUNTS, Role, SEED_TENANT_SLUG, AUTH_DIR, storageStateFor } from './helpers/auth';
+import { ACCOUNTS, Role, SEED_TENANT_SLUG, SECOND_TENANT_SLUG, AUTH_DIR, storageStateFor } from './helpers/auth';
 import fs from 'fs';
 
 if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
@@ -10,14 +10,18 @@ if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
  * login e velocizza la suite). L'onboarding del tenant seed viene completato.
  */
 setup('prepara sessioni autenticate', async ({ browser, request }) => {
-  // 4 login sequenziali + compilazione pagine in dev: serve più tempo
-  setup.setTimeout(120_000);
+  // 5 login sequenziali + compilazione pagine in dev: serve più tempo
+  setup.setTimeout(150_000);
   // Assicura onboarding completo per non far rimbalzare l'admin sul wizard
   await request.post('/api/test', {
     data: { action: 'complete-onboarding', slug: SEED_TENANT_SLUG },
   });
+  // Idem per il secondo tenant (usato dai test di isolamento tenant)
+  await request.post('/api/test', {
+    data: { action: 'complete-onboarding', slug: SECOND_TENANT_SLUG },
+  });
 
-  const roles: Role[] = ['admin', 'teacher', 'student', 'parent'];
+  const roles: Role[] = ['admin', 'teacher', 'student', 'parent', 'admin2'];
   for (const role of roles) {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();

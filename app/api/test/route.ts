@@ -171,6 +171,75 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, cleared: 0 });
     }
 
+    case 'get-cross-tenant-ids': {
+      // Ritorna un ID di risorsa per modulo del tenant indicato (default: il
+      // tenant principale del seed). Usato dai test e2e di isolamento tenant
+      // per tentare accessi cross-tenant da un account di un altro tenant.
+      const slug = typeof body.slug === 'string' ? body.slug : 'english-plus';
+      const tenant = await prisma.tenant.findFirst({ where: { slug } });
+      if (!tenant) return NextResponse.json({ error: 'tenant not found' }, { status: 404 });
+      const tid = tenant.id;
+
+      const [
+        student, teacher, klass, lesson, payment, notice, grade, homework,
+        disciplinaryNote, parentMeeting, reportCard, hoursPackage, course,
+        subject, academicYear, attendance, message, invoice, payrollPeriod,
+        payroll, accountingMovement, userTenant,
+      ] = await Promise.all([
+        prisma.student.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.teacher.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.class.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.lesson.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.payment.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.notice.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.grade.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.homework.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.disciplinaryNote.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.parentMeeting.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.reportCard.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.hoursPackage.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.course.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.subject.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.academicYear.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        // Attendance non ha tenantId diretto: lo scope passa dalla lezione
+        prisma.attendance.findFirst({ where: { lesson: { tenantId: tid } }, select: { id: true } }),
+        prisma.message.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.invoice.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.payrollPeriod.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.payroll.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.accountingMovement.findFirst({ where: { tenantId: tid }, select: { id: true } }),
+        prisma.userTenant.findFirst({ where: { tenantId: tid }, select: { userId: true } }),
+      ]);
+
+      return NextResponse.json({
+        tenantId: tid,
+        ids: {
+          students: student?.id ?? null,
+          teachers: teacher?.id ?? null,
+          classes: klass?.id ?? null,
+          lessons: lesson?.id ?? null,
+          payments: payment?.id ?? null,
+          notices: notice?.id ?? null,
+          grades: grade?.id ?? null,
+          homework: homework?.id ?? null,
+          disciplinaryNotes: disciplinaryNote?.id ?? null,
+          parentMeetings: parentMeeting?.id ?? null,
+          reportCards: reportCard?.id ?? null,
+          hoursPackages: hoursPackage?.id ?? null,
+          courses: course?.id ?? null,
+          subjects: subject?.id ?? null,
+          academicYears: academicYear?.id ?? null,
+          attendance: attendance?.id ?? null,
+          messages: message?.id ?? null,
+          invoices: invoice?.id ?? null,
+          payrollPeriods: payrollPeriod?.id ?? null,
+          payrolls: payroll?.id ?? null,
+          accountingMovements: accountingMovement?.id ?? null,
+          users: userTenant?.userId ?? null,
+        },
+      });
+    }
+
     case 'delete-user-by-email': {
       const user = await prisma.user.findUnique({
         where: { email: body.email },

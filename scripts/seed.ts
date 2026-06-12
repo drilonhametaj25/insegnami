@@ -1176,6 +1176,254 @@ async function main() {
   console.log('✅ Created subscription plans (Starter, Professional, Enterprise)');
   console.log('⚠️  IMPORTANT: Update STRIPE_STARTER_PRICE_ID, STRIPE_PROFESSIONAL_PRICE_ID, STRIPE_ENTERPRISE_PRICE_ID in .env with your Stripe Price IDs');
 
+  // ========================================
+  // 🏫 SECONDO TENANT — "Second School"
+  // Dati minimi per i test e2e di isolamento multi-tenant. Tutto idempotente
+  // (upsert su campi unici / check di esistenza), senza toccare il tenant
+  // principale 'english-plus' su cui si appoggiano le altre suite e2e.
+  // ========================================
+  console.log('Creating second tenant (second-school)...');
+
+  const tenant2 = await prisma.tenant.upsert({
+    where: { slug: 'second-school' },
+    update: {},
+    create: {
+      name: 'Second School',
+      slug: 'second-school',
+      plan: 'self-hosted',
+      isActive: true,
+      setupStage: 'COMPLETE',
+      setupCompletedAt: new Date(),
+      featureFlags: JSON.stringify({
+        attendance: true,
+        payments: true,
+        communications: true,
+        calendar: true,
+        reports: true,
+        parentPortal: true,
+      }),
+    },
+  });
+
+  // Admin del secondo tenant (stessa password degli altri account seed)
+  const admin2User = await prisma.user.upsert({
+    where: { email: 'admin2@secondschool.it' },
+    update: {},
+    create: {
+      email: 'admin2@secondschool.it',
+      password: hashedPassword,
+      firstName: 'Laura',
+      lastName: 'Verdi',
+      phone: '+39 335 0000001',
+      status: UserStatus.ACTIVE,
+      emailVerified: new Date(),
+    },
+  });
+
+  await prisma.userTenant.upsert({
+    where: {
+      userId_tenantId: {
+        userId: admin2User.id,
+        tenantId: tenant2.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: admin2User.id,
+      tenantId: tenant2.id,
+      role: Role.ADMIN,
+      permissions: JSON.stringify({
+        users: { create: true, read: true, update: true, delete: true },
+        students: { create: true, read: true, update: true, delete: true },
+        teachers: { create: true, read: true, update: true, delete: true },
+        classes: { create: true, read: true, update: true, delete: true },
+        lessons: { create: true, read: true, update: true, delete: true },
+        attendance: { create: true, read: true, update: true, delete: true },
+        payments: { create: true, read: true, update: true, delete: true },
+        notices: { create: true, read: true, update: true, delete: true },
+        reports: { create: true, read: true, update: true, delete: true },
+      }),
+    },
+  });
+
+  // Docente del secondo tenant (teacherCode è unico globalmente → upsert)
+  const teacher2nd = await prisma.teacher.upsert({
+    where: { teacherCode: 'T-SS-001' },
+    update: {},
+    create: {
+      firstName: 'Paola',
+      lastName: 'Neri',
+      email: 'teacher@secondschool.it',
+      phone: '+39 335 0000002',
+      teacherCode: 'T-SS-001',
+      contractType: 'Part-time',
+      hourlyRate: 28.0,
+      tenantId: tenant2.id,
+      status: UserStatus.ACTIVE,
+    },
+  });
+
+  // Studente del secondo tenant (serve uno user dedicato: Student.userId è obbligatorio)
+  const student2ndUser = await prisma.user.upsert({
+    where: { email: 'student@secondschool.it' },
+    update: {},
+    create: {
+      email: 'student@secondschool.it',
+      password: hashedPassword,
+      firstName: 'Aldo',
+      lastName: 'Gallo',
+      phone: '+39 335 0000003',
+      status: UserStatus.ACTIVE,
+      emailVerified: new Date(),
+    },
+  });
+
+  await prisma.userTenant.upsert({
+    where: {
+      userId_tenantId: {
+        userId: student2ndUser.id,
+        tenantId: tenant2.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: student2ndUser.id,
+      tenantId: tenant2.id,
+      role: Role.STUDENT,
+      permissions: JSON.stringify({
+        classes: { read: true },
+        lessons: { read: true },
+        attendance: { read: true },
+        payments: { read: true },
+        notices: { read: true },
+      }),
+    },
+  });
+
+  // studentCode è unico globalmente → upsert idempotente
+  const student2nd = await prisma.student.upsert({
+    where: { studentCode: 'S-SS-001' },
+    update: {},
+    create: {
+      firstName: 'Aldo',
+      lastName: 'Gallo',
+      email: 'student@secondschool.it',
+      phone: '+39 335 0000003',
+      dateOfBirth: new Date('1995-03-20'),
+      studentCode: 'S-SS-001',
+      address: 'Via Verdi 1, Roma',
+      tenantId: tenant2.id,
+      status: UserStatus.ACTIVE,
+      userId: student2ndUser.id,
+    },
+  });
+
+  // Corso e classe (code unici globalmente → upsert)
+  const course2nd = await prisma.course.upsert({
+    where: { code: 'GE-SS' },
+    update: {},
+    create: {
+      name: 'General English - Second School',
+      code: 'GE-SS',
+      description: 'Corso base del secondo tenant (dati di test)',
+      category: 'General English',
+      level: 'Beginner',
+      duration: 40,
+      maxStudents: 10,
+      minStudents: 2,
+      price: 300.0,
+      tenantId: tenant2.id,
+      isActive: true,
+    },
+  });
+
+  const class2nd = await prisma.class.upsert({
+    where: { code: 'SS-2024-01' },
+    update: {},
+    create: {
+      name: 'Second School Morning Class',
+      code: 'SS-2024-01',
+      courseId: course2nd.id,
+      teacherId: teacher2nd.id,
+      startDate: new Date('2024-02-01'),
+      endDate: new Date('2024-06-30'),
+      maxStudents: 10,
+      tenantId: tenant2.id,
+      isActive: true,
+    },
+  });
+
+  // Iscrizione studente → classe (chiave composta → upsert)
+  await prisma.studentClass.upsert({
+    where: {
+      studentId_classId: {
+        studentId: student2nd.id,
+        classId: class2nd.id,
+      },
+    },
+    update: {},
+    create: {
+      studentId: student2nd.id,
+      classId: class2nd.id,
+      isActive: true,
+    },
+  });
+
+  // Lezione, pagamento e avviso: nessun vincolo unico → check di esistenza
+  const existingLesson2nd = await prisma.lesson.findFirst({
+    where: { tenantId: tenant2.id, title: 'Second School Lesson' },
+  });
+  if (!existingLesson2nd) {
+    const lessonStart = new Date('2024-02-05T09:00:00.000Z');
+    await prisma.lesson.create({
+      data: {
+        title: 'Second School Lesson',
+        startTime: lessonStart,
+        endTime: new Date(lessonStart.getTime() + 90 * 60000),
+        room: 'Room SS1',
+        classId: class2nd.id,
+        teacherId: teacher2nd.id,
+        tenantId: tenant2.id,
+        status: 'SCHEDULED',
+      },
+    });
+  }
+
+  const existingPayment2nd = await prisma.payment.findFirst({
+    where: { tenantId: tenant2.id },
+  });
+  if (!existingPayment2nd) {
+    await prisma.payment.create({
+      data: {
+        studentId: student2nd.id,
+        amount: 300.0,
+        description: 'Course fee - Second School',
+        dueDate: new Date('2024-02-10'),
+        status: 'PENDING',
+        paymentMethod: 'BANK_TRANSFER',
+        tenantId: tenant2.id,
+      },
+    });
+  }
+
+  const existingNotice2nd = await prisma.notice.findFirst({
+    where: { tenantId: tenant2.id },
+  });
+  if (!existingNotice2nd) {
+    await prisma.notice.create({
+      data: {
+        title: 'Welcome to Second School!',
+        content: 'Avviso di benvenuto del secondo tenant (dati di test).',
+        type: NoticeType.ANNOUNCEMENT,
+        isPublic: true,
+        targetRoles: [Role.STUDENT, Role.TEACHER, Role.ADMIN],
+        tenantId: tenant2.id,
+      },
+    });
+  }
+
+  console.log('✅ Created second tenant: admin2@secondschool.it / password');
+
   console.log('');
   console.log('🌱 Database seeding completed successfully!');
   console.log('');
