@@ -3,6 +3,10 @@ import { prisma } from '@/lib/db';
 import { createSubscriptionCheckoutSession } from '@/lib/stripe';
 
 export async function GET(request: NextRequest) {
+  // Behind the reverse proxy request.url is the internal listen address
+  // (e.g. http://0.0.0.0:3000), so redirects must use the public base URL.
+  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get('token');
@@ -10,7 +14,7 @@ export async function GET(request: NextRequest) {
     const planId = searchParams.get('plan'); // Plan selected during registration
 
     if (!token || !email) {
-      return NextResponse.redirect(new URL('/auth/login?error=invalid-verification', request.url));
+      return NextResponse.redirect(new URL('/auth/login?error=invalid-verification', baseUrl));
     }
 
     // Find user by email and token
@@ -22,7 +26,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.redirect(new URL('/auth/login?error=invalid-verification', request.url));
+      return NextResponse.redirect(new URL('/auth/login?error=invalid-verification', baseUrl));
     }
 
     // Check if verification token is still valid (24 hours)
@@ -37,7 +41,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!verificationTokenRecord) {
-      return NextResponse.redirect(new URL('/auth/login?error=expired-verification', request.url));
+      return NextResponse.redirect(new URL('/auth/login?error=expired-verification', baseUrl));
     }
 
     // Update user status and email verification
@@ -99,8 +103,6 @@ export async function GET(request: NextRequest) {
         });
 
         if (plan && plan.stripePriceId) {
-          const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-
           // Create Stripe checkout session with trial
           const checkoutSession = await createSubscriptionCheckoutSession({
             customerId: userTenant.tenant.stripeCustomerId,
@@ -122,10 +124,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect to login with success message (no plan or Stripe error)
-    return NextResponse.redirect(new URL('/auth/login?verified=true', request.url));
+    return NextResponse.redirect(new URL('/auth/login?verified=true', baseUrl));
 
   } catch (error) {
     console.error('Email verification error:', error);
-    return NextResponse.redirect(new URL('/auth/login?error=verification-failed', request.url));
+    return NextResponse.redirect(new URL('/auth/login?error=verification-failed', baseUrl));
   }
 }

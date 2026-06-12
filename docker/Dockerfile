@@ -87,8 +87,11 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
-# Copy ops scripts (create-superadmin.mjs etc.) runnable with plain node
+# Copy ops scripts (create-superadmin.mjs etc.) runnable with plain node.
+# bcryptjs is needed by create-superadmin.mjs: Next bundles it into the server
+# chunks, so the standalone node_modules does not include it (zero sub-deps).
 COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 
 # Remove unnecessary tools that could be used by attackers
 # No wget, curl, or shell download tools in production
