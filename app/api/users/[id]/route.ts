@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import type { Role } from '@prisma/client';
 import { ensureProfileForRole, deactivateProfileForRoleChange } from '@/lib/user-profile-sync';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -16,6 +17,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
 
@@ -99,6 +103,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
     const body = await request.json();
@@ -294,6 +301,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
 

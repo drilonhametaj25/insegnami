@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 // I campi opzionali possono arrivare come stringa vuota o null dal form:
 // li normalizziamo ad "assente" per non far fallire la validazione.
@@ -27,6 +28,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // All authenticated users can list subjects
     const { searchParams } = new URL(request.url);
@@ -136,6 +140,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only ADMIN can create subjects
     if (!isAdminRole(session.user.role)) {

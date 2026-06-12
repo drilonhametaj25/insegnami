@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuth, isAdminRole } from '@/lib/auth';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { prisma } from '@/lib/db';
 
 const updateSchema = z.object({
@@ -18,6 +19,10 @@ interface RouteParams {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const session = await getAuth();
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const blocked = await blockIfTenantInaccessible(session);
+  if (blocked) return blocked;
+
   if (!isAdminRole(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await params;
@@ -51,6 +56,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const session = await getAuth();
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const blocked = await blockIfTenantInaccessible(session);
+  if (blocked) return blocked;
+
   if (!isAdminRole(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await params;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -13,6 +14,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
     const { searchParams } = new URL(request.url);

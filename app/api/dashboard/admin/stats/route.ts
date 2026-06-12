@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { DashboardService } from '@/lib/dashboard-service';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,6 +10,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPERADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

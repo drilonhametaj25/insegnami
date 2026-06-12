@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, authOptions, isAdminRole } from '@/lib/auth';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { AutomationService } from '@/lib/automation-service';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/db';
@@ -13,6 +14,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only admins can trigger automation
     if (!isAdminRole(session.user.role)) {
@@ -144,6 +148,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only admins can view automation status
     if (!isAdminRole(session.user.role)) {

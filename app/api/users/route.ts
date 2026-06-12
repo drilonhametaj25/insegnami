@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { parsePaginationParams, withBodySizeLimit } from '@/lib/api-middleware';
 import { ensureProfileForRole } from '@/lib/user-profile-sync';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 // BUG-033 fix: Use Zod for email validation
 const emailSchema = z.string().email('Email non valida');
@@ -16,6 +17,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only ADMIN and SUPERADMIN can list users
     if (!isAdminRole(session.user.role)) {
@@ -142,6 +146,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only ADMIN and SUPERADMIN can create users
     if (!isAdminRole(session.user.role)) {

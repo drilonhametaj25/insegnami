@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getTeacherIdForUser, type AuthContext } from '@/lib/api-auth';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,6 +10,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');

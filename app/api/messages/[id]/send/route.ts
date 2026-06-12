@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { EmailNotificationService } from '@/lib/email-queue';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 export async function POST(
   request: NextRequest,
@@ -12,6 +13,9 @@ export async function POST(
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
 

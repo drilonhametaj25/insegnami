@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 export async function GET(
   request: NextRequest,
@@ -12,6 +13,9 @@ export async function GET(
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const notification = await prisma.notification.findFirst({
       where: {
@@ -48,6 +52,9 @@ export async function PATCH(
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const body = await request.json();
     const { status, action } = body;
@@ -105,6 +112,9 @@ export async function DELETE(
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Solo admin può eliminare notifiche
     const userTenant = await prisma.userTenant.findFirst({

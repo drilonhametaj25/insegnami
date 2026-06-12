@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 const noticeUpdateSchema = z.object({
   title: z.string().min(1, 'Titolo richiesto').optional(),
@@ -24,6 +25,9 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
 
@@ -65,6 +69,9 @@ export async function PUT(
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only admins and teachers can update notices
     if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
@@ -142,6 +149,9 @@ export async function DELETE(
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only admins and teachers can delete notices
     if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {

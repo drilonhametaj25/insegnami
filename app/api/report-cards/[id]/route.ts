@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 const updateReportCardSchema = z.object({
   overallComment: z.string().optional(),
@@ -18,6 +19,9 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
 
@@ -149,6 +153,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
+
     const { id } = await params;
 
     // Find report card
@@ -261,6 +268,9 @@ export async function DELETE(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only ADMIN and SUPERADMIN can delete
     if (!isAdminRole(session.user.role)) {

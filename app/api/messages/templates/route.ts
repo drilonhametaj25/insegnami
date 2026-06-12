@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 // Schema for template validation
 const templateSchema = z.object({
@@ -19,6 +20,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const templates = await prisma.messageTemplate.findMany({
       where: {
@@ -53,6 +57,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only admins and teachers can create templates
     if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {

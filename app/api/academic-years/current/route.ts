@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { prisma } from '@/lib/db';
 
 // Helper to calculate counts from periods
@@ -21,6 +22,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const tenantId = session.user.role === 'SUPERADMIN'
       ? undefined
@@ -95,6 +99,9 @@ export async function PUT(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only ADMIN can set current year
     if (!isAdminRole(session.user.role)) {

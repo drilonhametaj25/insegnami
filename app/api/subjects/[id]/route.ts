@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 // Validation schema for update
 const subjectUpdateSchema = z.object({
@@ -23,6 +24,9 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
 
@@ -130,6 +134,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
+
     // Only ADMIN can update subjects
     if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -223,6 +230,9 @@ export async function DELETE(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only ADMIN can delete subjects
     if (!isAdminRole(session.user.role)) {

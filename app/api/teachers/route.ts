@@ -3,6 +3,7 @@ import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { checkTeacherLimit } from '@/lib/plan-limits';
 import { getPublicErrorMessage } from '@/lib/api-middleware';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 // GET /api/teachers - List teachers with pagination and filtering
 export async function GET(request: NextRequest) {
@@ -11,6 +12,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only ADMIN can list teachers
     if (!isAdminRole(session.user.role)) {
@@ -115,6 +119,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only ADMIN can create teachers
     if (!isAdminRole(session.user.role)) {

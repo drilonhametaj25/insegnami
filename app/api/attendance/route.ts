@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
@@ -30,6 +31,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -170,6 +174,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only teachers and admins can mark attendance
     if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {

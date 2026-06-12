@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,8 +11,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
 
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
+
     // Only admin and superadmin can export teacher data
-    if (!['admin', 'superadmin'].includes(session.user.role)) {
+    if (!['ADMIN', 'DIRECTOR', 'SECRETARY', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { getPublicErrorMessage } from '@/lib/api-middleware';
 import { calcSubjectAverages, calcBehaviorGrade, type GradeInput } from '@/lib/grades/avg-italian';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 const generateSchema = z.object({
   classId: z.string().min(1),
@@ -17,6 +18,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only ADMIN and SUPERADMIN can generate report cards
     if (!isAdminRole(session.user.role)) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 // GET /api/dashboard/parent - Get parent dashboard data
 export async function GET(request: NextRequest) {
@@ -9,6 +10,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only PARENT role can access parent dashboard
     if (session.user.role !== 'PARENT') {

@@ -3,6 +3,7 @@ import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { ReportCardStatus } from '@prisma/client';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 const approveSchema = z.object({
   action: z.enum(['submit', 'approve', 'reject', 'publish', 'archive']),
@@ -55,6 +56,9 @@ export async function POST(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { PeriodType } from '@prisma/client';
@@ -23,6 +24,9 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id: academicYearId } = await params;
 
@@ -71,6 +75,9 @@ export async function POST(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only ADMIN can create periods
     if (!isAdminRole(session.user.role)) {

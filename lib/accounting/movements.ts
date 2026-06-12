@@ -18,7 +18,7 @@ type Tx = Prisma.TransactionClient | PrismaClient;
 
 export async function recordPaymentRevenue(
   tx: Tx,
-  args: { tenantId: string; paymentId: string; amount: number; date: Date; description?: string; studentId?: string; classId?: string },
+  args: { tenantId: string; paymentId: string; amount: number; date: Date; description?: string; studentId?: string; classId?: string; createdBy?: string },
 ): Promise<{ movementId: string; created: boolean }> {
   const existing = await tx.accountingMovement.findFirst({
     where: { tenantId: args.tenantId, paymentId: args.paymentId, source: 'PAYMENT', type: 'REVENUE' },
@@ -39,6 +39,7 @@ export async function recordPaymentRevenue(
       paymentId: args.paymentId,
       studentId: args.studentId,
       classId: args.classId,
+      createdBy: args.createdBy,
     },
     select: { id: true },
   });
@@ -54,6 +55,7 @@ export async function recordPaymentRevenue(
 export async function syncPaymentMovement(
   tx: Tx,
   paymentId: string,
+  opts: { createdBy?: string } = {},
 ): Promise<{ movementId: string | null; reason: 'created' | 'already-exists' | 'not-paid' | 'not-found' }> {
   const payment = await tx.payment.findUnique({
     where: { id: paymentId },
@@ -75,6 +77,7 @@ export async function syncPaymentMovement(
       description: payment.description,
       studentId: payment.studentId,
       classId: payment.classId ?? undefined,
+      createdBy: opts.createdBy,
     });
     return { movementId: result.movementId, reason: result.created ? 'created' : 'already-exists' };
   } catch (err) {

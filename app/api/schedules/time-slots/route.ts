@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 // Schema per configurazione slot orari
 const timeSlotSchema = z.object({
@@ -21,6 +22,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const timeSlots = await prisma.timeSlotConfig.findMany({
       where: {
@@ -63,6 +67,9 @@ export async function PUT(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     if (!['ADMIN', 'DIRECTOR', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });

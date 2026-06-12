@@ -3,6 +3,7 @@ import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { parsePaginationParams, withBodySizeLimit } from '@/lib/api-middleware';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 // Schema for message validation
 // BUG-030 fix: Add max-length validation
@@ -29,6 +30,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { searchParams } = new URL(request.url);
     // BUG-031 fix: Enforce pagination limits
@@ -137,6 +141,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only admins and teachers can create messages
     if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {

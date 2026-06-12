@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { loadHolidayFingerprints } from '@/lib/scheduling/holidays';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -14,6 +15,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     if (!['ADMIN', 'DIRECTOR', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });

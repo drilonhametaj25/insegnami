@@ -127,6 +127,8 @@ const TEACHER_PERMS: Record<string, Action[]> = {
   academicYear: ['read'],
   holiday: ['read'],
   teacher: ['read'],
+  // Solo i PROPRI cedolini: le route payroll filtrano via getTeacherIdForUser
+  payroll: ['read'],
 };
 
 const STUDENT_PERMS: Record<string, Action[]> = {

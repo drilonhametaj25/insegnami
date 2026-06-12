@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 export async function POST(
   request: NextRequest,
@@ -17,6 +18,9 @@ export async function POST(
         { status: 403 }
       );
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const tenantId = user.tenantId;
     const { id: classId } = await params;

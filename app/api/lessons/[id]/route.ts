@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { getTeacherIdForUser, type AuthContext } from '@/lib/api-auth';
 import { findLessonConflicts, conflictMessage } from '@/lib/lessons/conflicts';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 const lessonUpdateSchema = z.object({
   title: z.string().min(1, 'Titolo richiesto').optional(),
@@ -28,6 +29,9 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
 
@@ -122,6 +126,9 @@ export async function PUT(
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only admins and teachers can update lessons
     if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
@@ -248,6 +255,9 @@ export async function DELETE(
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only admins and teachers can delete lessons
     if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {

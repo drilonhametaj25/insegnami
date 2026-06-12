@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import jsPDF from 'jspdf';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 // GET /api/report-cards/[id]/pdf - Generate PDF for report card
 export async function GET(
@@ -13,6 +14,9 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
 

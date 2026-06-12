@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { z } from 'zod';
 import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
 
@@ -25,6 +26,9 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
 
@@ -119,6 +123,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
 
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
+
     // Only admins can update payments
     if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
@@ -212,6 +219,9 @@ export async function DELETE(
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only admins can delete payments
     if (!isAdminRole(session.user.role)) {

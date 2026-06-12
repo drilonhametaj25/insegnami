@@ -3,6 +3,7 @@ import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { Decimal } from '@prisma/client/runtime/library';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 const hoursPackageSchema = z.object({
   studentId: z.string(),
@@ -19,6 +20,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only admins can create hours packages
     if (!isAdminRole(session.user.role)) {
@@ -106,6 +110,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get('studentId');

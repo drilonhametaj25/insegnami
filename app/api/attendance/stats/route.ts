@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { prisma } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
@@ -8,6 +9,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only admin, teacher, and superadmin can view attendance stats
     if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
@@ -19,24 +23,21 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    // Base query conditions
+    // Attendance non ha tenantId: lo scoping passa SEMPRE dalla lezione
     const whereConditions: any = {
-      tenantId: session.user.tenantId,
+      lesson: {
+        tenantId: session.user.tenantId,
+      },
     };
 
     if (classId) {
-      whereConditions.lesson = {
-        classId: parseInt(classId),
-      };
+      whereConditions.lesson.classId = classId;
     }
 
     if (startDate && endDate) {
-      whereConditions.lesson = {
-        ...whereConditions.lesson,
-        dateTime: {
-          gte: new Date(startDate),
-          lte: new Date(endDate),
-        },
+      whereConditions.lesson.startTime = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
       };
     }
 

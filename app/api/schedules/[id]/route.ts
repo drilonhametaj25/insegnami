@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 // Schema for schedule update
 const scheduleUpdateSchema = z.object({
@@ -43,6 +44,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id } = await params;
 
@@ -117,6 +121,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     if (!['ADMIN', 'DIRECTOR', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
@@ -221,6 +228,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     if (!['ADMIN', 'DIRECTOR', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });

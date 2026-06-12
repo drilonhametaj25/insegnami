@@ -6,6 +6,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { isPackageLowOnHours } from '@/lib/hours-package-service';
 import { sendEmail } from '@/lib/email';
 import { getTeacherIdForUser, type AuthContext } from '@/lib/api-auth';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 async function sendLowHoursEmail(pkg: any) {
   const remainingHours = parseFloat(pkg.remainingHours.toString());
@@ -69,6 +70,9 @@ export async function PUT(
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only admins and teachers can update attendance
     if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
@@ -267,6 +271,9 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     const { id: lessonId } = await params;
 
