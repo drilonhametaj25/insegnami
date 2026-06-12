@@ -107,6 +107,33 @@ jobs:
       - name: Run unit tests
         run: npm test
 
+      # Spec eseguibile dei backup cifrati: il file NON deve essere leggibile
+      # come gzip, deve decifrarsi con la chiave, e senza chiave lo script
+      # deve rifiutarsi di produrre un dump in chiaro.
+      - name: Backup encryption roundtrip
+        env:
+          BACKUP_ENCRYPTION_KEY: ci-roundtrip-test-key
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_NAME: test_db
+          DB_USER: test_user
+          DB_PASSWORD: test_pass
+          BACKUP_DIR: /tmp/insegnami-backups
+        run: |
+          bash scripts/backup.sh
+          FILE=$(ls "$BACKUP_DIR"/insegnami_backup_*.sql.gz.enc | head -1)
+          test -s "$FILE"
+          if gzip -t "$FILE" 2>/dev/null; then
+            echo "ERROR: il backup è leggibile come gzip (non cifrato)"; exit 1
+          fi
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+            -pass env:BACKUP_ENCRYPTION_KEY -in "$FILE" \
+            | gunzip | head -5 | grep -qi "PostgreSQL database dump"
+          if env -u BACKUP_ENCRYPTION_KEY bash scripts/backup.sh 2>/dev/null; then
+            echo "ERROR: senza chiave il backup doveva fallire"; exit 1
+          fi
+          echo "Backup encryption roundtrip OK"
+
   # Build Test (ensure it builds correctly)
   build:
     runs-on: ubuntu-latest

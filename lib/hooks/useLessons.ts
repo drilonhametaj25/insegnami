@@ -13,6 +13,7 @@ export interface Lesson {
   notes?: string;
   isRecurring: boolean;
   recurrenceRule?: string;
+  parentLessonId?: string | null;
   materials?: string;
   homework?: string;
   createdAt: Date;
@@ -106,6 +107,18 @@ export interface CreateLessonData {
     endDate?: string;
     daysOfWeek?: number[];
   };
+}
+
+export type RecurringUpdateScope = 'single' | 'series' | 'future';
+
+export interface UpdateLessonSeriesData {
+  title?: string;
+  description?: string;
+  room?: string;
+  startTime?: string;
+  endTime?: string;
+  teacherId?: string;
+  status?: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 }
 
 export interface AttendanceData {
@@ -343,6 +356,49 @@ export function useUpdateLesson() {
       queryClient.invalidateQueries({ queryKey: lessonsKeys.lists() });
       // Invalidate calendar
       queryClient.invalidateQueries({ queryKey: lessonsKeys.calendar() });
+    },
+  });
+}
+
+/**
+ * Hook per aggiornare una serie di lezioni ricorrenti.
+ * PATCH /api/lessons/recurring — body { lessonId, scope, data }:
+ * - scope 'single': solo la lezione di riferimento
+ * - scope 'series': tutta la serie (radice + occorrenze)
+ * - scope 'future': la lezione di riferimento e tutte le successive
+ */
+export function useUpdateLessonSeries() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      lessonId,
+      scope,
+      data,
+    }: {
+      lessonId: string;
+      scope: RecurringUpdateScope;
+      data: UpdateLessonSeriesData;
+    }): Promise<{ updated: number; scope: RecurringUpdateScope }> => {
+      const response = await fetch('/api/lessons/recurring', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ lessonId, scope, data }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update lesson series');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      // La serie tocca più lezioni: invalida tutto il dominio lessons
+      // (liste, dettagli, calendario, stats).
+      queryClient.invalidateQueries({ queryKey: lessonsKeys.all });
     },
   });
 }

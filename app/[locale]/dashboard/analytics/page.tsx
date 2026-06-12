@@ -45,14 +45,16 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { useTranslations } from 'next-intl';
-import { 
-  useOverviewStats, 
-  useAttendanceStats, 
-  useFinancialStats, 
+import { useTranslations, useLocale } from 'next-intl';
+import Link from 'next/link';
+import {
+  useOverviewStats,
+  useAttendanceStats,
+  useFinancialStats,
   useTrendStats,
-  exportAnalyticsData 
+  exportAnalyticsData
 } from '@/lib/hooks/useAnalytics';
+import { usePnL } from '@/lib/hooks/useAccounting';
 import { format, parseISO } from 'date-fns';
 
 const COLORS = ['#339af0', '#51cf66', '#ffd43b', '#ff6b6b', '#845ef7'];
@@ -102,8 +104,18 @@ function StatCard({ title, value, icon, color, change }: StatCardProps) {
   );
 }
 
+/** Formatta un importo come valuta € (it-IT). */
+function euro(value: unknown): string {
+  const n = Number(value ?? 0);
+  return `€${(isNaN(n) ? 0 : n).toLocaleString('it-IT', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 export default function AnalyticsPage() {
   const t = useTranslations('Analytics');
+  const locale = useLocale();
   const [period, setPeriod] = useState('30');
   const [selectedChart, setSelectedChart] = useState('overview');
 
@@ -111,8 +123,11 @@ export default function AnalyticsPage() {
   const { data: attendanceStats, isLoading: attendanceLoading } = useAttendanceStats(period);
   const { data: financialStats, isLoading: financialLoading } = useFinancialStats(period);
   const { data: trendStats, isLoading: trendsLoading } = useTrendStats(period);
+  // Conto economico (mese corrente, default server-side): dati reali da AccountingMovement
+  const { data: pnlData, isLoading: pnlLoading } = usePnL();
 
   const isLoading = overviewLoading || attendanceLoading || financialLoading || trendsLoading;
+  const pnlReport = pnlData?.report;
 
   const handleExport = async (type: string, format: 'csv' | 'xlsx' | 'pdf') => {
     try {
@@ -271,6 +286,60 @@ export default function AnalyticsPage() {
           </Paper>
         </Grid.Col>
       </Grid>
+
+      {/* Conto Economico (P&L reale da movimenti contabili) */}
+      <Paper withBorder p="md" mb="xl" radius="md">
+        <Group justify="space-between" mb="md">
+          <div>
+            <Text fw={500}>Conto Economico</Text>
+            <Text size="sm" c="dimmed">
+              {pnlReport
+                ? `Periodo ${pnlReport.period.start} — ${pnlReport.period.end} (${pnlReport.movementCount} movimenti)`
+                : pnlLoading
+                  ? 'Caricamento dati contabili...'
+                  : 'Mese corrente'}
+            </Text>
+          </div>
+          <Button
+            component={Link}
+            href={`/${locale}/dashboard/accounting`}
+            variant="light"
+            size="sm"
+          >
+            Vai alla Contabilità
+          </Button>
+        </Group>
+        <Grid>
+          <Grid.Col span={{ base: 12, sm: 4 }}>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Ricavi</Text>
+              <Badge color="green" variant="light" size="lg">
+                {euro(pnlReport?.revenueTotal)}
+              </Badge>
+            </Group>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 4 }}>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Costi totali</Text>
+              <Badge color="red" variant="light" size="lg">
+                {euro(pnlReport?.costTotal)}
+              </Badge>
+            </Group>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 4 }}>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Risultato netto</Text>
+              <Badge
+                color={(pnlReport?.netMargin ?? 0) >= 0 ? 'blue' : 'red'}
+                variant="light"
+                size="lg"
+              >
+                {euro(pnlReport?.netMargin)}
+              </Badge>
+            </Group>
+          </Grid.Col>
+        </Grid>
+      </Paper>
 
       {/* Charts Section */}
       <Grid>

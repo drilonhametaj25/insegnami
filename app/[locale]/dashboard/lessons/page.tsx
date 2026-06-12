@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import {
   Container,
@@ -178,6 +178,13 @@ export default function LessonsPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const locale = useLocale();
+  const searchParams = useSearchParams();
+
+  // Parametri da URL: ?classId= preimposta il filtro classe,
+  // ?action=create (o legacy ?createNew=true) apre il modal di creazione.
+  const classIdParam = searchParams.get('classId') || '';
+  const shouldOpenCreate =
+    searchParams.get('action') === 'create' || searchParams.get('createNew') === 'true';
 
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -194,7 +201,7 @@ export default function LessonsPage() {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [classFilter, setClassFilter] = useState('');
+  const [classFilter, setClassFilter] = useState(classIdParam);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
   const [opened, { open, close }] = useDisclosure(false);
@@ -319,6 +326,16 @@ export default function LessonsPage() {
 
     return () => controller.abort();
   }, [canViewLessons]);
+
+  // Apertura automatica del modal di creazione da query string
+  // (?action=create oppure legacy ?createNew=true), es. dal dettaglio classe.
+  useEffect(() => {
+    if (shouldOpenCreate && canManageLessons) {
+      setEditingLesson(null);
+      open();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldOpenCreate, canManageLessons]);
 
   // Handlers
   const handleSearch = (value: string) => {
@@ -884,6 +901,7 @@ export default function LessonsPage() {
           teachers={teachers}
           classes={classes}
           courses={courses}
+          prefilledClassId={classIdParam || undefined}
         />
       </ModernModal>
     </Container>

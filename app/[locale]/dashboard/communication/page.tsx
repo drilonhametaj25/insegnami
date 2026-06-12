@@ -70,6 +70,8 @@ import {
   type CreateMessageData,
 } from '@/lib/hooks/useMessages';
 import { StatsCard } from '@/components/cards/StatsCard';
+import { MessageTemplateForm } from '@/components/forms/MessageTemplateForm';
+import { CommunicationGroupForm } from '@/components/forms/CommunicationGroupForm';
 
 export default function CommunicationPage() {
   const t = useTranslations();
@@ -140,27 +142,6 @@ export default function CommunicationPage() {
       title: (value) => (!value ? t('communication.errors.titleRequired') : null),
       content: (value) => (!value ? t('communication.errors.contentRequired') : null),
       recipientIds: (value) => (value.length === 0 ? t('communication.errors.noRecipients') : null),
-    },
-  });
-
-  const templateForm = useForm({
-    initialValues: {
-      name: '',
-      description: '',
-      subject: '',
-      content: '',
-      type: 'MESSAGE',
-      variables: [],
-    },
-  });
-
-  const groupForm = useForm({
-    initialValues: {
-      name: '',
-      description: '',
-      type: 'CUSTOM',
-      memberIds: [],
-      autoSync: false,
     },
   });
 
@@ -627,24 +608,28 @@ export default function CommunicationPage() {
         </form>
       </Modal>
 
-      {/* Template Modal would go here */}
+      {/* New Template Modal */}
       <Modal
         opened={newTemplateOpened}
         onClose={closeNewTemplate}
         title={t('communication.templates.newTemplate')}
+        size="lg"
       >
-        {/* Template form implementation */}
-        <Text>Template creation form coming soon...</Text>
+        <MessageTemplateForm onSuccess={closeNewTemplate} onCancel={closeNewTemplate} />
       </Modal>
 
-      {/* Group Modal would go here */}
+      {/* New Group Modal */}
       <Modal
         opened={newGroupOpened}
         onClose={closeNewGroup}
         title={t('communication.groups.newGroup')}
+        size="lg"
       >
-        {/* Group form implementation */}
-        <Text>Group creation form coming soon...</Text>
+        <CommunicationGroupForm
+          users={users}
+          onSuccess={closeNewGroup}
+          onCancel={closeNewGroup}
+        />
       </Modal>
     </Container>
   );

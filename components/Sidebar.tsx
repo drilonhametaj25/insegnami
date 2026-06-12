@@ -47,6 +47,9 @@ import {
   IconCreditCard,
   IconReceipt,
   IconCalendarStats,
+  IconFileInvoice,
+  IconWallet,
+  IconReportMoney,
 } from '@tabler/icons-react';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
@@ -92,6 +95,9 @@ export function Sidebar({ opened }: SidebarProps) {
         { icon: IconClipboardList, label: t('attendance'), href: `/${locale}/dashboard/attendance` },
         { icon: IconClock, label: t('hoursPackages'), href: `/${locale}/dashboard/hours-packages` },
         { icon: IconCash, label: t('payments'), href: `/${locale}/dashboard/payments` },
+        { icon: IconFileInvoice, label: t('invoices'), href: `/${locale}/dashboard/invoices` },
+        { icon: IconWallet, label: t('payroll'), href: `/${locale}/dashboard/payroll` },
+        { icon: IconReportMoney, label: t('accounting'), href: `/${locale}/dashboard/accounting` },
         { icon: IconBell, label: t('notices'), href: `/${locale}/dashboard/notices` },
         { icon: IconMessage, label: 'Communication', href: `/${locale}/dashboard/communication` },
         { icon: IconChartBar, label: 'Analytics', href: `/${locale}/dashboard/analytics` },
@@ -107,6 +113,7 @@ export function Sidebar({ opened }: SidebarProps) {
         { icon: IconCalendarEvent, label: t('meetings'), href: `/${locale}/dashboard/meetings` },
         { icon: IconCalendar, label: t('lessons'), href: `/${locale}/dashboard/lessons` },
         { icon: IconClipboardList, label: t('attendance'), href: `/${locale}/dashboard/attendance` },
+        { icon: IconWallet, label: t('myPayslips'), href: `/${locale}/dashboard/payroll` },
         { icon: IconBell, label: t('notices'), href: `/${locale}/dashboard/notices` },
         { icon: IconUserCircle, label: 'Profile', href: `/${locale}/dashboard/teacher` },
       ],

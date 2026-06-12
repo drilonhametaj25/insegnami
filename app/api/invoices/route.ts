@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { requireAuth, authError, tenantScope } from '@/lib/api-auth';
+import { computeInvoiceTotals } from '@/lib/billing/invoice-totals';
 
 /**
  * GET /api/invoices — paginated list, filterable.
@@ -135,28 +136,22 @@ export async function POST(request: NextRequest) {
 
     const issueDate = data.issueDate ? new Date(data.issueDate) : new Date();
 
-    // Compute totals.
-    const linesWithTotals = data.lines.map((l, idx) => {
-      const discount = l.discountPercent ? l.discountPercent / 100 : 0;
-      const lineSubtotal = round2(l.quantity * l.unitPrice * (1 - discount));
-      return {
-        lineNumber: idx + 1,
-        description: l.description,
-        quantity: new Prisma.Decimal(l.quantity),
-        unitPrice: new Prisma.Decimal(l.unitPrice),
-        vatRate: new Prisma.Decimal(l.vatRate),
-        vatNature: l.vatNature,
-        discountPercent: l.discountPercent ? new Prisma.Decimal(l.discountPercent) : null,
-        total: new Prisma.Decimal(lineSubtotal),
-        paymentId: l.paymentId,
-        studentId: l.studentId,
-        courseId: l.courseId,
-      };
-    });
-
-    const subtotal = round2(linesWithTotals.reduce((s, l) => s + Number(l.total), 0));
-    const vatTotal = round2(linesWithTotals.reduce((s, l) => s + (Number(l.total) * Number(l.vatRate)) / 100, 0));
-    const total = round2(subtotal + vatTotal);
+    // Compute totals — pure helper shared with the client-side preview
+    // (lib/billing/invoice-totals.ts). Same formulas as before the refactor.
+    const { lineTotals, subtotal, vatTotal, total } = computeInvoiceTotals(data.lines);
+    const linesWithTotals = data.lines.map((l, idx) => ({
+      lineNumber: idx + 1,
+      description: l.description,
+      quantity: new Prisma.Decimal(l.quantity),
+      unitPrice: new Prisma.Decimal(l.unitPrice),
+      vatRate: new Prisma.Decimal(l.vatRate),
+      vatNature: l.vatNature,
+      discountPercent: l.discountPercent ? new Prisma.Decimal(l.discountPercent) : null,
+      total: new Prisma.Decimal(lineTotals[idx]),
+      paymentId: l.paymentId,
+      studentId: l.studentId,
+      courseId: l.courseId,
+    }));
 
     const invoice = await prisma.invoice.create({
       data: {
@@ -188,8 +183,4 @@ export async function POST(request: NextRequest) {
     console.error('invoices POST error', err);
     return NextResponse.json({ error: 'Errore interno' }, { status: 500 });
   }
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }

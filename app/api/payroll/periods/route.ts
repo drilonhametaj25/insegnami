@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
-import { requireAuth, authError, tenantScope } from '@/lib/api-auth';
+import { requireAuth, authError, tenantScope, getTeacherIdForUser } from '@/lib/api-auth';
 
 const createSchema = z.object({
   year: z.number().int().min(2000).max(2100),
@@ -20,10 +20,33 @@ export async function GET(request: NextRequest) {
     if (year) where.year = year;
     if (status) where.status = status;
 
+    // Include leggero dei cedolini per l'espansione in UI.
+    // I TEACHER vedono SOLO i propri cedolini (filtro su Teacher.id risolto
+    // dalla sessione; sentinella se l'utente non ha un Teacher associato).
+    let payrollsWhere: { teacherId: string } | undefined;
+    if (ctx.role === 'TEACHER') {
+      const teacherId = await getTeacherIdForUser(ctx);
+      payrollsWhere = { teacherId: teacherId ?? '__no_teacher__' };
+    }
+
     const periods = await prisma.payrollPeriod.findMany({
       where,
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
-      include: { _count: { select: { payrolls: true } } },
+      include: {
+        _count: { select: { payrolls: true } },
+        payrolls: {
+          where: payrollsWhere,
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            status: true,
+            netAmount: true,
+            grossBase: true,
+            extrasTotal: true,
+            teacher: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+      },
     });
     return NextResponse.json({ periods });
   } catch (err) {

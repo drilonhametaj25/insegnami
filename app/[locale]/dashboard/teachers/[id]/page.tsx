@@ -42,6 +42,7 @@ import {
   IconBook,
   IconTrendingUp,
   IconAward,
+  IconCash,
   IconAlertCircle,
   IconCheck,
   IconX,
@@ -53,6 +54,7 @@ import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { AdvancedDataTable } from '@/components/tables/AdvancedDataTable';
 import { AdvancedLessonCalendar } from '@/components/calendar/AdvancedLessonCalendar';
 import { TeacherForm } from '@/components/forms/TeacherForm';
+import { TeacherPayrollSettingsForm } from '@/components/forms/TeacherPayrollSettingsForm';
 
 export default function TeacherDetailPage() {
   const params = useParams();
@@ -92,10 +94,35 @@ export default function TeacherDetailPage() {
 
     const fetchLessons = async () => {
       try {
-        // TODO: Implementare API per le lezioni del docente
-        // const response = await fetch(`/api/teachers/${teacherId}/lessons`);
-        // const lessonsData = await response.json();
-        // setLessons(lessonsData);
+        const response = await fetch(`/api/lessons?teacherId=${teacherId}&limit=20`);
+        if (!response.ok) throw new Error('Failed to fetch lessons');
+
+        const lessonsData = await response.json();
+        // Mappa la shape API (Lesson + class + attendance) su quella delle colonne
+        const mapped = (lessonsData.lessons || [])
+          .map((lesson: any) => {
+            const start = new Date(lesson.startTime);
+            const end = new Date(lesson.endTime);
+            const attendanceTotal = lesson.attendance?.length || 0;
+            const attendancePresent =
+              lesson.attendance?.filter((a: any) => a.status === 'PRESENT').length || 0;
+            return {
+              id: lesson.id,
+              date: lesson.startTime,
+              title: lesson.title,
+              class: lesson.class?.name || '-',
+              startTime: format(start, 'HH:mm'),
+              endTime: format(end, 'HH:mm'),
+              room: lesson.room || '-',
+              status: (lesson.status || '').toLowerCase(),
+              attendance: attendanceTotal > 0
+                ? { present: attendancePresent, total: attendanceTotal }
+                : null,
+            };
+          })
+          // Più recenti prima ("Lezioni Recenti")
+          .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setLessons(mapped);
       } catch (error) {
         console.error('Error fetching lessons:', error);
       }
@@ -420,6 +447,9 @@ export default function TeacherDetailPage() {
           <Tabs.Tab value="qualifications" leftSection={<IconAward size={16} />}>
             Qualifiche
           </Tabs.Tab>
+          <Tabs.Tab value="payroll" leftSection={<IconCash size={16} />}>
+            Compensi
+          </Tabs.Tab>
         </Tabs.List>
 
         <Tabs.Panel value="overview">
@@ -571,6 +601,10 @@ export default function TeacherDetailPage() {
               )}
             </Stack>
           </Card>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="payroll">
+          <TeacherPayrollSettingsForm teacherId={teacherId} />
         </Tabs.Panel>
       </Tabs>
 

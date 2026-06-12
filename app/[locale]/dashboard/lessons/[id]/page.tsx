@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Container,
   Title,
@@ -38,24 +38,41 @@ import {
   IconHome,
   IconChartBar,
 } from '@tabler/icons-react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useRouter, useParams } from 'next/navigation';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { StatsCard } from '@/components/cards/StatsCard';
-import { useLessonById } from '@/lib/hooks/useLessons';
+import { LessonForm } from '@/components/forms/LessonForm';
+import { RecurringScopeModal, RecurringScope } from '@/components/modals/RecurringScopeModal';
+import {
+  useLessonById,
+  useUpdateLesson,
+  useUpdateLessonSeries,
+  UpdateLessonSeriesData,
+} from '@/lib/hooks/useLessons';
 
 export default function LessonDetailPage() {
   const t = useTranslations();
   const router = useRouter();
+  const locale = useLocale();
   const params = useParams();
   const lessonId = params.id as string;
 
   const [deleteModalOpened, { open: openDeleteModal, close: closeDeleteModal }] = useDisclosure(false);
+  const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false);
+  const [scopeModalOpened, { open: openScopeModal, close: closeScopeModal }] = useDisclosure(false);
   const [attendanceEditing, setAttendanceEditing] = useState(false);
   const [notes, setNotes] = useState('');
   const [homework, setHomework] = useState('');
   const [attendanceData, setAttendanceData] = useState<Record<string, { status: string; hours: number | null }>>({});
+
+  // Dati di supporto per il form di modifica (pattern di lessons/page.tsx)
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
+  // Modifiche in attesa della scelta dello scope (lezioni di una serie)
+  const [pendingUpdate, setPendingUpdate] = useState<any | null>(null);
 
   const {
     data: lesson,
@@ -64,8 +81,119 @@ export default function LessonDetailPage() {
     refetch,
   } = useLessonById(lessonId);
 
+  const updateLesson = useUpdateLesson();
+  const updateLessonSeries = useUpdateLessonSeries();
+
+  // Carica docenti, classi e corsi per il form di modifica
+  useEffect(() => {
+    const fetchFormData = async () => {
+      try {
+        const [teachersRes, classesRes, coursesRes] = await Promise.all([
+          fetch('/api/teachers?limit=100'),
+          fetch('/api/classes?limit=100&include=teacher,course'),
+          fetch('/api/courses?limit=100'),
+        ]);
+        if (teachersRes.ok) {
+          const data = await teachersRes.json();
+          setTeachers(data.teachers || []);
+        }
+        if (classesRes.ok) {
+          const data = await classesRes.json();
+          setClasses(data.classes || []);
+        }
+        if (coursesRes.ok) {
+          const data = await coursesRes.json();
+          setCourses(data.courses || []);
+        }
+      } catch (err) {
+        console.error('Error fetching form data:', err);
+      }
+    };
+    fetchFormData();
+  }, []);
+
+  // La lezione fa parte di una serie ricorrente?
+  const isSeriesLesson = Boolean(lesson?.isRecurring || lesson?.parentLessonId);
+
   const handleEdit = () => {
-    router.push(`/dashboard/lessons/edit/${lessonId}`);
+    openEditModal();
+  };
+
+  // Estrae i soli campi supportati dalla PATCH /api/lessons/recurring
+  const toSeriesData = (formData: any): UpdateLessonSeriesData => ({
+    title: formData.title,
+    description: formData.description,
+    room: formData.room,
+    startTime: formData.startTime,
+    endTime: formData.endTime,
+    teacherId: formData.teacherId,
+    status: formData.status,
+  });
+
+  const handleFormSave = async (formData: any) => {
+    if (isSeriesLesson) {
+      // Lezione di una serie: chiedi lo scope prima di salvare
+      setPendingUpdate(formData);
+      openScopeModal();
+      return;
+    }
+
+    // Lezione singola: aggiorna direttamente
+    try {
+      await updateLesson.mutateAsync({ id: lessonId, data: formData });
+      notifications.show({
+        title: t('common.success'),
+        message: 'Lezione aggiornata con successo',
+        color: 'green',
+      });
+      refetch();
+    } catch (err: any) {
+      notifications.show({
+        title: t('common.error'),
+        message: err?.message || 'Impossibile aggiornare la lezione',
+        color: 'red',
+      });
+      throw err; // il form resta aperto in caso di errore
+    }
+  };
+
+  const handleScopeConfirm = async (scope: RecurringScope) => {
+    if (!pendingUpdate) {
+      closeScopeModal();
+      return;
+    }
+
+    try {
+      if (scope === 'single') {
+        await updateLesson.mutateAsync({ id: lessonId, data: pendingUpdate });
+        notifications.show({
+          title: t('common.success'),
+          message: 'Lezione aggiornata con successo',
+          color: 'green',
+        });
+      } else {
+        const result = await updateLessonSeries.mutateAsync({
+          lessonId,
+          scope,
+          data: toSeriesData(pendingUpdate),
+        });
+        notifications.show({
+          title: t('common.success'),
+          message: `Serie aggiornata: ${result.updated} lezioni modificate`,
+          color: 'green',
+        });
+      }
+      setPendingUpdate(null);
+      closeScopeModal();
+      closeEditModal();
+      refetch();
+    } catch (err: any) {
+      notifications.show({
+        title: t('common.error'),
+        message: err?.message || 'Impossibile aggiornare la lezione',
+        color: 'red',
+      });
+    }
   };
 
   const handleDelete = async () => {
@@ -84,7 +212,7 @@ export default function LessonDetailPage() {
         color: 'green',
       });
 
-      router.push('/dashboard/lessons');
+      router.push(`/${locale}/dashboard/lessons`);
     } catch (error) {
       notifications.show({
         title: t('common.error'),
@@ -621,6 +749,44 @@ export default function LessonDetailPage() {
           </Button>
         </Group>
       </Modal>
+
+      {/* Edit Lesson Modal (LessonForm è già un Modal) */}
+      <LessonForm
+        opened={editModalOpened}
+        onClose={closeEditModal}
+        lessonData={{
+          id: lesson.id,
+          title: lesson.title,
+          classId: lesson.class?.id || '',
+          teacherId: lesson.teacher?.id || '',
+          courseId: lesson.class?.course?.id || lesson.course?.id || '',
+          startTime: new Date(lesson.startTime).toISOString(),
+          endTime: new Date(lesson.endTime).toISOString(),
+          room: lesson.room,
+          description: lesson.description,
+          status: (lesson.status === 'IN_PROGRESS' ? 'SCHEDULED' : lesson.status) as
+            | 'SCHEDULED'
+            | 'COMPLETED'
+            | 'CANCELLED',
+          isRecurring: lesson.isRecurring,
+        }}
+        onSave={handleFormSave}
+        loading={updateLesson.isPending || updateLessonSeries.isPending}
+        teachers={teachers}
+        classes={classes}
+        courses={courses}
+      />
+
+      {/* Scelta scope per lezioni ricorrenti */}
+      <RecurringScopeModal
+        opened={scopeModalOpened}
+        onClose={() => {
+          setPendingUpdate(null);
+          closeScopeModal();
+        }}
+        onConfirm={handleScopeConfirm}
+        loading={updateLesson.isPending || updateLessonSeries.isPending}
+      />
     </Container>
   );
 }

@@ -918,8 +918,8 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                       variant="light"
                       leftSection={<IconCalendarEvent size={16} />}
                       onClick={() => {
-                        // TODO: Open create lesson modal with prefilled classId
-                        router.push(`/${locale}/dashboard/lessons?createNew=true&classId=${resolvedParams?.id}`);
+                        // Apre la pagina lezioni con modal di creazione e classe preimpostata
+                        router.push(`/${locale}/dashboard/lessons?action=create&classId=${resolvedParams?.id}`);
                       }}
                     >
                       Nuova Lezione
@@ -1046,7 +1046,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                   </Text>
                   {canManageClasses && (
                     <Button
-                      onClick={() => router.push(`/${locale}/dashboard/lessons?createNew=true&classId=${resolvedParams?.id}`)}
+                      onClick={() => router.push(`/${locale}/dashboard/lessons?action=create&classId=${resolvedParams?.id}`)}
                     >
                       Crea Prima Lezione
                     </Button>

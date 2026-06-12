@@ -76,11 +76,20 @@ echo "Environment variables OK"
 # Create backup directory if not exists
 mkdir -p "$BACKUP_DIR"
 
-# Backup database before deployment (if containers are running)
+# Backup database before deployment (if containers are running).
+# Il dump contiene PII: SEMPRE cifrato (stessa pipeline di scripts/backup.sh).
 if docker compose -f $COMPOSE_FILE ps postgres 2>/dev/null | grep -q "running"; then
-    echo "Creating database backup..."
-    docker compose -f $COMPOSE_FILE exec -T postgres pg_dump -U insegnami insegnami > "$BACKUP_DIR/backup_$(date +%Y%m%d_%H%M%S).sql" || true
-    echo "Backup created"
+    if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ]; then
+        echo "WARNING: BACKUP_ENCRYPTION_KEY non impostata — backup pre-deploy SALTATO (mai in chiaro)"
+    else
+        echo "Creating encrypted database backup..."
+        docker compose -f $COMPOSE_FILE exec -T postgres pg_dump -U insegnami insegnami \
+          | gzip \
+          | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+              -pass env:BACKUP_ENCRYPTION_KEY \
+              -out "$BACKUP_DIR/backup_$(date +%Y%m%d_%H%M%S).sql.gz.enc" || true
+        echo "Backup created"
+    fi
 fi
 
 # Pull latest changes (already done by GitHub Actions, but ensure we have them)
@@ -190,8 +199,9 @@ fi
 echo "Cleaning up old Docker images..."
 docker image prune -f
 
-# Cleanup old backups (keep last 7 days)
+# Cleanup old backups (keep last 7 days; copre anche i legacy in chiaro)
 find "$BACKUP_DIR" -name "backup_*.sql" -mtime +7 -delete 2>/dev/null || true
+find "$BACKUP_DIR" -name "backup_*.sql.gz.enc" -mtime +7 -delete 2>/dev/null || true
 
 echo "=========================================="
 echo "Deployment completed successfully!"
