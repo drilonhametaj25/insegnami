@@ -4,7 +4,7 @@ import { PublicFooter } from '@/components/public/PublicFooter';
 import { HomepageContent } from '@/components/public/HomepageContent';
 
 export const metadata: Metadata = {
-  title: 'InsegnaMi.pro — Registro Elettronico e Gestione Scolastica',
+  title: { absolute: 'InsegnaMi.pro — Registro Elettronico e Gestione Scolastica' },
   description:
     'Piattaforma all-in-one per scuole private, accademie e centri di formazione. Registro elettronico, gestione studenti, presenze digitali, pagamenti e comunicazioni scuola-famiglia.',
   keywords: [

@@ -1,12 +1,86 @@
-import { Container, Title, Text, Stack, Paper, List, ListItem, ThemeIcon, Anchor, Box, Divider, Group, Badge, Alert } from '@mantine/core';
-import { IconFileText, IconCheck, IconAlertCircle, IconCreditCard, IconShieldCheck, IconScale, IconBan, IconRefresh } from '@tabler/icons-react';
+import {
+  Alert,
+  Anchor,
+  Badge,
+  Card,
+  Container,
+  Divider,
+  Group,
+  List,
+  ListItem,
+  Paper,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
+  rem,
+} from '@mantine/core';
+import {
+  IconAlertCircle,
+  IconBan,
+  IconCheck,
+  IconCreditCard,
+  IconDoorExit,
+  IconEdit,
+  IconFileText,
+  IconMail,
+  IconRefresh,
+  IconScale,
+  IconShieldCheck,
+} from '@tabler/icons-react';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import type { ComponentType, ReactNode } from 'react';
+import { PUB_GRADIENT } from '@/components/public/PublicUI';
 
 export const metadata: Metadata = {
-  title: 'Termini di Servizio | InsegnaMi.pro',
+  title: 'Termini di Servizio',
   description: 'Termini e condizioni di utilizzo della piattaforma InsegnaMi.pro per la gestione scolastica.',
 };
+
+// Indice delle sezioni (anchor interni alla pagina)
+const INDICE = [
+  { id: 'definizioni', label: '1. Definizioni' },
+  { id: 'accettazione', label: '2. Accettazione dei Termini' },
+  { id: 'servizio', label: '3. Descrizione del Servizio' },
+  { id: 'account', label: '4. Account Utente' },
+  { id: 'piani-pagamenti', label: '5. Piani e Pagamenti' },
+  { id: 'recesso', label: '6. Diritto di Recesso' },
+  { id: 'uso-accettabile', label: '7. Uso Accettabile' },
+  { id: 'proprieta-intellettuale', label: '8. Proprietà Intellettuale' },
+  { id: 'responsabilita', label: '9. Limitazione di Responsabilità' },
+  { id: 'modifiche', label: '10. Modifiche ai Termini' },
+  { id: 'risoluzione', label: '11. Risoluzione' },
+  { id: 'legge-applicabile', label: '12. Legge Applicabile e Foro Competente' },
+  { id: 'contatti', label: '13. Contatti' },
+];
+
+/** Card di sezione numerata: icona indigo uniforme + titolo + contenuto. */
+function SezioneLegale({
+  id,
+  icon: Icon,
+  title,
+  children,
+}: {
+  id: string;
+  icon: ComponentType<{ size?: number | string }>;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card id={id} padding="xl" radius="lg" withBorder style={{ scrollMarginTop: 96 }}>
+      <Group gap="sm" mb="md" wrap="nowrap">
+        <ThemeIcon size="lg" radius="md" color="indigo" variant="light">
+          <Icon size={20} />
+        </ThemeIcon>
+        <Title order={2} fz={rem(20)} fw={700} c="var(--pub-ink)">
+          {title}
+        </Title>
+      </Group>
+      {children}
+    </Card>
+  );
+}
 
 export default async function TermsPage({
   params,
@@ -17,37 +91,48 @@ export default async function TermsPage({
   const lastUpdated = '3 Marzo 2026';
 
   return (
-    <Container size="md" py="xl">
+    <Container size="md" py={{ base: 32, sm: 48 }}>
       <Stack gap="xl">
         {/* Header */}
-        <Box>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="xl" radius="md" variant="gradient" gradient={{ from: 'violet', to: 'indigo' }}>
-              <IconFileText size={28} />
-            </ThemeIcon>
-            <div>
-              <Title order={1}>Termini di Servizio</Title>
-              <Text c="dimmed" size="sm">Ultimo aggiornamento: {lastUpdated}</Text>
-            </div>
-          </Group>
-        </Box>
+        <Group gap="lg" wrap="nowrap" align="flex-start">
+          <ThemeIcon size={64} radius="lg" variant="gradient" gradient={PUB_GRADIENT}>
+            <IconFileText size={34} />
+          </ThemeIcon>
+          <Stack gap={6}>
+            <Title fz={rem(34)} fw={900} lh={1.15} c="var(--pub-ink)">
+              Termini di Servizio
+            </Title>
+            <Text c="dimmed" size="sm">Ultimo aggiornamento: {lastUpdated}</Text>
+            <Badge variant="light" color="indigo" size="lg" radius="xl">
+              D.Lgs. 206/2005 (Codice del Consumo)
+            </Badge>
+          </Stack>
+        </Group>
 
-        {/* Introduction */}
-        <Paper p="lg" radius="md" withBorder>
+        {/* Indice dei contenuti */}
+        <Card padding="xl" radius="lg" withBorder>
+          <Text fw={700} c="var(--pub-ink)" mb="sm">Indice dei contenuti</Text>
+          <List listStyleType="none" spacing={6} size="sm">
+            {INDICE.map((voce) => (
+              <ListItem key={voce.id}>
+                <Anchor href={`#${voce.id}`} size="sm" c="indigo.6" underline="hover">
+                  {voce.label}
+                </Anchor>
+              </ListItem>
+            ))}
+          </List>
+        </Card>
+
+        {/* Introduzione */}
+        <Card padding="xl" radius="lg" withBorder>
           <Text size="lg">
             Benvenuto su <strong>InsegnaMi.pro</strong>. Utilizzando la nostra piattaforma, accetti i seguenti termini e condizioni.
             Ti preghiamo di leggerli attentamente prima di registrarti o utilizzare i nostri servizi.
           </Text>
-        </Paper>
+        </Card>
 
         {/* Definizioni */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="blue" variant="light">
-              <IconFileText size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">1. Definizioni</Title>
-          </Group>
+        <SezioneLegale id="definizioni" icon={IconFileText} title="1. Definizioni">
           <Stack gap="sm">
             <Text><strong>"Piattaforma"</strong>: Il software InsegnaMi.pro accessibile via web</Text>
             <Text><strong>"Utente"</strong>: Qualsiasi persona che accede alla Piattaforma</Text>
@@ -55,22 +140,16 @@ export default async function TermsPage({
             <Text><strong>"Servizio"</strong>: Le funzionalità offerte dalla Piattaforma</Text>
             <Text><strong>"Contenuto"</strong>: Qualsiasi dato inserito dall'Utente nella Piattaforma</Text>
           </Stack>
-        </Paper>
+        </SezioneLegale>
 
         {/* Accettazione */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="green" variant="light">
-              <IconCheck size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">2. Accettazione dei Termini</Title>
-          </Group>
+        <SezioneLegale id="accettazione" icon={IconCheck} title="2. Accettazione dei Termini">
           <Stack gap="md">
             <Text>
               Registrandoti o utilizzando InsegnaMi.pro, dichiari di:
             </Text>
             <List spacing="sm" icon={
-              <ThemeIcon size="sm" radius="xl" color="green">
+              <ThemeIcon size="sm" radius="xl" color="teal" variant="light">
                 <IconCheck size={12} />
               </ThemeIcon>
             }>
@@ -80,16 +159,10 @@ export default async function TermsPage({
               <ListItem>Accettare la nostra Privacy Policy</ListItem>
             </List>
           </Stack>
-        </Paper>
+        </SezioneLegale>
 
         {/* Descrizione del Servizio */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="violet" variant="light">
-              <IconShieldCheck size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">3. Descrizione del Servizio</Title>
-          </Group>
+        <SezioneLegale id="servizio" icon={IconShieldCheck} title="3. Descrizione del Servizio">
           <Text mb="md">InsegnaMi.pro è una piattaforma SaaS (Software as a Service) per la gestione scolastica che offre:</Text>
           <List spacing="sm">
             <ListItem>Gestione anagrafica studenti, docenti e genitori</ListItem>
@@ -99,16 +172,10 @@ export default async function TermsPage({
             <ListItem>Report e statistiche</ListItem>
             <ListItem>Registro voti e pagelle</ListItem>
           </List>
-        </Paper>
+        </SezioneLegale>
 
         {/* Account */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="cyan" variant="light">
-              <IconShieldCheck size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">4. Account Utente</Title>
-          </Group>
+        <SezioneLegale id="account" icon={IconShieldCheck} title="4. Account Utente">
           <Stack gap="md">
             <Text fw={500}>4.1 Registrazione</Text>
             <Text>
@@ -124,16 +191,10 @@ export default async function TermsPage({
               <ListItem>Non condividere l'accesso con persone non autorizzate</ListItem>
             </List>
           </Stack>
-        </Paper>
+        </SezioneLegale>
 
         {/* Piani e Pagamenti */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="orange" variant="light">
-              <IconCreditCard size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">5. Piani e Pagamenti</Title>
-          </Group>
+        <SezioneLegale id="piani-pagamenti" icon={IconCreditCard} title="5. Piani e Pagamenti">
           <Stack gap="md">
             <Text fw={500}>5.1 Piani di Abbonamento</Text>
             <Text>
@@ -161,18 +222,12 @@ export default async function TermsPage({
               in qualsiasi momento dalle impostazioni del tuo account.
             </Text>
           </Stack>
-        </Paper>
+        </SezioneLegale>
 
         {/* Diritto di Recesso */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="teal" variant="light">
-              <IconRefresh size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">6. Diritto di Recesso</Title>
-          </Group>
+        <SezioneLegale id="recesso" icon={IconRefresh} title="6. Diritto di Recesso">
           <Stack gap="md">
-            <Alert color="blue" variant="light" icon={<IconAlertCircle size={20} />}>
+            <Alert color="indigo" variant="light" icon={<IconAlertCircle size={20} />}>
               <Text size="sm">
                 Ai sensi del D.Lgs. 206/2005 (Codice del Consumo), per i contratti conclusi a distanza,
                 i consumatori hanno diritto di recedere entro 14 giorni dalla sottoscrizione.
@@ -182,7 +237,7 @@ export default async function TermsPage({
             <Text fw={500}>6.1 Esercizio del Recesso</Text>
             <Text>
               Per esercitare il diritto di recesso, invia una comunicazione scritta a{' '}
-              <Anchor href="mailto:info@drilonhametaj.it">info@drilonhametaj.it</Anchor> entro 14 giorni
+              <Anchor href="mailto:info@drilonhametaj.it" c="indigo.6" underline="hover">info@drilonhametaj.it</Anchor> entro 14 giorni
               dalla sottoscrizione dell'abbonamento.
             </Text>
 
@@ -198,19 +253,13 @@ export default async function TermsPage({
               del periodo di fatturazione corrente. Non sono previsti rimborsi per periodi parziali.
             </Text>
           </Stack>
-        </Paper>
+        </SezioneLegale>
 
         {/* Uso Accettabile */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="red" variant="light">
-              <IconBan size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">7. Uso Accettabile</Title>
-          </Group>
+        <SezioneLegale id="uso-accettabile" icon={IconBan} title="7. Uso Accettabile">
           <Text mb="md">Ti impegni a non utilizzare il Servizio per:</Text>
           <List spacing="sm" icon={
-            <ThemeIcon size="sm" radius="xl" color="red">
+            <ThemeIcon size="sm" radius="xl" color="red" variant="light">
               <IconBan size={12} />
             </ThemeIcon>
           }>
@@ -222,16 +271,10 @@ export default async function TermsPage({
             <ListItem>Rivendere o sublicenziare l'accesso al Servizio</ListItem>
             <ListItem>Effettuare attività di reverse engineering</ListItem>
           </List>
-        </Paper>
+        </SezioneLegale>
 
         {/* Proprietà Intellettuale */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="pink" variant="light">
-              <IconShieldCheck size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">8. Proprietà Intellettuale</Title>
-          </Group>
+        <SezioneLegale id="proprieta-intellettuale" icon={IconShieldCheck} title="8. Proprietà Intellettuale">
           <Stack gap="md">
             <Text fw={500}>8.1 Nostri Diritti</Text>
             <Text>
@@ -245,16 +288,10 @@ export default async function TermsPage({
               limitata per elaborare e visualizzare tali contenuti ai fini dell'erogazione del Servizio.
             </Text>
           </Stack>
-        </Paper>
+        </SezioneLegale>
 
         {/* Limitazione di Responsabilità */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="gray" variant="light">
-              <IconScale size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">9. Limitazione di Responsabilità</Title>
-          </Group>
+        <SezioneLegale id="responsabilita" icon={IconScale} title="9. Limitazione di Responsabilità">
           <Stack gap="md">
             <Text>
               Nei limiti consentiti dalla legge, InsegnaMi.pro non sarà responsabile per:
@@ -270,21 +307,19 @@ export default async function TermsPage({
               La nostra responsabilità complessiva è limitata all'importo pagato dall'Utente negli ultimi 12 mesi.
             </Text>
           </Stack>
-        </Paper>
+        </SezioneLegale>
 
         {/* Modifiche */}
-        <Paper p="lg" radius="md" withBorder>
-          <Title order={2} size="h3" mb="md">10. Modifiche ai Termini</Title>
+        <SezioneLegale id="modifiche" icon={IconEdit} title="10. Modifiche ai Termini">
           <Text>
             Ci riserviamo il diritto di modificare questi Termini. Le modifiche saranno comunicate via email
             o tramite avviso sulla Piattaforma almeno 30 giorni prima dell'entrata in vigore.
             L'uso continuato del Servizio dopo tale data costituisce accettazione delle modifiche.
           </Text>
-        </Paper>
+        </SezioneLegale>
 
         {/* Risoluzione */}
-        <Paper p="lg" radius="md" withBorder>
-          <Title order={2} size="h3" mb="md">11. Risoluzione</Title>
+        <SezioneLegale id="risoluzione" icon={IconDoorExit} title="11. Risoluzione">
           <Stack gap="md">
             <Text fw={500}>11.1 Da parte dell'Utente</Text>
             <Text>
@@ -303,41 +338,34 @@ export default async function TermsPage({
               i dati saranno eliminati in conformità con la nostra Privacy Policy.
             </Text>
           </Stack>
-        </Paper>
+        </SezioneLegale>
 
         {/* Legge Applicabile */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="indigo" variant="light">
-              <IconScale size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">12. Legge Applicabile e Foro Competente</Title>
-          </Group>
+        <SezioneLegale id="legge-applicabile" icon={IconScale} title="12. Legge Applicabile e Foro Competente">
           <Text>
             Questi Termini sono regolati dalla legge italiana. Per qualsiasi controversia sarà competente
             in via esclusiva il Foro di Firenze, salvo diversa disposizione di legge inderogabile
             a favore del consumatore.
           </Text>
-        </Paper>
+        </SezioneLegale>
 
         {/* Contatti */}
-        <Paper p="lg" radius="md" withBorder>
-          <Title order={2} size="h3" mb="md">13. Contatti</Title>
+        <SezioneLegale id="contatti" icon={IconMail} title="13. Contatti">
           <Text mb="md">Per domande sui presenti Termini:</Text>
-          <Paper p="md" radius="md" bg="gray.0">
+          <Paper p="md" radius="md" bg="var(--pub-surface)">
             <Text><strong>InsegnaMi.pro</strong></Text>
             <Text>P.IVA: 07327360488</Text>
-            <Text>Email: <Anchor href="mailto:info@drilonhametaj.it">info@drilonhametaj.it</Anchor></Text>
+            <Text>Email: <Anchor href="mailto:info@drilonhametaj.it" c="indigo.6" underline="hover">info@drilonhametaj.it</Anchor></Text>
           </Paper>
-        </Paper>
+        </SezioneLegale>
 
         <Divider />
 
-        {/* Footer Links */}
+        {/* Cross-link legali */}
         <Group justify="center" gap="lg">
-          <Anchor component={Link} href={`/${locale}/privacy`} size="sm">Privacy Policy</Anchor>
-          <Anchor component={Link} href={`/${locale}/cookies`} size="sm">Cookie Policy</Anchor>
-          <Anchor component={Link} href={`/${locale}/contact`} size="sm">Contattaci</Anchor>
+          <Anchor component={Link} href={`/${locale}/privacy`} size="sm" c="indigo.6" underline="hover">Privacy Policy</Anchor>
+          <Anchor component={Link} href={`/${locale}/cookies`} size="sm" c="indigo.6" underline="hover">Cookie Policy</Anchor>
+          <Anchor component={Link} href={`/${locale}/contact`} size="sm" c="indigo.6" underline="hover">Contattaci</Anchor>
         </Group>
       </Stack>
     </Container>

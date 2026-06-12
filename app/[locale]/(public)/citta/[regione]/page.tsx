@@ -1,20 +1,29 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
-  Container,
-  Title,
-  Text,
-  SimpleGrid,
-  Card,
-  Stack,
-  Badge,
-  Group,
   Anchor,
-  Breadcrumbs,
+  Badge,
   Box,
+  Breadcrumbs,
+  Card,
+  Container,
+  Group,
+  List,
+  ListItem,
+  SimpleGrid,
+  Stack,
+  Text,
   ThemeIcon,
+  Title,
+  rem,
 } from '@mantine/core';
-import { IconMapPin, IconBuilding, IconArrowLeft } from '@tabler/icons-react';
+import {
+  IconArrowLeft,
+  IconArrowRight,
+  IconBuilding,
+  IconCheck,
+  IconMapPin,
+} from '@tabler/icons-react';
 import Link from 'next/link';
 import {
   regioni,
@@ -22,6 +31,7 @@ import {
   getProvinceByRegione,
   comuni,
 } from '@/data/italia';
+import { CtaBanner, PUB_GRADIENT } from '@/components/public/PublicUI';
 
 export async function generateStaticParams() {
   const locales = ['it', 'en', 'fr', 'pt'];
@@ -45,12 +55,12 @@ export async function generateMetadata({
   const regione = getRegione(regioneSlug);
 
   if (!regione) {
-    return { title: 'Regione non trovata | InsegnaMi.pro' };
+    return { title: 'Regione non trovata' };
   }
 
   return {
-    title: `Software Gestione Scuola in ${regione.nome} | InsegnaMi.pro`,
-    description: `InsegnaMi.pro è il software gestionale scolastico #1 in ${regione.nome}. Gestisci studenti, docenti, pagamenti e molto altro. Provalo gratis!`,
+    title: `Software Gestione Scuola in ${regione.nome}`,
+    description: `InsegnaMi.pro è il software gestionale scolastico per le scuole di ${regione.nome}. Gestisci studenti, docenti, pagamenti e molto altro. Provalo gratis!`,
     openGraph: {
       title: `Software Gestione Scuola in ${regione.nome} | InsegnaMi.pro`,
       description: `Il miglior software gestionale per scuole in ${regione.nome}. Supporto locale e conformità normative italiane.`,
@@ -76,7 +86,7 @@ export default async function RegionePage({
 
   const province = getProvinceByRegione(regioneSlug);
 
-  // Count comuni per province
+  // Conteggio comuni per provincia
   const provinceWithCounts = province.map((prov) => ({
     ...prov,
     comuniCount: comuni.filter((c) => c.provincia === prov.codice).length,
@@ -87,7 +97,7 @@ export default async function RegionePage({
     '@context': 'https://schema.org',
     '@type': 'WebPage',
     name: `Software Gestione Scuola in ${regione.nome}`,
-    description: `InsegnaMi.pro è il software gestionale scolastico #1 in ${regione.nome}.`,
+    description: `InsegnaMi.pro è il software gestionale scolastico per le scuole di ${regione.nome}.`,
     publisher: {
       '@type': 'Organization',
       name: 'InsegnaMi.pro',
@@ -125,175 +135,204 @@ export default async function RegionePage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Hero Section */}
-      <Box
-        style={{
-          background: 'linear-gradient(135deg, var(--mantine-color-blue-6) 0%, var(--mantine-color-cyan-5) 100%)',
-          color: 'white',
-          padding: '3rem 0',
-        }}
-      >
+      {/* Hero */}
+      <Box className="pub-hero" py={{ base: 40, sm: 56 }}>
         <Container size="xl">
-          <Stack gap="md">
-            <Breadcrumbs
-              styles={{
-                breadcrumb: { color: 'rgba(255,255,255,0.8)' },
-                separator: { color: 'rgba(255,255,255,0.5)' },
-              }}
-            >
-              <Anchor component={Link} href={`/${locale}`} c="white">
+          <Stack gap="lg">
+            <Breadcrumbs>
+              <Anchor component={Link} href={`/${locale}`} size="sm" c="indigo.6" underline="hover">
                 Home
               </Anchor>
-              <Anchor component={Link} href={`/${locale}/citta`} c="white">
+              <Anchor
+                component={Link}
+                href={`/${locale}/citta`}
+                size="sm"
+                c="indigo.6"
+                underline="hover"
+              >
                 Città
               </Anchor>
-              <Text c="white">{regione.nome}</Text>
+              <Text size="sm" c="dimmed">
+                {regione.nome}
+              </Text>
             </Breadcrumbs>
 
-            <Group gap="lg" align="center">
-              <ThemeIcon size={60} radius="xl" variant="white" color="blue">
-                <IconMapPin size={30} />
+            <Group gap="lg" wrap="nowrap" align="flex-start">
+              <ThemeIcon size={64} radius="lg" variant="gradient" gradient={PUB_GRADIENT}>
+                <IconMapPin size={34} />
               </ThemeIcon>
-              <div>
-                <Title order={1}>
+              <Box>
+                <Badge size="lg" variant="light" color="indigo" radius="xl" mb="sm">
+                  Regione
+                </Badge>
+                <Title fz={{ base: rem(28), sm: rem(34) }} fw={900} lh={1.15} c="var(--pub-ink)" mb={8}>
                   Software Gestione Scuola in {regione.nome}
                 </Title>
-                <Text size="lg" mt="xs">
+                <Text size="lg" c="dimmed">
                   {province.length} province servite dal nostro software gestionale
                 </Text>
-              </div>
+              </Box>
             </Group>
           </Stack>
         </Container>
       </Box>
 
-      <Container size="xl" py="xl">
-        <Stack gap="xl">
-          {/* Back link */}
-          <Anchor component={Link} href={`/${locale}/citta`} size="sm">
-            <Group gap={4}>
-              <IconArrowLeft size={16} />
-              Tutte le regioni
-            </Group>
-          </Anchor>
+      {/* Elenco province */}
+      <Box bg="white" py={{ base: 32, sm: 48 }}>
+        <Container size="xl">
+          <Stack gap="xl">
+            {/* Link di ritorno */}
+            <Anchor
+              component={Link}
+              href={`/${locale}/citta`}
+              size="sm"
+              c="indigo.6"
+              fw={500}
+              underline="hover"
+              display="inline-block"
+            >
+              <Group gap={6} wrap="nowrap">
+                <IconArrowLeft size={16} />
+                Tutte le regioni
+              </Group>
+            </Anchor>
 
-          {/* Introduction */}
-          <Box>
-            <Title order={2} mb="md">
-              Province in {regione.nome}
-            </Title>
-            <Text size="lg" c="dimmed" maw={800}>
-              InsegnaMi.pro è disponibile in tutte le province della regione {regione.nome}.
-              Seleziona la tua provincia per trovare scuole e informazioni nella tua zona.
-            </Text>
-          </Box>
-
-          {/* Provinces Grid */}
-          {provinceWithCounts.length > 0 ? (
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-              {provinceWithCounts.map((prov) => (
-                <Card
-                  key={prov.codice}
-                  component={Link}
-                  href={`/${locale}/citta/${regioneSlug}/${prov.slug}`}
-                  shadow="sm"
-                  padding="lg"
-                  radius="md"
-                  withBorder
-                  style={{ textDecoration: 'none' }}
-                >
-                  <Stack gap="sm">
-                    <Group justify="space-between">
-                      <Group gap="xs">
-                        <IconBuilding size={20} color="var(--mantine-color-blue-6)" />
-                        <Title order={3} size="h4">
-                          {prov.nome}
-                        </Title>
-                      </Group>
-                      <Badge color="gray" variant="light">
-                        {prov.sigla}
-                      </Badge>
-                    </Group>
-                    <Text size="sm" c="dimmed">
-                      Software gestionale per scuole in provincia di {prov.nome}
-                    </Text>
-                    {prov.comuniCount > 0 && (
-                      <Badge color="blue" variant="light" size="sm">
-                        {prov.comuniCount} comuni
-                      </Badge>
-                    )}
-                  </Stack>
-                </Card>
-              ))}
-            </SimpleGrid>
-          ) : (
-            <Card withBorder p="xl" radius="md" ta="center">
-              <Text c="dimmed">
-                Dati delle province in arrivo. Contattaci per informazioni sulla tua zona.
+            {/* Introduzione */}
+            <Box>
+              <Title order={2} fz={{ base: rem(26), sm: rem(30) }} fw={800} c="var(--pub-ink)" mb="md">
+                Province in {regione.nome}
+              </Title>
+              <Text size="lg" c="dimmed" maw={800}>
+                InsegnaMi.pro è disponibile in tutte le province della regione {regione.nome}.
+                Seleziona la tua provincia per trovare scuole e informazioni nella tua zona.
               </Text>
-            </Card>
-          )}
+            </Box>
 
-          {/* SEO Content */}
-          <Box mt="xl" p="xl" style={{ backgroundColor: 'var(--mantine-color-gray-0)', borderRadius: 'var(--mantine-radius-md)' }}>
-            <Title order={2} mb="md">
+            {/* Griglia province */}
+            {provinceWithCounts.length > 0 ? (
+              <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
+                {provinceWithCounts.map((prov) => (
+                  <Card
+                    key={prov.codice}
+                    component={Link}
+                    href={`/${locale}/citta/${regioneSlug}/${prov.slug}`}
+                    padding="xl"
+                    radius="lg"
+                    className="pub-card"
+                    h="100%"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <Stack gap="sm" h="100%">
+                      <Group justify="space-between" align="flex-start" wrap="nowrap">
+                        <Group gap="sm" wrap="nowrap">
+                          <ThemeIcon size={36} radius="md" variant="light" color="indigo">
+                            <IconBuilding size={20} />
+                          </ThemeIcon>
+                          <Title order={3} fz={rem(20)} fw={700} c="var(--pub-ink)">
+                            {prov.nome}
+                          </Title>
+                        </Group>
+                        <Badge color="gray" variant="light" radius="xl" style={{ flexShrink: 0 }}>
+                          {prov.sigla}
+                        </Badge>
+                      </Group>
+                      <Text size="sm" c="dimmed">
+                        Software gestionale per scuole in provincia di {prov.nome}
+                      </Text>
+                      <Group justify="space-between" mt="auto">
+                        {prov.comuniCount > 0 ? (
+                          <Badge color="indigo" variant="light" size="sm" radius="xl">
+                            {prov.comuniCount} {prov.comuniCount === 1 ? 'comune' : 'comuni'}
+                          </Badge>
+                        ) : (
+                          <Badge color="gray" variant="light" size="sm" radius="xl">
+                            In arrivo
+                          </Badge>
+                        )}
+                        <IconArrowRight size={18} color="var(--mantine-color-indigo-6)" />
+                      </Group>
+                    </Stack>
+                  </Card>
+                ))}
+              </SimpleGrid>
+            ) : (
+              <Card withBorder padding="xl" radius="lg" ta="center">
+                <Text c="dimmed">
+                  Dati delle province in arrivo. Contattaci per informazioni sulla tua zona.
+                </Text>
+              </Card>
+            )}
+          </Stack>
+        </Container>
+      </Box>
+
+      {/* Contenuto SEO */}
+      <Box bg="var(--pub-surface)" py={{ base: 64, sm: 96 }}>
+        <Container size="xl">
+          <Card padding="xl" radius="lg" withBorder bg="white">
+            <Title order={2} fz={{ base: rem(26), sm: rem(30) }} fw={800} c="var(--pub-ink)" mb="md">
               InsegnaMi.pro in {regione.nome}
             </Title>
-            <Text mb="md">
-              InsegnaMi.pro è il software gestionale scolastico leader in {regione.nome}.
-              Offriamo una soluzione completa per la gestione di scuole private, accademie
-              musicali, scuole di danza, centri di formazione e istituti educativi di ogni tipo.
+            <Text mb="md" c="dimmed">
+              InsegnaMi.pro è il software gestionale scolastico pensato per le scuole di{' '}
+              {regione.nome}. Offriamo una soluzione completa per la gestione di scuole private,
+              accademie musicali, scuole di danza, centri di formazione e istituti educativi di
+              ogni tipo.
             </Text>
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" mt="lg">
               <Stack gap="sm">
-                <Title order={4}>Funzionalità Principali</Title>
-                <Text size="sm" c="dimmed">
-                  • Gestione studenti e iscrizioni<br />
-                  • Registro presenze digitale<br />
-                  • Gestione docenti e orari<br />
-                  • Fatturazione e pagamenti<br />
-                  • Comunicazioni con famiglie
-                </Text>
+                <Title order={4} fz={rem(18)} fw={700} c="var(--pub-ink)">
+                  Funzionalità Principali
+                </Title>
+                <List
+                  spacing={8}
+                  size="sm"
+                  c="dimmed"
+                  icon={
+                    <ThemeIcon size={20} radius="xl" color="teal" variant="light">
+                      <IconCheck size={12} />
+                    </ThemeIcon>
+                  }
+                >
+                  <ListItem>Gestione studenti e iscrizioni</ListItem>
+                  <ListItem>Registro presenze digitale</ListItem>
+                  <ListItem>Gestione docenti e orari</ListItem>
+                  <ListItem>Fatturazione e pagamenti</ListItem>
+                  <ListItem>Comunicazioni con famiglie</ListItem>
+                </List>
               </Stack>
               <Stack gap="sm">
-                <Title order={4}>Vantaggi per le Scuole in {regione.nome}</Title>
-                <Text size="sm" c="dimmed">
-                  • Supporto in italiano dedicato<br />
-                  • Conformità GDPR e normative italiane<br />
-                  • Interfaccia semplice e intuitiva<br />
-                  • Prezzi accessibili per ogni dimensione<br />
-                  • Prova gratuita di 14 giorni
-                </Text>
+                <Title order={4} fz={rem(18)} fw={700} c="var(--pub-ink)">
+                  Vantaggi per le Scuole in {regione.nome}
+                </Title>
+                <List
+                  spacing={8}
+                  size="sm"
+                  c="dimmed"
+                  icon={
+                    <ThemeIcon size={20} radius="xl" color="teal" variant="light">
+                      <IconCheck size={12} />
+                    </ThemeIcon>
+                  }
+                >
+                  <ListItem>Supporto in italiano dedicato</ListItem>
+                  <ListItem>Conformità GDPR e normative italiane</ListItem>
+                  <ListItem>Interfaccia semplice e intuitiva</ListItem>
+                  <ListItem>Prezzi accessibili per ogni dimensione</ListItem>
+                  <ListItem>Prova gratuita di 14 giorni</ListItem>
+                </List>
               </Stack>
             </SimpleGrid>
-          </Box>
-
-          {/* CTA */}
-          <Card withBorder p="xl" radius="md" bg="blue.0" ta="center">
-            <Stack align="center" gap="md">
-              <Title order={3}>Prova InsegnaMi.pro nella Tua Scuola</Title>
-              <Text c="dimmed" maw={500}>
-                Unisciti alle scuole di {regione.nome} che già usano InsegnaMi.pro.
-                Prova gratuita di 14 giorni, nessun impegno.
-              </Text>
-              <Anchor
-                component={Link}
-                href="/auth/register"
-                style={{
-                  backgroundColor: 'var(--mantine-color-blue-6)',
-                  color: 'white',
-                  padding: '0.75rem 2rem',
-                  borderRadius: 'var(--mantine-radius-md)',
-                  textDecoration: 'none',
-                  fontWeight: 500,
-                }}
-              >
-                Inizia la Prova Gratuita
-              </Anchor>
-            </Stack>
           </Card>
-        </Stack>
-      </Container>
+        </Container>
+      </Box>
+
+      {/* CTA finale */}
+      <CtaBanner
+        locale={locale}
+        title="Prova InsegnaMi.pro nella Tua Scuola"
+        subtitle={`Unisciti alle scuole di ${regione.nome} che già usano InsegnaMi.pro. Prova gratuita di 14 giorni, nessun impegno.`}
+      />
     </>
   );
 }

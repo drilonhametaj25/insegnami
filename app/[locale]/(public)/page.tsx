@@ -1,6 +1,4 @@
 import { Metadata } from 'next';
-import { PublicHeader } from '@/components/public/PublicHeader';
-import { PublicFooter } from '@/components/public/PublicFooter';
 import { HomepageContent } from '@/components/public/HomepageContent';
 
 export async function generateMetadata({
@@ -25,7 +23,7 @@ export async function generateMetadata({
   };
 
   return {
-    title: titles[locale] || titles.it,
+    title: { absolute: titles[locale] || titles.it },
     description: descriptions[locale] || descriptions.it,
     openGraph: {
       title: titles[locale] || titles.it,
@@ -52,13 +50,5 @@ export default async function LocaleHomePage({
 }) {
   const { locale } = await params;
 
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <PublicHeader locale={locale} />
-      <main style={{ flex: 1 }}>
-        <HomepageContent locale={locale} />
-      </main>
-      <PublicFooter locale={locale} />
-    </div>
-  );
+  return <HomepageContent locale={locale} />;
 }

@@ -8,9 +8,8 @@ import {
   Stack,
   Group,
   ThemeIcon,
-  Badge,
-  Anchor,
   Box,
+  rem,
 } from '@mantine/core';
 import {
   IconCalculator,
@@ -23,6 +22,7 @@ import {
   IconTable,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { CtaBanner, PageHero } from '@/components/public/PublicUI';
 
 export async function generateMetadata({
   params,
@@ -30,7 +30,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   return {
-    title: 'Strumenti Gratuiti per Scuole | InsegnaMi.pro',
+    title: 'Strumenti Gratuiti per Scuole',
     description:
       'Strumenti gratuiti per la gestione scolastica: calcolatori, generatori e validatori. Calcola medie voti, presenze, costi e molto altro.',
     keywords: [
@@ -56,7 +56,6 @@ const tools = [
     description: 'Calcola la media dei voti con pesi personalizzati per materia o tipologia di verifica.',
     icon: IconCalculator,
     category: 'Calcolatori',
-    color: 'blue',
   },
   {
     slug: 'calcolatore-presenze',
@@ -64,7 +63,6 @@ const tools = [
     description: 'Calcola la percentuale di frequenza e verifica il raggiungimento del monte ore minimo.',
     icon: IconClipboardCheck,
     category: 'Calcolatori',
-    color: 'green',
   },
   {
     slug: 'calcolatore-costo-studente',
@@ -72,7 +70,6 @@ const tools = [
     description: 'Calcola il costo effettivo per studente considerando tutte le spese della scuola.',
     icon: IconCurrencyEuro,
     category: 'Calcolatori',
-    color: 'yellow',
   },
   {
     slug: 'validatore-codice-fiscale',
@@ -80,7 +77,6 @@ const tools = [
     description: 'Verifica la correttezza di un codice fiscale ed estrai le informazioni anagrafiche.',
     icon: IconId,
     category: 'Validatori',
-    color: 'red',
   },
   {
     slug: 'generatore-calendario-scolastico',
@@ -88,7 +84,6 @@ const tools = [
     description: 'Genera un calendario scolastico personalizzato con festività e periodi di vacanza.',
     icon: IconCalendar,
     category: 'Generatori',
-    color: 'violet',
   },
   {
     slug: 'generatore-orario-settimanale',
@@ -96,7 +91,6 @@ const tools = [
     description: 'Crea un orario settimanale delle lezioni da stampare o esportare.',
     icon: IconTable,
     category: 'Generatori',
-    color: 'cyan',
   },
   {
     slug: 'calcolatore-ore-corso',
@@ -104,15 +98,13 @@ const tools = [
     description: 'Calcola il totale delle ore di un corso e pianifica le lezioni necessarie.',
     icon: IconClock,
     category: 'Calcolatori',
-    color: 'orange',
   },
   {
     slug: 'generatore-comunicazioni',
-    title: 'Template Comunicazioni',
+    title: 'Generatore Comunicazioni',
     description: 'Genera template per comunicazioni ai genitori, circolari e avvisi.',
     icon: IconFileText,
     category: 'Generatori',
-    color: 'pink',
   },
 ];
 
@@ -160,124 +152,69 @@ export default async function ToolsPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Hero Section */}
-      <Box
-        style={{
-          background: 'linear-gradient(135deg, var(--mantine-color-violet-6) 0%, var(--mantine-color-indigo-5) 100%)',
-          color: 'white',
-          padding: '4rem 0',
-        }}
-      >
-        <Container size="xl">
-          <Stack align="center" gap="lg">
-            <Badge color="white" variant="filled" c="violet" size="lg">
-              100% Gratuiti
-            </Badge>
-            <Title order={1} ta="center">
-              Strumenti Gratuiti per la Tua Scuola
-            </Title>
-            <Text size="xl" ta="center" maw={700}>
-              Calcolatori, generatori e validatori pensati per semplificare
-              la gestione quotidiana della tua scuola. Nessuna registrazione richiesta.
-            </Text>
-          </Stack>
-        </Container>
-      </Box>
+      {/* Hero */}
+      <PageHero
+        badge="100% gratuiti"
+        title="Strumenti gratuiti"
+        highlight="per la tua scuola"
+        subtitle="Calcolatori, generatori e validatori pensati per semplificare la gestione quotidiana della tua scuola. Nessuna registrazione richiesta."
+      />
 
-      <Container size="xl" py="xl">
-        <Stack gap="xl">
-          {/* Categories */}
+      {/* Strumenti per categoria */}
+      <Container size="xl" py={{ base: 32, sm: 48 }}>
+        <Stack gap={48}>
           {categories.map((category) => {
             const categoryTools = tools.filter((t) => t.category === category);
             if (categoryTools.length === 0) return null;
 
             return (
               <Box key={category}>
-                <Title order={2} mb="lg">
-                  {category}
-                </Title>
-                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                <Group align="baseline" gap="sm" mb="lg">
+                  <Title order={2} fz={rem(24)} fw={800} c="var(--pub-ink)">
+                    {category}
+                  </Title>
+                  <Text size="sm" c="dimmed">
+                    {categoryTools.length}{' '}
+                    {categoryTools.length === 1 ? 'strumento' : 'strumenti'}
+                  </Text>
+                </Group>
+                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
                   {categoryTools.map((tool) => (
                     <Card
                       key={tool.slug}
                       component={Link}
                       href={`/${locale}/tools/${tool.slug}`}
-                      shadow="sm"
-                      padding="lg"
-                      radius="md"
-                      withBorder
+                      padding="xl"
+                      radius="lg"
+                      bg="white"
+                      className="pub-card"
+                      h="100%"
                       style={{ textDecoration: 'none' }}
                     >
-                      <Stack gap="md">
-                        <Group justify="space-between">
-                          <ThemeIcon size={50} radius="md" color={tool.color} variant="light">
-                            <tool.icon size={28} />
-                          </ThemeIcon>
-                          <Badge color={tool.color} variant="light">
-                            Gratuito
-                          </Badge>
-                        </Group>
-                        <div>
-                          <Title order={3} size="h4" mb="xs">
-                            {tool.title}
-                          </Title>
-                          <Text size="sm" c="dimmed">
-                            {tool.description}
-                          </Text>
-                        </div>
-                      </Stack>
+                      <ThemeIcon size={52} radius="md" variant="light" color="indigo" mb="md">
+                        <tool.icon size={28} />
+                      </ThemeIcon>
+                      <Title order={3} fz={rem(20)} fw={700} c="var(--pub-ink)" mb={6}>
+                        {tool.title}
+                      </Title>
+                      <Text size="sm" c="dimmed" lh={1.6}>
+                        {tool.description}
+                      </Text>
                     </Card>
                   ))}
                 </SimpleGrid>
               </Box>
             );
           })}
-
-          {/* CTA Section */}
-          <Card withBorder p="xl" radius="md" bg="violet.0" mt="xl">
-            <Stack align="center" gap="md">
-              <Title order={2} ta="center">
-                Vuoi Automatizzare Tutto Questo?
-              </Title>
-              <Text c="dimmed" ta="center" maw={600}>
-                Con InsegnaMi.pro puoi gestire automaticamente voti, presenze, pagamenti
-                e comunicazioni. Tutti questi strumenti integrati in un&apos;unica piattaforma.
-              </Text>
-              <Group gap="md">
-                <Anchor
-                  component={Link}
-                  href={`/${locale}/auth/register`}
-                  style={{
-                    backgroundColor: 'var(--mantine-color-violet-6)',
-                    color: 'white',
-                    padding: '0.75rem 2rem',
-                    borderRadius: 'var(--mantine-radius-md)',
-                    textDecoration: 'none',
-                    fontWeight: 500,
-                  }}
-                >
-                  Prova Gratis 14 Giorni
-                </Anchor>
-                <Anchor
-                  component={Link}
-                  href={`/${locale}/pricing`}
-                  style={{
-                    borderColor: 'var(--mantine-color-violet-6)',
-                    color: 'var(--mantine-color-violet-6)',
-                    border: '1px solid',
-                    padding: '0.75rem 2rem',
-                    borderRadius: 'var(--mantine-radius-md)',
-                    textDecoration: 'none',
-                    fontWeight: 500,
-                  }}
-                >
-                  Vedi i Prezzi
-                </Anchor>
-              </Group>
-            </Stack>
-          </Card>
         </Stack>
       </Container>
+
+      {/* CTA finale */}
+      <CtaBanner
+        locale={locale}
+        title="Vuoi Automatizzare Tutto Questo?"
+        subtitle="Con InsegnaMi.pro puoi gestire automaticamente voti, presenze, pagamenti e comunicazioni. Tutti questi strumenti integrati in un'unica piattaforma."
+      />
     </>
   );
 }

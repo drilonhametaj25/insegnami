@@ -137,10 +137,17 @@ describe('Accounting Page', () => {
       expect(screen.getAllByText(/risultato netto/i).length).toBeGreaterThan(0)
     })
 
-    // Totali formattati in euro (it-IT: niente separatore migliaia sotto 10000)
-    expect(screen.getAllByText(/5000,00/).length).toBeGreaterThan(0) // revenueTotal
-    expect(screen.getAllByText(/4200,00/).length).toBeGreaterThan(0) // costTotal
-    expect(screen.getAllByText(/800,00/).length).toBeGreaterThan(0) // netMargin
+    // Totali formattati in euro con la stessa chiamata del componente:
+    // il grouping it-IT sui numeri a 4 cifre cambia tra versioni ICU
+    // ("5000,00" su macOS, "5.000,00" su alcune CI), quindi l'atteso va
+    // calcolato a runtime, non hardcoded.
+    const euroIt = (n: number) =>
+      n
+        .toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    expect(screen.getAllByText(new RegExp(euroIt(5000))).length).toBeGreaterThan(0) // revenueTotal
+    expect(screen.getAllByText(new RegExp(euroIt(4200))).length).toBeGreaterThan(0) // costTotal
+    expect(screen.getAllByText(new RegExp(euroIt(800))).length).toBeGreaterThan(0) // netMargin
 
     // Breakdown per categoria
     expect(screen.getAllByText('stipendi').length).toBeGreaterThan(0)

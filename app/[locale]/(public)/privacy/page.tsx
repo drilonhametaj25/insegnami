@@ -1,12 +1,82 @@
-import { Container, Title, Text, Stack, Paper, List, ListItem, ThemeIcon, Anchor, Box, Divider, Group, Badge } from '@mantine/core';
-import { IconShield, IconLock, IconUser, IconDatabase, IconMail, IconCookie, IconScale, IconCheck } from '@tabler/icons-react';
+import {
+  Anchor,
+  Badge,
+  Card,
+  Container,
+  Divider,
+  Group,
+  List,
+  ListItem,
+  Paper,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
+  rem,
+} from '@mantine/core';
+import {
+  IconCheck,
+  IconCookie,
+  IconDatabase,
+  IconEdit,
+  IconLock,
+  IconMail,
+  IconScale,
+  IconShield,
+  IconTarget,
+  IconUser,
+} from '@tabler/icons-react';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import type { ComponentType, ReactNode } from 'react';
+import { PUB_GRADIENT } from '@/components/public/PublicUI';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | InsegnaMi.pro',
+  title: 'Privacy Policy',
   description: 'Informativa sulla privacy e trattamento dei dati personali di InsegnaMi.pro. Conforme al GDPR.',
 };
+
+// Indice delle sezioni (anchor interni alla pagina)
+const INDICE = [
+  { id: 'titolare', label: '1. Titolare del Trattamento' },
+  { id: 'dati-raccolti', label: '2. Dati Personali Raccolti' },
+  { id: 'finalita', label: '3. Finalità del Trattamento' },
+  { id: 'base-giuridica', label: '4. Base Giuridica del Trattamento' },
+  { id: 'condivisione', label: '5. Condivisione dei Dati' },
+  { id: 'conservazione', label: '6. Conservazione dei Dati' },
+  { id: 'diritti', label: '7. I Tuoi Diritti (GDPR)' },
+  { id: 'sicurezza', label: '8. Sicurezza dei Dati' },
+  { id: 'cookie', label: '9. Cookie' },
+  { id: 'modifiche', label: '10. Modifiche alla Privacy Policy' },
+  { id: 'contatti', label: '11. Contatti' },
+];
+
+/** Card di sezione numerata: icona indigo uniforme + titolo + contenuto. */
+function SezioneLegale({
+  id,
+  icon: Icon,
+  title,
+  children,
+}: {
+  id: string;
+  icon: ComponentType<{ size?: number | string }>;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card id={id} padding="xl" radius="lg" withBorder style={{ scrollMarginTop: 96 }}>
+      <Group gap="sm" mb="md" wrap="nowrap">
+        <ThemeIcon size="lg" radius="md" color="indigo" variant="light">
+          <Icon size={20} />
+        </ThemeIcon>
+        <Title order={2} fz={rem(20)} fw={700} c="var(--pub-ink)">
+          {title}
+        </Title>
+      </Group>
+      {children}
+    </Card>
+  );
+}
 
 export default async function PrivacyPage({
   params,
@@ -17,61 +87,65 @@ export default async function PrivacyPage({
   const lastUpdated = '3 Marzo 2026';
 
   return (
-    <Container size="md" py="xl">
+    <Container size="md" py={{ base: 32, sm: 48 }}>
       <Stack gap="xl">
         {/* Header */}
-        <Box>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="xl" radius="md" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
-              <IconShield size={28} />
-            </ThemeIcon>
-            <div>
-              <Title order={1}>Privacy Policy</Title>
-              <Text c="dimmed" size="sm">Ultimo aggiornamento: {lastUpdated}</Text>
-            </div>
-          </Group>
-          <Badge color="green" variant="light" size="lg">Conforme GDPR (UE) 2016/679</Badge>
-        </Box>
+        <Group gap="lg" wrap="nowrap" align="flex-start">
+          <ThemeIcon size={64} radius="lg" variant="gradient" gradient={PUB_GRADIENT}>
+            <IconShield size={34} />
+          </ThemeIcon>
+          <Stack gap={6}>
+            <Title fz={rem(34)} fw={900} lh={1.15} c="var(--pub-ink)">
+              Privacy Policy
+            </Title>
+            <Text c="dimmed" size="sm">Ultimo aggiornamento: {lastUpdated}</Text>
+            <Badge variant="light" color="indigo" size="lg" radius="xl">
+              Conforme GDPR (UE) 2016/679
+            </Badge>
+          </Stack>
+        </Group>
 
-        {/* Introduction */}
-        <Paper p="lg" radius="md" withBorder>
+        {/* Indice dei contenuti */}
+        <Card padding="xl" radius="lg" withBorder>
+          <Text fw={700} c="var(--pub-ink)" mb="sm">Indice dei contenuti</Text>
+          <List listStyleType="none" spacing={6} size="sm">
+            {INDICE.map((voce) => (
+              <ListItem key={voce.id}>
+                <Anchor href={`#${voce.id}`} size="sm" c="indigo.6" underline="hover">
+                  {voce.label}
+                </Anchor>
+              </ListItem>
+            ))}
+          </List>
+        </Card>
+
+        {/* Introduzione */}
+        <Card padding="xl" radius="lg" withBorder>
           <Text size="lg">
             La presente informativa sulla privacy descrive come <strong>InsegnaMi.pro</strong> (di seguito "noi", "nostro" o "Piattaforma")
             raccoglie, utilizza, conserva e protegge i tuoi dati personali in conformità con il Regolamento Generale sulla Protezione dei Dati (GDPR)
             e la normativa italiana vigente.
           </Text>
-        </Paper>
+        </Card>
 
         {/* Titolare del Trattamento */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="blue" variant="light">
-              <IconUser size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">1. Titolare del Trattamento</Title>
-          </Group>
+        <SezioneLegale id="titolare" icon={IconUser} title="1. Titolare del Trattamento">
           <Stack gap="xs">
             <Text>Il Titolare del trattamento dei dati personali è:</Text>
-            <Paper p="md" radius="md" bg="gray.0">
+            <Paper p="md" radius="md" bg="var(--pub-surface)">
               <Text fw={500}>InsegnaMi.pro</Text>
               <Text>P.IVA: 07327360488</Text>
-              <Text>Email: <Anchor href="mailto:privacy@insegnami.pro">privacy@insegnami.pro</Anchor></Text>
+              <Text>Email: <Anchor href="mailto:privacy@insegnami.pro" c="indigo.6" underline="hover">privacy@insegnami.pro</Anchor></Text>
             </Paper>
           </Stack>
-        </Paper>
+        </SezioneLegale>
 
         {/* Dati Raccolti */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="violet" variant="light">
-              <IconDatabase size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">2. Dati Personali Raccolti</Title>
-          </Group>
+        <SezioneLegale id="dati-raccolti" icon={IconDatabase} title="2. Dati Personali Raccolti">
           <Text mb="md">Raccogliamo le seguenti categorie di dati personali:</Text>
 
           <Stack gap="md">
-            <Paper p="md" radius="md" bg="gray.0">
+            <Paper p="md" radius="md" bg="var(--pub-surface)">
               <Text fw={500} mb="xs">Dati identificativi</Text>
               <List size="sm" spacing="xs">
                 <ListItem>Nome e cognome</ListItem>
@@ -81,7 +155,7 @@ export default async function PrivacyPage({
               </List>
             </Paper>
 
-            <Paper p="md" radius="md" bg="gray.0">
+            <Paper p="md" radius="md" bg="var(--pub-surface)">
               <Text fw={500} mb="xs">Dati di accesso</Text>
               <List size="sm" spacing="xs">
                 <ListItem>Credenziali di autenticazione (password criptate)</ListItem>
@@ -90,7 +164,7 @@ export default async function PrivacyPage({
               </List>
             </Paper>
 
-            <Paper p="md" radius="md" bg="gray.0">
+            <Paper p="md" radius="md" bg="var(--pub-surface)">
               <Text fw={500} mb="xs">Dati scolastici (per scuole e utenti)</Text>
               <List size="sm" spacing="xs">
                 <ListItem>Informazioni sugli studenti e genitori</ListItem>
@@ -100,7 +174,7 @@ export default async function PrivacyPage({
               </List>
             </Paper>
 
-            <Paper p="md" radius="md" bg="gray.0">
+            <Paper p="md" radius="md" bg="var(--pub-surface)">
               <Text fw={500} mb="xs">Dati di pagamento</Text>
               <List size="sm" spacing="xs">
                 <ListItem>Dati di fatturazione</ListItem>
@@ -108,20 +182,14 @@ export default async function PrivacyPage({
               </List>
             </Paper>
           </Stack>
-        </Paper>
+        </SezioneLegale>
 
         {/* Finalità del Trattamento */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="green" variant="light">
-              <IconCheck size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">3. Finalità del Trattamento</Title>
-          </Group>
+        <SezioneLegale id="finalita" icon={IconTarget} title="3. Finalità del Trattamento">
           <Text mb="md">I tuoi dati personali vengono trattati per le seguenti finalità:</Text>
 
           <List spacing="sm" icon={
-            <ThemeIcon size="sm" radius="xl" color="green">
+            <ThemeIcon size="sm" radius="xl" color="teal" variant="light">
               <IconCheck size={12} />
             </ThemeIcon>
           }>
@@ -133,46 +201,34 @@ export default async function PrivacyPage({
             <ListItem><strong>Miglioramento del servizio:</strong> Analisi aggregate per migliorare la piattaforma</ListItem>
             <ListItem><strong>Obblighi legali:</strong> Adempimento di obblighi di legge</ListItem>
           </List>
-        </Paper>
+        </SezioneLegale>
 
         {/* Base Giuridica */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="orange" variant="light">
-              <IconScale size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">4. Base Giuridica del Trattamento</Title>
-          </Group>
+        <SezioneLegale id="base-giuridica" icon={IconScale} title="4. Base Giuridica del Trattamento">
           <Text mb="md">Il trattamento dei tuoi dati si basa su:</Text>
 
           <Stack gap="sm">
-            <Paper p="md" radius="md" bg="gray.0">
+            <Paper p="md" radius="md" bg="var(--pub-surface)">
               <Text fw={500}>Esecuzione del contratto (Art. 6.1.b GDPR)</Text>
               <Text size="sm" c="dimmed">Per fornire i servizi richiesti e gestire il tuo account</Text>
             </Paper>
-            <Paper p="md" radius="md" bg="gray.0">
+            <Paper p="md" radius="md" bg="var(--pub-surface)">
               <Text fw={500}>Consenso (Art. 6.1.a GDPR)</Text>
               <Text size="sm" c="dimmed">Per comunicazioni marketing e cookie non essenziali</Text>
             </Paper>
-            <Paper p="md" radius="md" bg="gray.0">
+            <Paper p="md" radius="md" bg="var(--pub-surface)">
               <Text fw={500}>Legittimo interesse (Art. 6.1.f GDPR)</Text>
               <Text size="sm" c="dimmed">Per migliorare i nostri servizi e prevenire frodi</Text>
             </Paper>
-            <Paper p="md" radius="md" bg="gray.0">
+            <Paper p="md" radius="md" bg="var(--pub-surface)">
               <Text fw={500}>Obbligo legale (Art. 6.1.c GDPR)</Text>
               <Text size="sm" c="dimmed">Per adempiere a obblighi fiscali e normativi</Text>
             </Paper>
           </Stack>
-        </Paper>
+        </SezioneLegale>
 
         {/* Condivisione Dati */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="cyan" variant="light">
-              <IconLock size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">5. Condivisione dei Dati</Title>
-          </Group>
+        <SezioneLegale id="condivisione" icon={IconLock} title="5. Condivisione dei Dati">
           <Text mb="md">
             Non vendiamo né condividiamo i tuoi dati personali con terze parti per scopi commerciali.
             I tuoi dati possono essere condivisi solo con:
@@ -188,36 +244,24 @@ export default async function PrivacyPage({
           <Text mt="md" size="sm" c="dimmed">
             Tutti i nostri fornitori di servizi sono conformi al GDPR e hanno sottoscritto accordi di trattamento dati (DPA).
           </Text>
-        </Paper>
+        </SezioneLegale>
 
         {/* Conservazione Dati */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="pink" variant="light">
-              <IconDatabase size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">6. Conservazione dei Dati</Title>
-          </Group>
+        <SezioneLegale id="conservazione" icon={IconDatabase} title="6. Conservazione dei Dati">
           <Stack gap="sm">
             <Text><strong>Dati dell'account:</strong> Conservati per tutta la durata del rapporto contrattuale e per 10 anni dopo la cessazione (obblighi fiscali)</Text>
             <Text><strong>Dati di navigazione:</strong> Conservati per 12 mesi</Text>
             <Text><strong>Dati di fatturazione:</strong> Conservati per 10 anni (obblighi fiscali)</Text>
             <Text><strong>Log di sicurezza:</strong> Conservati per 6 mesi</Text>
           </Stack>
-        </Paper>
+        </SezioneLegale>
 
         {/* Diritti dell'Interessato */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="indigo" variant="light">
-              <IconUser size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">7. I Tuoi Diritti (GDPR)</Title>
-          </Group>
+        <SezioneLegale id="diritti" icon={IconUser} title="7. I Tuoi Diritti (GDPR)">
           <Text mb="md">In qualità di interessato, hai diritto a:</Text>
 
           <List spacing="sm" icon={
-            <ThemeIcon size="sm" radius="xl" color="indigo">
+            <ThemeIcon size="sm" radius="xl" color="teal" variant="light">
               <IconCheck size={12} />
             </ThemeIcon>
           }>
@@ -230,9 +274,9 @@ export default async function PrivacyPage({
             <ListItem><strong>Revoca del consenso:</strong> Revocare il consenso in qualsiasi momento</ListItem>
           </List>
 
-          <Paper p="md" radius="md" bg="blue.0" mt="md">
+          <Paper p="md" radius="md" bg="var(--pub-surface)" mt="md">
             <Text size="sm">
-              Per esercitare i tuoi diritti, contattaci a: <Anchor href="mailto:privacy@insegnami.pro">privacy@insegnami.pro</Anchor>
+              Per esercitare i tuoi diritti, contattaci a: <Anchor href="mailto:privacy@insegnami.pro" c="indigo.6" underline="hover">privacy@insegnami.pro</Anchor>
               <br />
               Risponderemo entro 30 giorni dalla richiesta.
             </Text>
@@ -240,18 +284,12 @@ export default async function PrivacyPage({
 
           <Text mt="md" size="sm">
             Hai inoltre il diritto di proporre reclamo al <strong>Garante per la Protezione dei Dati Personali</strong>:
-            <Anchor href="https://www.garanteprivacy.it" target="_blank"> www.garanteprivacy.it</Anchor>
+            <Anchor href="https://www.garanteprivacy.it" target="_blank" c="indigo.6" underline="hover"> www.garanteprivacy.it</Anchor>
           </Text>
-        </Paper>
+        </SezioneLegale>
 
         {/* Sicurezza */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="red" variant="light">
-              <IconLock size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">8. Sicurezza dei Dati</Title>
-          </Group>
+        <SezioneLegale id="sicurezza" icon={IconLock} title="8. Sicurezza dei Dati">
           <Text mb="md">Adottiamo misure tecniche e organizzative adeguate per proteggere i tuoi dati:</Text>
 
           <List spacing="sm">
@@ -262,55 +300,42 @@ export default async function PrivacyPage({
             <ListItem>Monitoraggio continuo della sicurezza</ListItem>
             <ListItem>Server ubicati in data center UE certificati</ListItem>
           </List>
-        </Paper>
+        </SezioneLegale>
 
         {/* Cookie */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="yellow" variant="light">
-              <IconCookie size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">9. Cookie</Title>
-          </Group>
+        <SezioneLegale id="cookie" icon={IconCookie} title="9. Cookie">
           <Text>
             Utilizziamo cookie tecnici necessari per il funzionamento della piattaforma.
             Per informazioni dettagliate sui cookie utilizzati, consulta la nostra{' '}
-            <Anchor component={Link} href={`/${locale}/cookies`}>Cookie Policy</Anchor>.
+            <Anchor component={Link} href={`/${locale}/cookies`} c="indigo.6" underline="hover">Cookie Policy</Anchor>.
           </Text>
-        </Paper>
+        </SezioneLegale>
 
         {/* Modifiche */}
-        <Paper p="lg" radius="md" withBorder>
-          <Title order={2} size="h3" mb="md">10. Modifiche alla Privacy Policy</Title>
+        <SezioneLegale id="modifiche" icon={IconEdit} title="10. Modifiche alla Privacy Policy">
           <Text>
             Ci riserviamo il diritto di aggiornare questa informativa. In caso di modifiche sostanziali,
             ti informeremo via email o tramite avviso sulla piattaforma. Ti invitiamo a consultare
             periodicamente questa pagina per essere sempre aggiornato.
           </Text>
-        </Paper>
+        </SezioneLegale>
 
         {/* Contatti */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon size="lg" radius="md" color="teal" variant="light">
-              <IconMail size={20} />
-            </ThemeIcon>
-            <Title order={2} size="h3">11. Contatti</Title>
-          </Group>
+        <SezioneLegale id="contatti" icon={IconMail} title="11. Contatti">
           <Text mb="md">Per domande sulla privacy o per esercitare i tuoi diritti:</Text>
-          <Paper p="md" radius="md" bg="gray.0">
-            <Text>Email: <Anchor href="mailto:privacy@insegnami.pro">privacy@insegnami.pro</Anchor></Text>
-            <Text>Supporto: <Anchor href="mailto:info@drilonhametaj.it">info@drilonhametaj.it</Anchor></Text>
+          <Paper p="md" radius="md" bg="var(--pub-surface)">
+            <Text>Email: <Anchor href="mailto:privacy@insegnami.pro" c="indigo.6" underline="hover">privacy@insegnami.pro</Anchor></Text>
+            <Text>Supporto: <Anchor href="mailto:info@drilonhametaj.it" c="indigo.6" underline="hover">info@drilonhametaj.it</Anchor></Text>
           </Paper>
-        </Paper>
+        </SezioneLegale>
 
         <Divider />
 
-        {/* Footer Links */}
+        {/* Cross-link legali */}
         <Group justify="center" gap="lg">
-          <Anchor component={Link} href={`/${locale}/terms`} size="sm">Termini di Servizio</Anchor>
-          <Anchor component={Link} href={`/${locale}/cookies`} size="sm">Cookie Policy</Anchor>
-          <Anchor component={Link} href={`/${locale}/contact`} size="sm">Contattaci</Anchor>
+          <Anchor component={Link} href={`/${locale}/terms`} size="sm" c="indigo.6" underline="hover">Termini di Servizio</Anchor>
+          <Anchor component={Link} href={`/${locale}/cookies`} size="sm" c="indigo.6" underline="hover">Cookie Policy</Anchor>
+          <Anchor component={Link} href={`/${locale}/contact`} size="sm" c="indigo.6" underline="hover">Contattaci</Anchor>
         </Group>
       </Stack>
     </Container>

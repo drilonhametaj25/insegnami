@@ -1,20 +1,27 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
-  Container,
-  Title,
-  Text,
-  SimpleGrid,
-  Card,
-  Stack,
-  Badge,
-  Group,
   Anchor,
-  Breadcrumbs,
+  Badge,
   Box,
+  Breadcrumbs,
+  Button,
+  Card,
+  Container,
+  Group,
+  SimpleGrid,
+  Stack,
+  Text,
   ThemeIcon,
+  Title,
+  rem,
 } from '@mantine/core';
-import { IconMapPin, IconUsers, IconArrowLeft } from '@tabler/icons-react';
+import {
+  IconArrowLeft,
+  IconArrowRight,
+  IconMapPin,
+  IconUsers,
+} from '@tabler/icons-react';
 import Link from 'next/link';
 import {
   regioni,
@@ -23,6 +30,7 @@ import {
   getProvincia,
   getComuniByProvincia,
 } from '@/data/italia';
+import { CtaBanner, PUB_GRADIENT, SectionHeader } from '@/components/public/PublicUI';
 
 export async function generateStaticParams() {
   const locales = ['it', 'en', 'fr', 'pt'];
@@ -54,12 +62,12 @@ export async function generateMetadata({
   const provincia = getProvincia(provinciaSlug);
 
   if (!regione || !provincia) {
-    return { title: 'Provincia non trovata | InsegnaMi.pro' };
+    return { title: 'Provincia non trovata' };
   }
 
   return {
-    title: `Software Gestione Scuola a ${provincia.nome} (${provincia.sigla}) | InsegnaMi.pro`,
-    description: `Cerchi un software gestionale per la tua scuola a ${provincia.nome}? InsegnaMi.pro è la soluzione #1 in provincia di ${provincia.nome}, ${regione.nome}. Provalo gratis!`,
+    title: `Software Gestione Scuola a ${provincia.nome} (${provincia.sigla})`,
+    description: `Cerchi un software gestionale per la tua scuola a ${provincia.nome}? InsegnaMi.pro è la soluzione per le scuole in provincia di ${provincia.nome}, ${regione.nome}. Provalo gratis!`,
     openGraph: {
       title: `Software Gestione Scuola a ${provincia.nome} | InsegnaMi.pro`,
       description: `Il miglior software gestionale per scuole in provincia di ${provincia.nome}. Supporto locale e conformità normative.`,
@@ -91,7 +99,7 @@ export default async function ProvinciaPage({
     '@context': 'https://schema.org',
     '@type': 'WebPage',
     name: `Software Gestione Scuola a ${provincia.nome}`,
-    description: `InsegnaMi.pro è il software gestionale scolastico #1 in provincia di ${provincia.nome}.`,
+    description: `InsegnaMi.pro è il software gestionale scolastico per le scuole in provincia di ${provincia.nome}.`,
     publisher: {
       '@type': 'Organization',
       name: 'InsegnaMi.pro',
@@ -135,206 +143,201 @@ export default async function ProvinciaPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Hero Section */}
-      <Box
-        style={{
-          background: 'linear-gradient(135deg, var(--mantine-color-blue-6) 0%, var(--mantine-color-cyan-5) 100%)',
-          color: 'white',
-          padding: '3rem 0',
-        }}
-      >
+      {/* Hero */}
+      <Box className="pub-hero" py={{ base: 40, sm: 56 }}>
         <Container size="xl">
-          <Stack gap="md">
-            <Breadcrumbs
-              styles={{
-                breadcrumb: { color: 'rgba(255,255,255,0.8)' },
-                separator: { color: 'rgba(255,255,255,0.5)' },
-              }}
-            >
-              <Anchor component={Link} href={`/${locale}`} c="white">
+          <Stack gap="lg">
+            <Breadcrumbs>
+              <Anchor component={Link} href={`/${locale}`} size="sm" c="indigo.6" underline="hover">
                 Home
               </Anchor>
-              <Anchor component={Link} href={`/${locale}/citta`} c="white">
+              <Anchor
+                component={Link}
+                href={`/${locale}/citta`}
+                size="sm"
+                c="indigo.6"
+                underline="hover"
+              >
                 Città
               </Anchor>
-              <Anchor component={Link} href={`/${locale}/citta/${regioneSlug}`} c="white">
+              <Anchor
+                component={Link}
+                href={`/${locale}/citta/${regioneSlug}`}
+                size="sm"
+                c="indigo.6"
+                underline="hover"
+              >
                 {regione.nome}
               </Anchor>
-              <Text c="white">{provincia.nome}</Text>
+              <Text size="sm" c="dimmed">
+                {provincia.nome}
+              </Text>
             </Breadcrumbs>
 
-            <Group gap="lg" align="center">
-              <ThemeIcon size={60} radius="xl" variant="white" color="blue">
-                <IconMapPin size={30} />
+            <Group gap="lg" wrap="nowrap" align="flex-start">
+              <ThemeIcon size={64} radius="lg" variant="gradient" gradient={PUB_GRADIENT}>
+                <IconMapPin size={34} />
               </ThemeIcon>
-              <div>
-                <Group gap="sm" align="center">
-                  <Title order={1}>
-                    Software Gestione Scuola a {provincia.nome}
-                  </Title>
-                  <Badge color="white" variant="filled" c="blue" size="lg">
-                    {provincia.sigla}
-                  </Badge>
-                </Group>
-                <Text size="lg" mt="xs">
+              <Box>
+                <Badge size="lg" variant="light" color="indigo" radius="xl" mb="sm">
+                  Provincia · {provincia.sigla}
+                </Badge>
+                <Title fz={{ base: rem(28), sm: rem(34) }} fw={900} lh={1.15} c="var(--pub-ink)" mb={8}>
+                  Software Gestione Scuola a {provincia.nome}
+                </Title>
+                <Text size="lg" c="dimmed">
                   Provincia di {provincia.nome}, {regione.nome}
                 </Text>
-              </div>
+              </Box>
             </Group>
           </Stack>
         </Container>
       </Box>
 
-      <Container size="xl" py="xl">
-        <Stack gap="xl">
-          {/* Back link */}
-          <Anchor component={Link} href={`/${locale}/citta/${regioneSlug}`} size="sm">
-            <Group gap={4}>
-              <IconArrowLeft size={16} />
-              Torna a {regione.nome}
-            </Group>
-          </Anchor>
+      {/* Elenco comuni */}
+      <Box bg="white" py={{ base: 32, sm: 48 }}>
+        <Container size="xl">
+          <Stack gap="xl">
+            {/* Link di ritorno */}
+            <Anchor
+              component={Link}
+              href={`/${locale}/citta/${regioneSlug}`}
+              size="sm"
+              c="indigo.6"
+              fw={500}
+              underline="hover"
+              display="inline-block"
+            >
+              <Group gap={6} wrap="nowrap">
+                <IconArrowLeft size={16} />
+                Torna a {regione.nome}
+              </Group>
+            </Anchor>
 
-          {/* Introduction */}
-          <Box>
-            <Title order={2} mb="md">
-              Comuni in Provincia di {provincia.nome}
-            </Title>
-            <Text size="lg" c="dimmed" maw={800}>
-              InsegnaMi.pro è disponibile in tutti i comuni della provincia di {provincia.nome}.
-              Trova la tua città per scoprire come il nostro software gestionale può aiutare
-              la tua scuola.
-            </Text>
-          </Box>
-
-          {/* Comuni Grid */}
-          {comuni.length > 0 ? (
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
-              {comuni.map((comune) => (
-                <Card
-                  key={comune.codice}
-                  component={Link}
-                  href={`/${locale}/citta/${regioneSlug}/${provinciaSlug}/${comune.slug}`}
-                  shadow="sm"
-                  padding="md"
-                  radius="md"
-                  withBorder
-                  style={{ textDecoration: 'none' }}
-                >
-                  <Stack gap="xs">
-                    <Title order={4}>{comune.nome}</Title>
-                    <Group gap="xs">
-                      {comune.popolazione && (
-                        <Badge color="blue" variant="light" size="sm">
-                          <Group gap={4}>
-                            <IconUsers size={12} />
-                            {comune.popolazione.toLocaleString('it-IT')} ab.
-                          </Group>
-                        </Badge>
-                      )}
-                      <Badge color="gray" variant="light" size="sm">
-                        CAP {comune.cap}
-                      </Badge>
-                    </Group>
-                  </Stack>
-                </Card>
-              ))}
-            </SimpleGrid>
-          ) : (
-            <Card withBorder p="xl" radius="md" ta="center">
-              <Stack align="center" gap="md">
-                <Text c="dimmed">
-                  Dati dei comuni in provincia di {provincia.nome} in arrivo.
-                </Text>
-                <Text size="sm">
-                  Nel frattempo, contattaci per informazioni sulla tua scuola a {provincia.nome}.
-                </Text>
-                <Anchor
-                  component={Link}
-                  href={`/${locale}/contact`}
-                  style={{
-                    backgroundColor: 'var(--mantine-color-blue-6)',
-                    color: 'white',
-                    padding: '0.5rem 1rem',
-                    borderRadius: 'var(--mantine-radius-md)',
-                    textDecoration: 'none',
-                  }}
-                >
-                  Contattaci
-                </Anchor>
-              </Stack>
-            </Card>
-          )}
-
-          {/* SEO Content */}
-          <Box mt="xl" p="xl" style={{ backgroundColor: 'var(--mantine-color-gray-0)', borderRadius: 'var(--mantine-radius-md)' }}>
-            <Title order={2} mb="md">
-              Perché le Scuole di {provincia.nome} Scelgono InsegnaMi.pro
-            </Title>
-            <Text mb="lg">
-              InsegnaMi.pro è la soluzione gestionale preferita dalle scuole private, accademie e
-              centri di formazione in provincia di {provincia.nome}. Ecco perché sempre più
-              istituti ci scelgono:
-            </Text>
-            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
-              <Card withBorder p="md">
-                <Stack gap="sm">
-                  <Title order={4}>Facile da Usare</Title>
-                  <Text size="sm" c="dimmed">
-                    Interfaccia intuitiva che non richiede formazione tecnica.
-                    I tuoi docenti e staff saranno operativi in pochi minuti.
-                  </Text>
-                </Stack>
-              </Card>
-              <Card withBorder p="md">
-                <Stack gap="sm">
-                  <Title order={4}>Tutto in Uno</Title>
-                  <Text size="sm" c="dimmed">
-                    Studenti, docenti, classi, pagamenti, comunicazioni.
-                    Un unico software per gestire ogni aspetto della tua scuola.
-                  </Text>
-                </Stack>
-              </Card>
-              <Card withBorder p="md">
-                <Stack gap="sm">
-                  <Title order={4}>Supporto Dedicato</Title>
-                  <Text size="sm" c="dimmed">
-                    Team di supporto italiano disponibile per aiutarti.
-                    Assistenza via email, chat e telefono inclusa.
-                  </Text>
-                </Stack>
-              </Card>
-            </SimpleGrid>
-          </Box>
-
-          {/* CTA */}
-          <Card withBorder p="xl" radius="md" bg="blue.0" ta="center">
-            <Stack align="center" gap="md">
-              <Title order={3}>
-                La Tua Scuola a {provincia.nome} Merita il Meglio
+            {/* Introduzione */}
+            <Box>
+              <Title order={2} fz={{ base: rem(26), sm: rem(30) }} fw={800} c="var(--pub-ink)" mb="md">
+                Comuni in Provincia di {provincia.nome}
               </Title>
-              <Text c="dimmed" maw={500}>
-                Unisciti alle scuole di {provincia.nome} che hanno già scelto InsegnaMi.pro.
-                Inizia la tua prova gratuita oggi.
+              <Text size="lg" c="dimmed" maw={800}>
+                InsegnaMi.pro è disponibile in tutti i comuni della provincia di {provincia.nome}.
+                Trova la tua città per scoprire come il nostro software gestionale può aiutare
+                la tua scuola.
               </Text>
-              <Anchor
-                component={Link}
-                href="/auth/register"
-                style={{
-                  backgroundColor: 'var(--mantine-color-blue-6)',
-                  color: 'white',
-                  padding: '0.75rem 2rem',
-                  borderRadius: 'var(--mantine-radius-md)',
-                  textDecoration: 'none',
-                  fontWeight: 500,
-                }}
-              >
-                Prova Gratis per 14 Giorni
-              </Anchor>
-            </Stack>
-          </Card>
-        </Stack>
-      </Container>
+            </Box>
+
+            {/* Griglia comuni */}
+            {comuni.length > 0 ? (
+              <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="lg">
+                {comuni.map((comune) => (
+                  <Card
+                    key={comune.codice}
+                    component={Link}
+                    href={`/${locale}/citta/${regioneSlug}/${provinciaSlug}/${comune.slug}`}
+                    padding="lg"
+                    radius="lg"
+                    className="pub-card"
+                    h="100%"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <Stack gap="xs" h="100%">
+                      <Group justify="space-between" align="flex-start" wrap="nowrap">
+                        <Title order={4} fz={rem(18)} fw={700} c="var(--pub-ink)">
+                          {comune.nome}
+                        </Title>
+                        <IconArrowRight
+                          size={16}
+                          color="var(--mantine-color-indigo-6)"
+                          style={{ flexShrink: 0 }}
+                        />
+                      </Group>
+                      <Group gap="xs" mt="auto">
+                        <Badge color="gray" variant="light" size="sm" radius="xl">
+                          CAP {comune.cap}
+                        </Badge>
+                        {comune.popolazione && (
+                          <Badge
+                            color="indigo"
+                            variant="light"
+                            size="sm"
+                            radius="xl"
+                            leftSection={<IconUsers size={12} />}
+                          >
+                            {comune.popolazione.toLocaleString('it-IT')} ab.
+                          </Badge>
+                        )}
+                      </Group>
+                    </Stack>
+                  </Card>
+                ))}
+              </SimpleGrid>
+            ) : (
+              <Card withBorder padding="xl" radius="lg" ta="center">
+                <Stack align="center" gap="md">
+                  <Text c="dimmed">
+                    Dati dei comuni in provincia di {provincia.nome} in arrivo.
+                  </Text>
+                  <Text size="sm">
+                    Nel frattempo, contattaci per informazioni sulla tua scuola a {provincia.nome}.
+                  </Text>
+                  <Button
+                    component={Link}
+                    href={`/${locale}/contact`}
+                    variant="light"
+                    color="indigo"
+                    radius="xl"
+                  >
+                    Contattaci
+                  </Button>
+                </Stack>
+              </Card>
+            )}
+          </Stack>
+        </Container>
+      </Box>
+
+      {/* Contenuto SEO */}
+      <Box bg="var(--pub-surface)" py={{ base: 64, sm: 96 }}>
+        <Container size="xl">
+          <SectionHeader
+            title={`Perché le Scuole di ${provincia.nome}`}
+            highlight="Scelgono InsegnaMi.pro"
+            subtitle={`InsegnaMi.pro è la soluzione gestionale preferita dalle scuole private, accademie e centri di formazione in provincia di ${provincia.nome}. Ecco perché sempre più istituti ci scelgono:`}
+          />
+          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+            {[
+              {
+                title: 'Facile da Usare',
+                text: 'Interfaccia intuitiva che non richiede formazione tecnica. I tuoi docenti e staff saranno operativi in pochi minuti.',
+              },
+              {
+                title: 'Tutto in Uno',
+                text: 'Studenti, docenti, classi, pagamenti, comunicazioni. Un unico software per gestire ogni aspetto della tua scuola.',
+              },
+              {
+                title: 'Supporto Dedicato',
+                text: 'Team di supporto italiano disponibile per aiutarti. Assistenza via email, chat e telefono inclusa.',
+              },
+            ].map((item) => (
+              <Card key={item.title} padding="xl" radius="lg" withBorder bg="white" h="100%">
+                <Title order={4} fz={rem(20)} fw={700} c="var(--pub-ink)" mb="xs">
+                  {item.title}
+                </Title>
+                <Text size="sm" c="dimmed" lh={1.6}>
+                  {item.text}
+                </Text>
+              </Card>
+            ))}
+          </SimpleGrid>
+        </Container>
+      </Box>
+
+      {/* CTA finale */}
+      <CtaBanner
+        locale={locale}
+        title={`La Tua Scuola a ${provincia.nome} Merita il Meglio`}
+        subtitle={`Unisciti alle scuole di ${provincia.nome} che hanno già scelto InsegnaMi.pro. Inizia la tua prova gratuita oggi.`}
+      />
     </>
   );
 }

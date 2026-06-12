@@ -54,18 +54,57 @@ body {
   box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
 }
 
-/* Homepage feature card hover */
-.homepage-feature-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+/* ---------------------------------------------------------------------------
+   Public marketing site — design tokens
+   Brand unico: indigo -> violet. Usare SOLO questi token nelle pagine pubbliche,
+   niente gradienti/colori hardcoded nei singoli file.
+--------------------------------------------------------------------------- */
+:root {
+  /* Allineati alla palette Mantine di default: indigo.6 e violet.6 (PUB_GRADIENT) */
+  --pub-brand-from: #4c6ef5;
+  --pub-brand-to: #7950f2;
+  --pub-brand-gradient: linear-gradient(135deg, #4c6ef5 0%, #7950f2 100%);
+  --pub-ink: #0f172a;
+  --pub-surface: #f8fafc;
+  --pub-border: #e2e8f0;
 }
 
-/* Custom utility classes */
-.glass-morphism {
-  background: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+.pub-gradient-text {
+  background: var(--pub-brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
 }
+
+/* Card standard del sito pubblico: bordo sottile, hover lift uniforme */
+.pub-card {
+  border: 1px solid var(--pub-border);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.pub-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+  border-color: rgba(79, 70, 229, 0.35);
+}
+
+/* Sfondo hero: glow radiale indigo su superficie chiara */
+.pub-hero {
+  background:
+    radial-gradient(60% 80% at 70% 0%, rgba(121, 80, 242, 0.1) 0%, transparent 60%),
+    radial-gradient(50% 70% at 15% 20%, rgba(76, 110, 245, 0.08) 0%, transparent 55%),
+    var(--pub-surface);
+}
+
+.pub-link {
+  color: var(--mantine-color-gray-7);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.pub-link:hover {
+  color: var(--pub-brand-from);
+}
+

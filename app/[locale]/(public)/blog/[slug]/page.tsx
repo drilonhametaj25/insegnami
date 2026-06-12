@@ -3,23 +3,25 @@ import { notFound } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
-  Container,
-  Title,
-  Text,
-  Badge,
-  Group,
-  Stack,
-  Paper,
-  Image,
-  Divider,
-  Card,
-  SimpleGrid,
   Anchor,
+  Badge,
+  Box,
   Breadcrumbs,
+  Card,
+  Container,
+  Divider,
+  Group,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+  rem,
 } from '@mantine/core';
-import { IconCalendar, IconClock, IconUser, IconArrowLeft } from '@tabler/icons-react';
+import { IconCalendar, IconClock, IconUser } from '@tabler/icons-react';
 import Link from 'next/link';
 import { getBlogPost, getBlogSlugs, getRelatedPosts } from '@/lib/blog';
+import { CtaBanner } from '@/components/public/PublicUI';
+import { blogMarkdownComponents } from '@/components/public/BlogMarkdown';
 
 export async function generateStaticParams() {
   const locales = ['it', 'en', 'fr', 'pt'];
@@ -45,12 +47,12 @@ export async function generateMetadata({
 
   if (!post) {
     return {
-      title: 'Articolo non trovato | InsegnaMi.pro',
+      title: 'Articolo non trovato',
     };
   }
 
   return {
-    title: `${post.title} | InsegnaMi.pro`,
+    title: post.title,
     description: post.description,
     authors: [{ name: post.author }],
     openGraph: {
@@ -114,36 +116,41 @@ export default async function BlogPostPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <Container size="md" py="xl">
+      <Container size="md" py={{ base: 32, sm: 48 }}>
         <Stack gap="xl">
-          {/* Breadcrumbs */}
+          {/* Breadcrumbs (navigazione unica verso Home e Blog) */}
           <Breadcrumbs>
-            <Anchor component={Link} href={`/${locale}`} size="sm">
+            <Anchor component={Link} href={`/${locale}`} size="sm" c="indigo.6" underline="hover">
               Home
             </Anchor>
-            <Anchor component={Link} href={`/${locale}/blog`} size="sm">
+            <Anchor
+              component={Link}
+              href={`/${locale}/blog`}
+              size="sm"
+              c="indigo.6"
+              underline="hover"
+            >
               Blog
             </Anchor>
-            <Text size="sm" c="dimmed">
+            <Text size="sm" c="dimmed" truncate maw={320}>
               {post.title}
             </Text>
           </Breadcrumbs>
 
-          {/* Back link */}
-          <Anchor component={Link} href={`/${locale}/blog`} size="sm">
-            <Group gap={4}>
-              <IconArrowLeft size={16} />
-              Torna al blog
-            </Group>
-          </Anchor>
-
-          {/* Article Header */}
+          {/* Intestazione articolo */}
           <header>
-            <Badge color="blue" variant="light" mb="sm">
+            <Badge variant="light" color="indigo" radius="xl" mb="sm">
               {post.category}
             </Badge>
 
-            <Title order={1} mb="md">
+            <Title
+              order={1}
+              fz={{ base: rem(34), sm: rem(40) }}
+              fw={900}
+              lh={1.15}
+              c="var(--pub-ink)"
+              mb="md"
+            >
               {post.title}
             </Title>
 
@@ -152,13 +159,9 @@ export default async function BlogPostPage({
             </Text>
 
             <Group gap="lg">
-              <Group gap={4}>
-                <IconUser size={16} />
-                <Text size="sm">{post.author}</Text>
-              </Group>
-              <Group gap={4}>
+              <Group gap={6}>
                 <IconCalendar size={16} />
-                <Text size="sm">
+                <Text size="sm" c="gray.7">
                   {new Date(post.date).toLocaleDateString(locale, {
                     year: 'numeric',
                     month: 'long',
@@ -166,40 +169,36 @@ export default async function BlogPostPage({
                   })}
                 </Text>
               </Group>
-              <Group gap={4}>
+              <Group gap={6}>
+                <IconUser size={16} />
+                <Text size="sm" c="gray.7">
+                  {post.author}
+                </Text>
+              </Group>
+              <Group gap={6}>
                 <IconClock size={16} />
-                <Text size="sm">{post.readingTime}</Text>
+                <Text size="sm" c="gray.7">
+                  {post.readingTime.replace('min read', 'min di lettura')}
+                </Text>
               </Group>
             </Group>
           </header>
 
-          {/* Featured Image */}
-          {post.image && (
-            <Image
-              src={post.image}
-              alt={post.title}
-              radius="md"
-              fallbackSrc="/images/blog-placeholder.jpg"
-            />
-          )}
+          {/* Corpo articolo: tipografia gestita dal mapping Mantine */}
+          <Box component="article">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={blogMarkdownComponents}>
+              {post.content}
+            </ReactMarkdown>
+          </Box>
 
-          {/* Article Content */}
-          <Paper p="xl" radius="md">
-            <article className="prose prose-lg" style={{ lineHeight: 1.8 }}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {post.content}
-              </ReactMarkdown>
-            </article>
-          </Paper>
-
-          {/* Tags */}
+          {/* Tag */}
           {post.tags.length > 0 && (
             <Group gap="xs">
               <Text size="sm" fw={500}>
                 Tag:
               </Text>
               {post.tags.map((tag) => (
-                <Badge key={tag} variant="outline" size="sm">
+                <Badge key={tag} variant="outline" color="indigo" size="sm" radius="xl">
                   {tag}
                 </Badge>
               ))}
@@ -208,67 +207,51 @@ export default async function BlogPostPage({
 
           <Divider />
 
-          {/* Related Posts */}
+          {/* Articoli correlati */}
           {relatedPosts.length > 0 && (
             <section>
-              <Title order={2} mb="lg">
+              <Title order={2} fz={rem(24)} fw={800} c="var(--pub-ink)" mb="lg">
                 Articoli correlati
               </Title>
-              <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+              <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg">
                 {relatedPosts.map((relatedPost) => (
                   <Card
                     key={relatedPost.slug}
                     component={Link}
                     href={`/${locale}/blog/${relatedPost.slug}`}
-                    shadow="sm"
-                    padding="md"
-                    radius="md"
-                    withBorder
+                    padding="lg"
+                    radius="lg"
+                    bg="white"
+                    className="pub-card"
                     style={{ textDecoration: 'none' }}
                   >
-                    <Badge color="blue" variant="light" size="sm" mb="xs">
+                    <Badge variant="light" color="indigo" size="sm" radius="xl" mb="xs">
                       {relatedPost.category}
                     </Badge>
-                    <Text fw={500} lineClamp={2}>
+                    <Text fw={600} c="var(--pub-ink)" lineClamp={2}>
                       {relatedPost.title}
                     </Text>
                     <Text size="xs" c="dimmed" mt="xs">
-                      {new Date(relatedPost.date).toLocaleDateString(locale)}
+                      {new Date(relatedPost.date).toLocaleDateString(locale, {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
                     </Text>
                   </Card>
                 ))}
               </SimpleGrid>
             </section>
           )}
-
-          {/* CTA */}
-          <Card withBorder p="xl" radius="md" bg="blue.0">
-            <Stack align="center" gap="md">
-              <Title order={3} ta="center">
-                Prova InsegnaMi.pro gratuitamente
-              </Title>
-              <Text c="dimmed" ta="center" maw={400}>
-                Scopri come InsegnaMi.pro può semplificare la gestione della tua scuola.
-                14 giorni di prova gratuita, nessuna carta di credito richiesta.
-              </Text>
-              <Anchor
-                component={Link}
-                href={`/${locale}/pricing`}
-                style={{
-                  backgroundColor: 'var(--mantine-color-blue-6)',
-                  color: 'white',
-                  padding: '0.75rem 1.5rem',
-                  borderRadius: 'var(--mantine-radius-md)',
-                  textDecoration: 'none',
-                  fontWeight: 500,
-                }}
-              >
-                Inizia la prova gratuita
-              </Anchor>
-            </Stack>
-          </Card>
         </Stack>
       </Container>
+
+      {/* CTA finale */}
+      <CtaBanner
+        locale={locale}
+        title="Prova InsegnaMi.pro gratuitamente"
+        subtitle="Scopri come InsegnaMi.pro può semplificare la gestione della tua scuola. 14 giorni di prova gratuita, nessuna carta di credito richiesta."
+      />
     </>
   );
 }

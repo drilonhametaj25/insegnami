@@ -1,139 +1,107 @@
 'use client';
 
-import { Container, Group, Text, Anchor, Box, Burger, Drawer, Stack, rem } from '@mantine/core';
+import { Box, Burger, Button, Container, Divider, Drawer, Group, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import Link from 'next/link';
+import { PUB_GRADIENT } from './PublicUI';
+
+function Logo() {
+  return (
+    <Text size="xl" fw={800} variant="gradient" gradient={PUB_GRADIENT} lh={1}>
+      InsegnaMi.pro
+    </Text>
+  );
+}
 
 export function PublicHeader({ locale }: { locale: string }) {
   const [opened, { toggle, close }] = useDisclosure(false);
 
   const navLinks = [
-    { label: 'Blog', href: `/${locale}/blog` },
+    { label: 'Funzionalità', href: `/${locale}/#features` },
     { label: 'Prezzi', href: `/${locale}/pricing` },
     { label: 'Strumenti', href: `/${locale}/tools` },
+    { label: 'Blog', href: `/${locale}/blog` },
   ];
 
   return (
     <Box
       component="header"
       style={{
-        borderBottom: '1px solid var(--mantine-color-gray-2)',
-        backgroundColor: 'white',
         position: 'sticky',
         top: 0,
         zIndex: 100,
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderBottom: '1px solid var(--pub-border)',
       }}
     >
-      <Container size="xl" py="md">
-        <Group justify="space-between">
-          <Anchor
-            component={Link}
-            href={`/${locale}`}
-            style={{ textDecoration: 'none' }}
-          >
-            <Text
-              size="xl"
-              fw={700}
-              variant="gradient"
-              gradient={{ from: 'blue', to: 'cyan', deg: 45 }}
-            >
-              InsegnaMi.pro
-            </Text>
-          </Anchor>
+      <Container size="xl" h={64} display="flex" style={{ alignItems: 'center' }}>
+        <Group justify="space-between" w="100%" wrap="nowrap">
+          <Link href={`/${locale}`} style={{ textDecoration: 'none' }} aria-label="InsegnaMi.pro — Home">
+            <Logo />
+          </Link>
 
-          {/* Desktop nav */}
-          <Group gap="lg" visibleFrom="sm">
+          {/* Nav desktop */}
+          <Group gap={28} visibleFrom="md">
             {navLinks.map((link) => (
-              <Anchor key={link.href} component={Link} href={link.href} c="dark" size="sm">
+              <Link key={link.href} href={link.href} className="pub-link" style={{ fontSize: 14 }}>
                 {link.label}
-              </Anchor>
+              </Link>
             ))}
-            <Anchor
-              component={Link}
-              href={`/${locale}/auth/login`}
-              c="dark"
-              size="sm"
-            >
-              Accedi
-            </Anchor>
-            <Anchor
-              component={Link}
-              href={`/${locale}/auth/register`}
-              style={{
-                backgroundColor: 'var(--mantine-color-blue-6)',
-                color: 'white',
-                padding: '0.5rem 1rem',
-                borderRadius: 'var(--mantine-radius-md)',
-                textDecoration: 'none',
-                fontSize: 'var(--mantine-font-size-sm)',
-              }}
-            >
-              Prova Gratis
-            </Anchor>
           </Group>
 
-          {/* Mobile burger */}
-          <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+          <Group gap="sm" visibleFrom="md">
+            <Button component={Link} href={`/${locale}/auth/login`} variant="subtle" color="gray" radius="xl">
+              Accedi
+            </Button>
+            <Button
+              component={Link}
+              href={`/${locale}/auth/register`}
+              variant="gradient"
+              gradient={PUB_GRADIENT}
+              radius="xl"
+              fw={600}
+            >
+              Prova gratis
+            </Button>
+          </Group>
+
+          <Burger opened={opened} onClick={toggle} hiddenFrom="md" size="sm" aria-label="Apri menu" />
         </Group>
       </Container>
 
-      {/* Mobile drawer */}
-      <Drawer
-        opened={opened}
-        onClose={close}
-        size="xs"
-        padding="md"
-        title={
-          <Text
-            size="xl"
-            fw={700}
-            variant="gradient"
-            gradient={{ from: 'blue', to: 'cyan', deg: 45 }}
-          >
-            InsegnaMi.pro
-          </Text>
-        }
-        zIndex={200}
-      >
-        <Stack gap="lg" mt="md">
+      {/* Drawer mobile */}
+      <Drawer opened={opened} onClose={close} size="xs" padding="lg" title={<Logo />} zIndex={200}>
+        <Stack gap="md" mt="md">
           {navLinks.map((link) => (
-            <Anchor
-              key={link.href}
-              component={Link}
-              href={link.href}
-              c="dark"
-              size="md"
-              onClick={close}
-            >
+            <Link key={link.href} href={link.href} className="pub-link" onClick={close} style={{ fontSize: 16 }}>
               {link.label}
-            </Anchor>
+            </Link>
           ))}
-          <Anchor
+          <Divider my="xs" />
+          <Button
             component={Link}
             href={`/${locale}/auth/login`}
-            c="dark"
-            size="md"
+            variant="default"
+            radius="xl"
+            fullWidth
             onClick={close}
           >
             Accedi
-          </Anchor>
-          <Anchor
+          </Button>
+          <Button
             component={Link}
             href={`/${locale}/auth/register`}
+            variant="gradient"
+            gradient={PUB_GRADIENT}
+            radius="xl"
+            fullWidth
+            fw={600}
             onClick={close}
-            style={{
-              backgroundColor: 'var(--mantine-color-blue-6)',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              borderRadius: 'var(--mantine-radius-md)',
-              textDecoration: 'none',
-              fontSize: 'var(--mantine-font-size-md)',
-              textAlign: 'center',
-              display: 'block',
-            }}
           >
-            Prova Gratis
-          </Anchor>
+            Prova gratis
+          </Button>
         </Stack>
       </Drawer>
     </Box>
