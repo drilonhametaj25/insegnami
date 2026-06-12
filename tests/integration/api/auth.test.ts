@@ -48,6 +48,19 @@ jest.mock('bcryptjs', () => ({
   hash: jest.fn(() => Promise.resolve('hashed-password')),
 }))
 
+// La registrazione è rate-limited per IP (5/h): qui testiamo la logica di
+// business, il rate limiting ha i suoi test
+jest.mock('@/lib/rate-limit', () => ({
+  rateLimit: jest.fn(() => Promise.resolve({ success: true })),
+  rateLimitByKey: jest.fn(() => Promise.resolve(true)),
+}))
+
+// Bootstrap del tenant (anno accademico, festività, serie fatture): non-fatale
+// e testato a parte
+jest.mock('@/lib/tenant-bootstrap', () => ({
+  bootstrapTenant: jest.fn(() => Promise.resolve()),
+}))
+
 const { prisma } = require('@/lib/db')
 const { sendEmail } = require('@/lib/email')
 

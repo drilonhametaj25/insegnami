@@ -4,6 +4,7 @@ import type { Role } from '@prisma/client';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { can, type Action, type Resource } from '@/lib/permissions/matrix';
+import { getTenantAccessCached } from '@/lib/tenant-access';
 
 export type AuthContext = {
   session: Session;
@@ -18,10 +19,20 @@ export type RequireAuthOptions = {
   roles?: Role[];
   permission?: { action: Action; resource: Resource };
   allowSuperAdminCrossTenant?: boolean;
+  /**
+   * Salta l'enforcement dello stato commerciale del tenant. Riservato alle
+   * route che devono restare accessibili anche a tenant bloccati (diritti
+   * GDPR: export/erasure non decadono col mancato pagamento).
+   */
+  skipTenantAccessCheck?: boolean;
 };
 
 export class AuthError extends Error {
-  constructor(public status: 401 | 403, message: string) {
+  constructor(
+    public status: 401 | 402 | 403,
+    message: string,
+    public code?: string
+  ) {
     super(message);
     this.name = 'AuthError';
   }
@@ -50,12 +61,28 @@ export async function requireAuth(opts: RequireAuthOptions = {}): Promise<AuthCo
     throw new AuthError(403, 'Forbidden');
   }
 
+  // Enforcement stato commerciale (trial scaduto, moroso, cancellato):
+  // 402 con code → la UI redirige a /dashboard/billing.
+  if (!opts.skipTenantAccessCheck && !ctx.isSuperAdmin) {
+    const verdict = await getTenantAccessCached(ctx.tenantId);
+    if (!verdict.ok) {
+      throw new AuthError(
+        verdict.reason === 'tenant-inactive' || verdict.reason === 'tenant-not-found' ? 403 : 402,
+        'Accesso sospeso: verifica lo stato del tuo abbonamento.',
+        verdict.reason
+      );
+    }
+  }
+
   return ctx;
 }
 
 export function authError(err: unknown): NextResponse | null {
   if (err instanceof AuthError) {
-    return NextResponse.json({ error: err.message }, { status: err.status });
+    return NextResponse.json(
+      { error: err.message, ...(err.code ? { code: err.code } : {}) },
+      { status: err.status }
+    );
   }
   return null;
 }

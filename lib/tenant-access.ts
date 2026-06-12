@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { redis } from '@/lib/redis';
 
 export type TenantAccessVerdict =
   | { ok: true }
@@ -48,6 +49,26 @@ export async function checkTenantAccess(tenantId: string): Promise<TenantAccessV
   return { ok: false, reason: 'trial-expired' };
 }
 
+// Il verdetto viene cacheato brevemente: l'enforcement è per-request su
+// (quasi) tutte le route dati e una query tenant+subscription a richiesta
+// sarebbe sprecata. 60s di staleness è accettabile: i cambi di stato billing
+// passano dai webhook/endpoint che invalidano esplicitamente la cache.
+const ACCESS_CACHE_TTL_SECONDS = 60;
+const accessCacheKey = (tenantId: string) => `tenant:access:${tenantId}`;
+
+export async function getTenantAccessCached(tenantId: string): Promise<TenantAccessVerdict> {
+  const cached = (await redis.getJSON(accessCacheKey(tenantId))) as TenantAccessVerdict | null;
+  if (cached) return cached;
+
+  const verdict = await checkTenantAccess(tenantId);
+  await redis.setJSON(accessCacheKey(tenantId), verdict, ACCESS_CACHE_TTL_SECONDS);
+  return verdict;
+}
+
+export async function invalidateTenantAccessCache(tenantId: string): Promise<void> {
+  await redis.del(accessCacheKey(tenantId));
+}
+
 /**
  * Cron-target: deactivate tenants whose trial has expired AND who have no
  * active subscription. Called by lib/workers/cron-scheduler daily.
@@ -58,16 +79,19 @@ export async function checkTenantAccess(tenantId: string): Promise<TenantAccessV
  */
 export async function deactivateExpiredTenants(): Promise<{ deactivated: number }> {
   const now = new Date();
-  const result = await prisma.tenant.updateMany({
-    where: {
-      isActive: true,
-      trialUntil: { lt: now },
-      OR: [
-        { subscription: null },
-        { subscription: { status: { in: ['CANCELLED', 'UNPAID'] } } },
-      ],
-    },
-    data: { isActive: false },
-  });
+  const where = {
+    isActive: true,
+    trialUntil: { lt: now },
+    OR: [
+      { subscription: null },
+      { subscription: { status: { in: ['CANCELLED', 'UNPAID'] as ('CANCELLED' | 'UNPAID')[] } } },
+    ],
+  };
+
+  const targets = await prisma.tenant.findMany({ where, select: { id: true } });
+  if (targets.length === 0) return { deactivated: 0 };
+
+  const result = await prisma.tenant.updateMany({ where, data: { isActive: false } });
+  await Promise.all(targets.map((t) => invalidateTenantAccessCache(t.id)));
   return { deactivated: result.count };
 }

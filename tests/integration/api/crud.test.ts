@@ -4,6 +4,13 @@ import { GET as getTeachers, POST as postTeacher } from '@/app/api/teachers/rout
 // Mock auth
 jest.mock('@/lib/auth', () => ({
   getAuth: jest.fn(),
+  isAdminRole: (role: string) => ['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY'].includes(role),
+  ADMIN_ROLES: ['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY'],
+}))
+
+// Mock tenant guard (l'enforcement è testato in tenant-guard.test.ts)
+jest.mock('@/lib/tenant-guard', () => ({
+  blockIfTenantInaccessible: jest.fn().mockResolvedValue(null),
 }))
 
 // Mock plan limits
@@ -142,6 +149,11 @@ describe('CRUD - Students API', () => {
   describe('POST /api/students', () => {
     it('creates a student with required fields', async () => {
       prisma.student.count.mockResolvedValue(5)
+      // Ogni studente è collegato a un account User (profilo "ombra" se
+      // l'admin non abilita il login)
+      prisma.user.findUnique.mockResolvedValue(null)
+      prisma.user.create.mockResolvedValue({ id: 'u-new', email: 'shadow@tenant-1.local' })
+      prisma.userTenant.create.mockResolvedValue({ id: 'ut-new' })
       prisma.student.create.mockResolvedValue({
         id: 's-new',
         firstName: 'Luca',

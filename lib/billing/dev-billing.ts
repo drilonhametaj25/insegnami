@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import type { AddonType, Plan } from '@prisma/client';
 import { TRIAL_DAYS } from './billing-mode';
 import { getAddonDefinition } from './addons';
+import { invalidateTenantAccessCache } from '@/lib/tenant-access';
 
 /**
  * Implementazione interna del billing (dev billing mode) che simula
@@ -63,6 +64,7 @@ export async function devActivateSubscription({
     data: { plan: plan.slug, isActive: true },
   });
 
+  await invalidateTenantAccessCache(tenantId);
   return subscription;
 }
 
@@ -95,6 +97,7 @@ export async function devChangePlan({
     data: { plan: plan.slug },
   });
 
+  await invalidateTenantAccessCache(tenantId);
   return subscription;
 }
 
@@ -106,22 +109,26 @@ export async function devCancelSubscription({
   tenantId: string;
   cancelAtPeriodEnd?: boolean;
 }) {
-  return prisma.subscription.update({
+  const subscription = await prisma.subscription.update({
     where: { tenantId },
     data: cancelAtPeriodEnd
       ? { cancelAtPeriodEnd: true }
       : { status: 'CANCELLED', cancelledAt: new Date(), cancelAtPeriodEnd: true },
     include: { plan: true },
   });
+  await invalidateTenantAccessCache(tenantId);
+  return subscription;
 }
 
 /** Riattiva un abbonamento annullato ma non ancora scaduto. */
 export async function devReactivateSubscription({ tenantId }: { tenantId: string }) {
-  return prisma.subscription.update({
+  const subscription = await prisma.subscription.update({
     where: { tenantId },
     data: { cancelAtPeriodEnd: false, cancelledAt: null },
     include: { plan: true },
   });
+  await invalidateTenantAccessCache(tenantId);
+  return subscription;
 }
 
 /** Acquista (o incrementa) un add-on a pacchetti. */

@@ -32,6 +32,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const locale = useLocale();
 
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [accessVerdict, setAccessVerdict] = useState<{ ok: boolean; reason?: string } | null>(
+    null
+  );
 
   useEffect(() => {
     if (status === 'loading') return; // Still loading
@@ -39,6 +42,34 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       router.push(`/${locale}/auth/login`); // Redirect to localized login
     }
   }, [session, status, router, locale]);
+
+  // Guardia stato commerciale del tenant: trial scaduto / pagamento fallito /
+  // abbonamento cancellato. I ruoli che possono pagare vengono rediretti a
+  // /dashboard/billing; gli altri vedono la schermata di blocco (le API dati
+  // rispondono comunque 402: questa è solo UX).
+  useEffect(() => {
+    if (status !== 'authenticated' || !session?.user) return;
+    if (session.user.role === 'SUPERADMIN') {
+      setAccessVerdict({ ok: true });
+      return;
+    }
+    fetch('/api/tenants/access-status')
+      .then((res) => res.json())
+      .then((verdict) => setAccessVerdict(verdict))
+      .catch(() => setAccessVerdict({ ok: true })); // fail-open: l'enforcement vero è API-side
+  }, [session, status, pathname]);
+
+  useEffect(() => {
+    if (!accessVerdict || accessVerdict.ok || !session?.user) return;
+    const billingRoles = ['ADMIN', 'DIRECTOR'];
+    const pathNoLocale = pathname.replace(/^\/(it|en|fr|pt)/, '') || '/';
+    if (
+      billingRoles.includes(session.user.role) &&
+      !pathNoLocale.startsWith('/dashboard/billing')
+    ) {
+      router.replace(`/${locale}/dashboard/billing?blocked=${accessVerdict.reason ?? ''}`);
+    }
+  }, [accessVerdict, pathname, session, locale, router]);
 
   // Guardia di ruolo sulle route sensibili: reindirizza i ruoli non
   // autorizzati alla dashboard generale.
@@ -136,7 +167,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </AppShell.Navbar>
 
       <AppShell.Main>
-        {children}
+        {accessVerdict && !accessVerdict.ok && !['ADMIN', 'DIRECTOR'].includes(session.user.role) ? (
+          <Center style={{ minHeight: '60vh' }}>
+            <Stack align="center" gap="md" maw={480}>
+              <ThemeIcon size={64} radius="xl" color="orange" variant="light">
+                <IconSchool size={36} />
+              </ThemeIcon>
+              <Text fw={700} size="lg" ta="center">
+                Accesso temporaneamente sospeso
+              </Text>
+              <Text c="dimmed" ta="center">
+                L&apos;abbonamento della scuola non è attivo. Contatta l&apos;amministratore
+                della tua scuola per riattivare il servizio.
+              </Text>
+            </Stack>
+          </Center>
+        ) : (
+          children
+        )}
       </AppShell.Main>
     </AppShell>
   );

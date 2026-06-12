@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { constructWebhookEvent, retrieveSubscription } from '@/lib/stripe';
+import { constructWebhookEvent, retrieveSubscription, PLATFORM_METADATA } from '@/lib/stripe';
 import Stripe from 'stripe';
 import { SubscriptionStatus } from '@prisma/client';
 import { redis } from '@/lib/redis';
 import { sanitizeError } from '@/lib/api-middleware';
 import { reconcileAddonItems } from '@/lib/billing/stripe-addons';
+import { invalidateTenantAccessCache } from '@/lib/tenant-access';
 
 // Check if event has already been processed (deduplication)
 async function isEventProcessed(eventId: string): Promise<boolean> {
@@ -18,6 +19,87 @@ async function isEventProcessed(eventId: string): Promise<boolean> {
 async function markEventProcessed(eventId: string): Promise<void> {
   const key = `stripe:event:${eventId}`;
   await redis.set(key, 'processed', 86400); // 24 hours TTL
+}
+
+// Lo stesso account Stripe serve più applicativi: l'endpoint riceve TUTTI gli
+// eventi dell'account, quindi ogni evento va attribuito prima di processarlo.
+// Le entità create da InsegnaMi portano metadata.platform = 'InsegnaMi'
+// (PLATFORM_METADATA); per gli eventi senza metadata propri (invoice.*, o
+// entità create prima dell'introduzione del metadata) si risale al tenant via
+// stripeCustomerId / stripeSubscriptionId / paymentId in DB.
+async function classifyEvent(event: Stripe.Event): Promise<'ours' | 'foreign'> {
+  const obj = event.data.object as any;
+  const platform = obj?.metadata?.platform;
+  if (platform === PLATFORM_METADATA.platform) return 'ours';
+  if (platform) return 'foreign'; // metadata di un altro applicativo
+
+  const customerId = typeof obj?.customer === 'string' ? obj.customer : obj?.customer?.id;
+
+  if (event.type.startsWith('checkout.session.')) {
+    const tenantId = obj?.metadata?.tenantId;
+    if (tenantId && (await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } }))) {
+      return 'ours';
+    }
+    const paymentId = obj?.metadata?.paymentId;
+    if (paymentId && (await prisma.payment.findUnique({ where: { id: paymentId }, select: { id: true } }))) {
+      return 'ours';
+    }
+    return 'foreign';
+  }
+
+  if (event.type.startsWith('customer.subscription.')) {
+    if (
+      obj?.id &&
+      (await prisma.subscription.findUnique({
+        where: { stripeSubscriptionId: obj.id },
+        select: { id: true },
+      }))
+    ) {
+      return 'ours';
+    }
+    if (
+      customerId &&
+      (await prisma.tenant.findUnique({ where: { stripeCustomerId: customerId }, select: { id: true } }))
+    ) {
+      return 'ours';
+    }
+    const tenantId = obj?.metadata?.tenantId;
+    if (tenantId && (await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } }))) {
+      return 'ours';
+    }
+    return 'foreign';
+  }
+
+  if (event.type.startsWith('invoice.')) {
+    const subId = typeof obj?.subscription === 'string' ? obj.subscription : obj?.subscription?.id;
+    if (
+      subId &&
+      (await prisma.subscription.findUnique({
+        where: { stripeSubscriptionId: subId },
+        select: { id: true },
+      }))
+    ) {
+      return 'ours';
+    }
+    if (
+      customerId &&
+      (await prisma.tenant.findUnique({ where: { stripeCustomerId: customerId }, select: { id: true } }))
+    ) {
+      return 'ours';
+    }
+    return 'foreign';
+  }
+
+  if (event.type.startsWith('payment_intent.') || event.type.startsWith('charge.')) {
+    const paymentId = obj?.metadata?.paymentId;
+    if (paymentId && (await prisma.payment.findUnique({ where: { id: paymentId }, select: { id: true } }))) {
+      return 'ours';
+    }
+    return 'foreign';
+  }
+
+  // Famiglie di eventi che non gestiamo e senza platform metadata: non nostre.
+  return 'foreign';
 }
 
 // L'abbonamento può contenere item add-on oltre all'item del piano:
@@ -77,6 +159,14 @@ export async function POST(request: NextRequest) {
     if (await isEventProcessed(event.id)) {
       console.log(`Event ${event.id} already processed, skipping`);
       return NextResponse.json({ received: true, deduplicated: true });
+    }
+
+    // Lo stesso account Stripe serve più applicativi: gli eventi che non
+    // appartengono a InsegnaMi vengono ack-ati senza processing.
+    if ((await classifyEvent(event)) === 'foreign') {
+      console.log(`Event ${event.id} (${event.type}) ignored: foreign platform`);
+      await markEventProcessed(event.id);
+      return NextResponse.json({ received: true, ignored: 'foreign-platform' });
     }
 
     // Handle the event
@@ -162,6 +252,7 @@ export async function POST(request: NextRequest) {
             });
           });
 
+          await invalidateTenantAccessCache(tenantId);
           console.log(`Subscription created for tenant ${tenantId}, plan: ${plan.name}`);
         } else {
           // Handle one-time payment checkout
@@ -298,6 +389,7 @@ export async function POST(request: NextRequest) {
           items: subscription.items.data,
         });
 
+        await invalidateTenantAccessCache(tenantId);
         console.log(`Subscription created: ${subscription.id} for tenant ${tenantId}`);
         break;
       }
@@ -406,6 +498,7 @@ export async function POST(request: NextRequest) {
           items: subscription.items.data,
         });
 
+        await invalidateTenantAccessCache(existingSubscription.tenantId);
         console.log(`Subscription updated: ${subscription.id}, status: ${subscription.status}`);
         break;
       }
@@ -449,6 +542,7 @@ export async function POST(request: NextRequest) {
           });
         });
 
+        await invalidateTenantAccessCache(existingSubscription.tenantId);
         console.log(`Subscription deleted: ${subscription.id}`);
         break;
       }
@@ -472,6 +566,12 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        const paidSub = await prisma.subscription.findUnique({
+          where: { stripeSubscriptionId: subscriptionId },
+          select: { tenantId: true },
+        });
+        if (paidSub) await invalidateTenantAccessCache(paidSub.tenantId);
+
         console.log(`Invoice paid for subscription: ${subscriptionId}`);
         break;
       }
@@ -494,6 +594,12 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        const failedSub = await prisma.subscription.findUnique({
+          where: { stripeSubscriptionId: subscriptionId },
+          select: { tenantId: true },
+        });
+        if (failedSub) await invalidateTenantAccessCache(failedSub.tenantId);
+
         console.log(`Invoice payment failed for subscription: ${subscriptionId}`);
         break;
       }
@@ -509,11 +615,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     // BUG-048 fix: Sanitize error to prevent secrets in logs
     console.error('Webhook error:', sanitizeError(error));
-    // Always return 200 to prevent Stripe from retrying events that don't belong
-    // to this project (e.g. risparmiami.pro events hitting insegnami.pro endpoint)
+    // Gli eventi di altri applicativi vengono già filtrati da classifyEvent:
+    // qui arrivano solo errori GENUINI su eventi InsegnaMi. 500 fa ritentare
+    // Stripe (con backoff); l'evento non è stato marcato in Redis, quindi il
+    // retry verrà riprocessato da capo.
     return NextResponse.json(
-      { received: true, error: 'Webhook handler failed' },
-      { status: 200 }
+      { error: 'Webhook handler failed' },
+      { status: 500 }
     );
   }
 }

@@ -3,6 +3,7 @@ import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { checkStudentLimit } from '@/lib/plan-limits';
+import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 // Generate temporary password
 function generateTempPassword(): string {
@@ -21,6 +22,9 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only ADMIN, TEACHER can list students
     if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
@@ -175,6 +179,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
 
     // Only ADMIN can create students
     if (!isAdminRole(session.user.role)) {

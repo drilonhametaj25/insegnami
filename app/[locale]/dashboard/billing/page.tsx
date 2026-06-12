@@ -361,6 +361,26 @@ export default function BillingPage() {
           </Button>
         </Group>
 
+        {/* Blocco accesso: il layout dashboard redirige qui quando il tenant
+            è sospeso (trial scaduto / pagamento fallito / cancellato) */}
+        {searchParams.get('blocked') && (
+          <Alert
+            icon={<IconAlertTriangle />}
+            color="red"
+            title="Accesso sospeso"
+          >
+            {searchParams.get('blocked') === 'trial-expired' &&
+              'Il periodo di prova è terminato: scegli un piano qui sotto per continuare a usare InsegnaMi.'}
+            {searchParams.get('blocked') === 'subscription-past-due' &&
+              "L'ultimo pagamento non è riuscito: aggiorna il metodo di pagamento dal portale di fatturazione per riattivare il servizio."}
+            {searchParams.get('blocked') === 'subscription-cancelled' &&
+              "L'abbonamento non è attivo: riattivalo o scegli un piano per continuare."}
+            {!['trial-expired', 'subscription-past-due', 'subscription-cancelled'].includes(
+              searchParams.get('blocked') || ''
+            ) && 'La scuola è temporaneamente sospesa. Contatta il supporto.'}
+          </Alert>
+        )}
+
         {/* Trial/Status Alert */}
         {status === 'trialing' && subscription?.trialEnd && (
           <Alert

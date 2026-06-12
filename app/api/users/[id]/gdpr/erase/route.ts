@@ -26,7 +26,8 @@ const bodySchema = z.object({
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ roles: ['ADMIN', 'DIRECTOR', 'SUPERADMIN'] });
+    // GDPR: il diritto all'oblio non decade con l'abbonamento scaduto
+    const ctx = await requireAuth({ roles: ['ADMIN', 'DIRECTOR', 'SUPERADMIN'], skipTenantAccessCheck: true });
     const { id: targetUserId } = await params;
 
     if (targetUserId === ctx.userId) {

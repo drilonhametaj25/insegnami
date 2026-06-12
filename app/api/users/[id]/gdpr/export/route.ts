@@ -19,7 +19,8 @@ interface RouteParams {
  */
 export async function POST(_request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ roles: ['ADMIN', 'DIRECTOR', 'SUPERADMIN'] });
+    // GDPR: la portabilità dei dati non decade con l'abbonamento scaduto
+    const ctx = await requireAuth({ roles: ['ADMIN', 'DIRECTOR', 'SUPERADMIN'], skipTenantAccessCheck: true });
     const { id: targetUserId } = await params;
 
     if (!ctx.isSuperAdmin) {
