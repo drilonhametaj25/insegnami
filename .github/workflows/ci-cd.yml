@@ -104,8 +104,8 @@ jobs:
             --shadow-database-url "postgresql://test_user:test_pass@localhost:5432/shadow_db" \
             --exit-code
 
-      - name: Run unit tests
-        run: npm test
+      - name: Run unit tests (with coverage ratchet)
+        run: npm run test:coverage
 
       # Suite integration-DB (jest.config.integration.js): route handlers di
       # invoices/payroll/accounting eseguiti contro il service postgres del
