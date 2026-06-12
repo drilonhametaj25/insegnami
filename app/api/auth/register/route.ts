@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
 import { isSaaSMode } from '@/lib/config';
-import { generateVerificationToken } from '@/lib/auth-utils';
+import { generateVerificationToken, slugifyUnique } from '@/lib/auth-utils';
 import { escapeHtml } from '@/lib/api-middleware';
 import { getOrCreateCustomer, stripe } from '@/lib/stripe';
 import { rateLimit } from '@/lib/rate-limit';
@@ -101,13 +101,18 @@ export async function POST(request: NextRequest) {
     // Generate verification token
     const verificationToken = generateVerificationToken();
 
+    // Slug univoco: due scuole omonime non devono collidere sull'unique
+    // constraint (la seconda registrazione fallirebbe con un 500 opaco)
+    const slug = await slugifyUnique(schoolName, async (candidate) => {
+      const existing = await prisma.tenant.findUnique({ where: { slug: candidate } });
+      return !!existing;
+    });
+
     // Create tenant (school) first
     const tenant = await prisma.tenant.create({
       data: {
         name: schoolName,
-        slug: schoolName.toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)/g, ''),
+        slug,
         isActive: false, // Will be activated after email verification
         trialUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 giorni trial
       },

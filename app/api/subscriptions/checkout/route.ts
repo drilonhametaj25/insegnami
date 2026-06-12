@@ -86,19 +86,31 @@ export async function POST(request: NextRequest) {
       where: { tenantId: tenant.id },
     });
 
-    if (existingSubscription && existingSubscription.status === 'ACTIVE') {
+    // Blocca anche TRIALING: chi è già in prova non deve poter aprire un nuovo
+    // checkout (otterrebbe un nuovo trial, abuso del periodo di prova).
+    if (
+      existingSubscription &&
+      ['ACTIVE', 'TRIALING'].includes(existingSubscription.status)
+    ) {
       return NextResponse.json(
-        { error: 'Hai già un abbonamento attivo. Usa il portale di fatturazione per cambiare piano.' },
+        { error: 'Hai già un abbonamento attivo o in prova. Usa il portale di fatturazione per cambiare piano.' },
         { status: 400 }
       );
     }
 
+    // Guard anti-abuso trial: i giorni di prova derivano dal residuo di
+    // tenant.trialUntil (fissato alla registrazione), NON da un valore fisso.
+    // Chi annulla e rifà il checkout non ottiene un nuovo trial pieno.
+    const trialDays = tenant.trialUntil
+      ? Math.max(0, Math.ceil((new Date(tenant.trialUntil).getTime() - Date.now()) / 86400000))
+      : 0;
+
     const baseUrl = process.env.APP_URL || 'http://localhost:3000';
 
     // Dev billing mode: niente Stripe esterno. Attiviamo direttamente
-    // l'abbonamento (con trial) e rimandiamo alla pagina di fatturazione.
+    // l'abbonamento (con trial solo se residuo) e rimandiamo alla pagina di fatturazione.
     if (isDevBilling()) {
-      await devActivateSubscription({ tenantId: tenant.id, plan, withTrial: true });
+      await devActivateSubscription({ tenantId: tenant.id, plan, withTrial: trialDays > 0 });
       return NextResponse.json({
         url: `${baseUrl}/it/dashboard/billing?success=true`,
         dev: true,
@@ -128,7 +140,7 @@ export async function POST(request: NextRequest) {
       tenantId: tenant.id,
       successUrl: `${baseUrl}/it/dashboard/billing?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/it/dashboard/billing?cancelled=true`,
-      trialDays: 14, // 14-day trial
+      trialDays, // residuo del trial del tenant (0 se scaduto o assente)
     });
 
     return NextResponse.json({

@@ -4,6 +4,12 @@ import { prisma } from '@/lib/db';
 import { ADDON_CATALOG } from '@/lib/billing/addons';
 import { isStripeEnabled, isDevBilling } from '@/lib/billing/billing-mode';
 import { syncAllToStripe } from '@/lib/billing/stripe-sync';
+import { redis } from '@/lib/redis';
+
+// Lock distribuito per la sync Stripe: due sync concorrenti creerebbero
+// prodotti/prezzi duplicati (la sync è idempotente solo in sequenza).
+const SYNC_LOCK_KEY = 'lock:stripe-sync';
+const SYNC_LOCK_TTL_SECONDS = 10 * 60; // rete di sicurezza se manca la release
 
 /**
  * GET /api/superadmin/addons
@@ -66,8 +72,19 @@ export async function POST() {
       );
     }
 
-    const results = await syncAllToStripe(prisma as any);
-    return NextResponse.json({ success: true, results });
+    // Lock NX: una sola sync alla volta. Se non acquisito, un'altra sync è in
+    // corso (o il lock precedente non è ancora scaduto) → 409.
+    const lockAcquired = await redis.setNX(SYNC_LOCK_KEY, String(Date.now()), SYNC_LOCK_TTL_SECONDS);
+    if (!lockAcquired) {
+      return NextResponse.json({ error: 'Sync già in corso' }, { status: 409 });
+    }
+
+    try {
+      const results = await syncAllToStripe(prisma as any);
+      return NextResponse.json({ success: true, results });
+    } finally {
+      await redis.del(SYNC_LOCK_KEY);
+    }
   } catch (error) {
     console.error('superadmin addons sync error:', error);
     const message = error instanceof Error ? error.message : 'Errore sconosciuto';

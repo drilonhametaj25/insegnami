@@ -3,6 +3,7 @@ import { redis } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/db';
 import { AutomationService } from '@/lib/automation-service';
+import { notifyTenantAdmins } from '@/lib/notifications/billing-notifications';
 
 /**
  * Cron jobs are modelled as BullMQ repeatable jobs in a dedicated queue.
@@ -15,7 +16,8 @@ export type CronJobName =
   | 'mark-payments-overdue'
   | 'parent-attendance-digest'
   | 'deactivate-expired-tenants'
-  | 'auto-complete-lessons';
+  | 'auto-complete-lessons'
+  | 'trial-ending-reminder';
 
 let _cronQueue: Queue | null = null;
 
@@ -118,6 +120,75 @@ export async function parentAttendanceDigest(): Promise<{ pendingDigests: number
 }
 
 /**
+ * Promemoria fine prova: i tenant con trialUntil entro 3 giorni, ancora
+ * attivi e SENZA subscription ricevono una notifica (in-app + email) verso
+ * gli ADMIN/DIRECTOR. Anti-spam: massimo una notifica ogni 4 giorni per
+ * tenant, tracciata via Notification(sourceType='trial-reminder',
+ * sourceId=tenantId). notifyTenantAdmins non lancia mai per contratto,
+ * quindi un tenant problematico non blocca il giro degli altri.
+ */
+export async function runTrialEndingReminder(): Promise<{
+  candidates: number;
+  notified: number;
+  skipped: number;
+}> {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const now = new Date();
+  const horizon = new Date(now.getTime() + 3 * DAY_MS);
+  const dedupeSince = new Date(now.getTime() - 4 * DAY_MS);
+
+  // Chi ha già un abbonamento (o è disattivato) non è un candidato:
+  // il filtro sta nella query, non in memoria
+  const tenants = await prisma.tenant.findMany({
+    where: {
+      isActive: true,
+      trialUntil: { gte: now, lte: horizon },
+      subscription: { is: null },
+    },
+    select: { id: true, name: true, trialUntil: true },
+  });
+
+  let notified = 0;
+  let skipped = 0;
+
+  for (const tenant of tenants) {
+    // Dedup: se esiste già un promemoria recente per questo tenant, salta
+    const recentReminder = await prisma.notification.findFirst({
+      where: {
+        tenantId: tenant.id,
+        sourceType: 'trial-reminder',
+        sourceId: tenant.id,
+        createdAt: { gte: dedupeSince },
+      },
+      select: { id: true },
+    });
+    if (recentReminder) {
+      skipped++;
+      continue;
+    }
+
+    const endDate = tenant.trialUntil
+      ? tenant.trialUntil.toLocaleDateString('it-IT')
+      : 'a breve';
+
+    await notifyTenantAdmins(tenant.id, {
+      title: `La prova termina il ${endDate}`,
+      content: `Il periodo di prova di ${tenant.name} termina il ${endDate}. Attiva un piano per continuare a usare InsegnaMi.pro senza interruzioni.`,
+      type: 'REMINDER',
+      actionUrl: '/dashboard/billing',
+      sourceType: 'trial-reminder',
+      sourceId: tenant.id,
+    });
+    notified++;
+  }
+
+  logger.info(
+    `runTrialEndingReminder: ${notified} notified, ${skipped} skipped (${tenants.length} candidates)`,
+  );
+  return { candidates: tenants.length, notified, skipped };
+}
+
+/**
  * Process cron jobs as they fire. The processor itself is short — most work
  * lives in dedicated services (AutomationService.runDailyAutomation etc).
  */
@@ -138,6 +209,8 @@ async function cronProcessor(job: Job): Promise<unknown> {
       const { autoCompletePastLessons } = await import('@/lib/hours/consume');
       return withAuditRun(name, () => autoCompletePastLessons(30));
     }
+    case 'trial-ending-reminder':
+      return withAuditRun(name, () => runTrialEndingReminder());
     default:
       logger.warn(`Unknown cron job: ${name}`);
       return null;
@@ -179,6 +252,7 @@ export async function registerCronJobs(): Promise<void> {
     { name: 'parent-attendance-digest', cron: '0 9 * * *' },   // daily 09:00
     { name: 'deactivate-expired-tenants', cron: '15 3 * * *' },// daily 03:15 (after most subs renew)
     { name: 'auto-complete-lessons',      cron: '30 6 * * *' }, // daily 06:30 — past SCHEDULED → COMPLETED + consume hours
+    { name: 'trial-ending-reminder',      cron: '0 10 * * *' }, // daily 10:00 — promemoria fine prova agli admin
   ];
 
   for (const s of schedules) {

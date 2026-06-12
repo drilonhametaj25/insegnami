@@ -7,6 +7,18 @@ import { redis } from '@/lib/redis';
 import { sanitizeError } from '@/lib/api-middleware';
 import { reconcileAddonItems } from '@/lib/billing/stripe-addons';
 import { invalidateTenantAccessCache } from '@/lib/tenant-access';
+import { notifyTenantAdmins, type TenantAdminNotification } from '@/lib/notifications/billing-notifications';
+
+// Notifiche commerciali fire-and-forget: il webhook ritorna 500 sugli errori
+// genuini (per far ritentare Stripe), quindi un errore SMTP/notifiche NON
+// deve mai propagarsi — causerebbe un retry storm su eventi già processati.
+async function safeNotifyTenantAdmins(tenantId: string, input: TenantAdminNotification): Promise<void> {
+  try {
+    await notifyTenantAdmins(tenantId, input);
+  } catch (err) {
+    console.warn('Billing notification failed (ignored):', sanitizeError(err));
+  }
+}
 
 // Check if event has already been processed (deduplication)
 async function isEventProcessed(eventId: string): Promise<boolean> {
@@ -253,6 +265,17 @@ export async function POST(request: NextRequest) {
           });
 
           await invalidateTenantAccessCache(tenantId);
+
+          // Email transazionale di conferma attivazione (fire-and-forget)
+          await safeNotifyTenantAdmins(tenantId, {
+            title: `Abbonamento attivato — piano ${plan.name}`,
+            content: `L'abbonamento al piano ${plan.name} è stato attivato con successo. Puoi gestire fatturazione e piano dalla sezione Abbonamento.`,
+            type: 'PAYMENT',
+            actionUrl: '/dashboard/billing',
+            sourceType: 'subscription',
+            sourceId: subscriptionId,
+          });
+
           console.log(`Subscription created for tenant ${tenantId}, plan: ${plan.name}`);
         } else {
           // Handle one-time payment checkout
@@ -263,9 +286,13 @@ export async function POST(request: NextRequest) {
             break;
           }
 
-          // Update payment status
-          await prisma.payment.update({
-            where: { id: paymentId },
+          // Update scoped sul tenant quando presente nei metadata: un id
+          // forgiato/riusato non può marcare PAID un payment di un altro tenant
+          const updated = await prisma.payment.updateMany({
+            where: {
+              id: paymentId,
+              ...(session.metadata?.tenantId ? { tenantId: session.metadata.tenantId } : {}),
+            },
             data: {
               status: 'PAID',
               paidDate: new Date(),
@@ -274,7 +301,13 @@ export async function POST(request: NextRequest) {
             },
           });
 
-          console.log(`Payment ${paymentId} marked as PAID via Stripe`);
+          if (updated.count === 0) {
+            // Payment inesistente o tenant mismatch: ack (200) senza throw,
+            // un retry Stripe non risolverebbe nulla
+            console.warn(`Payment ${paymentId} not found (or tenant mismatch), acking without update`);
+          } else {
+            console.log(`Payment ${paymentId} marked as PAID via Stripe`);
+          }
         }
         break;
       }
@@ -454,7 +487,11 @@ export async function POST(request: NextRequest) {
         }
 
         const priceId = findPlanPriceId(subscription.items.data);
-        let planId = existingSubscription.planId;
+        const previousPlanId = existingSubscription.planId;
+        let planId = previousPlanId;
+        // Nome del nuovo piano SOLO se diverso dal precedente: pilota la
+        // notifica "Piano aggiornato" (gli update di solo status non notificano)
+        let changedPlanName: string | null = null;
 
         // Check if plan changed
         if (priceId) {
@@ -463,6 +500,9 @@ export async function POST(request: NextRequest) {
           });
           if (plan) {
             planId = plan.id;
+            if (plan.id !== previousPlanId) {
+              changedPlanName = plan.name;
+            }
 
             // Update tenant plan if changed
             await prisma.tenant.update({
@@ -499,7 +539,56 @@ export async function POST(request: NextRequest) {
         });
 
         await invalidateTenantAccessCache(existingSubscription.tenantId);
+
+        // Email transazionale SOLO al cambio piano effettivo (fire-and-forget)
+        if (changedPlanName) {
+          await safeNotifyTenantAdmins(existingSubscription.tenantId, {
+            title: `Piano aggiornato a ${changedPlanName}`,
+            content: `Il piano del tuo abbonamento è stato aggiornato a ${changedPlanName}. Trovi i dettagli nella sezione Abbonamento.`,
+            type: 'PAYMENT',
+            actionUrl: '/dashboard/billing',
+            sourceType: 'subscription',
+            sourceId: subscription.id,
+          });
+        }
+
         console.log(`Subscription updated: ${subscription.id}, status: ${subscription.status}`);
+        break;
+      }
+
+      case 'customer.subscription.trial_will_end': {
+        // Stripe lo emette ~3 giorni prima della fine del trial: avvisiamo
+        // gli admin del tenant così possono scegliere un piano in tempo.
+        const subscription = event.data.object as any;
+
+        const existingSubscription = await prisma.subscription.findUnique({
+          where: { stripeSubscriptionId: subscription.id },
+          select: { tenantId: true },
+        });
+
+        if (!existingSubscription) {
+          // classifyEvent l'ha attribuita a noi (es. metadata platform) ma la
+          // riga non c'è: ack senza retry, notificare non avrebbe destinatario
+          console.warn(`trial_will_end for unknown subscription, acking: ${subscription.id}`);
+          break;
+        }
+
+        const trialEndDate = subscription.trial_end
+          ? new Date(subscription.trial_end * 1000).toLocaleDateString('it-IT')
+          : null;
+
+        await safeNotifyTenantAdmins(existingSubscription.tenantId, {
+          title: 'La prova termina tra pochi giorni',
+          content: trialEndDate
+            ? `Il periodo di prova termina il ${trialEndDate}. Scegli un piano per continuare a usare InsegnaMi.pro senza interruzioni.`
+            : 'Il periodo di prova sta per terminare. Scegli un piano per continuare a usare InsegnaMi.pro senza interruzioni.',
+          type: 'REMINDER',
+          actionUrl: '/dashboard/billing',
+          sourceType: 'subscription',
+          sourceId: subscription.id,
+        });
+
+        console.log(`Trial ending soon for subscription: ${subscription.id}`);
         break;
       }
 
@@ -598,7 +687,20 @@ export async function POST(request: NextRequest) {
           where: { stripeSubscriptionId: subscriptionId },
           select: { tenantId: true },
         });
-        if (failedSub) await invalidateTenantAccessCache(failedSub.tenantId);
+        if (failedSub) {
+          await invalidateTenantAccessCache(failedSub.tenantId);
+
+          // Avviso urgente agli admin: senza azione l'accesso verrà sospeso
+          await safeNotifyTenantAdmins(failedSub.tenantId, {
+            title: 'Pagamento non riuscito',
+            content: 'Il pagamento del rinnovo non è andato a buon fine. Aggiorna il metodo di pagamento per evitare la sospensione del servizio.',
+            type: 'PAYMENT',
+            priority: 'URGENT',
+            actionUrl: '/dashboard/billing',
+            sourceType: 'invoice',
+            sourceId: invoice.id,
+          });
+        }
 
         console.log(`Invoice payment failed for subscription: ${subscriptionId}`);
         break;

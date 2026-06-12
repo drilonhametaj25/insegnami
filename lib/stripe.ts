@@ -97,6 +97,16 @@ export async function createCheckoutSession({
       paymentId,
       ...metadata,
     },
+    // I metadata della session NON si propagano al PaymentIntent: senza questo
+    // blocco i webhook payment_intent.payment_failed e charge.refunded non
+    // trovano mai metadata.paymentId sui pagamenti reali.
+    payment_intent_data: {
+      metadata: {
+        ...PLATFORM_METADATA,
+        paymentId,
+        tenantId: metadata?.tenantId ?? '',
+      },
+    },
   });
 
   return session;
@@ -206,7 +216,9 @@ export async function createSubscriptionCheckoutSession({
       },
     ],
     subscription_data: {
-      trial_period_days: trialDays,
+      // Stripe rifiuta trial_period_days < 1: con trial esaurito (0) il
+      // campo va omesso del tutto, la subscription parte subito a pagamento
+      ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
       metadata: {
         ...PLATFORM_METADATA,
         tenantId,
@@ -282,8 +294,18 @@ export async function updateSubscriptionPlan({
   subscriptionId: string;
   newPriceId: string;
 }): Promise<Stripe.Subscription> {
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-  const itemId = subscription.items.data[0]?.id;
+  // Con add-on attivi la subscription ha più items e items.data[0] può essere
+  // l'item dell'ADD-ON: aggiornare quello cambierebbe il prezzo sbagliato.
+  // Espandiamo il price per leggere metadata.addonType e scegliere l'item del
+  // PIANO (quello SENZA addonType); fallback al primo item se nessuno matcha.
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+    expand: ['items.data.price'],
+  });
+  const planItem =
+    subscription.items.data.find(
+      (item) => !(item.price as Stripe.Price | undefined)?.metadata?.addonType
+    ) ?? subscription.items.data[0];
+  const itemId = planItem?.id;
 
   if (!itemId) {
     throw new Error('No subscription item found');

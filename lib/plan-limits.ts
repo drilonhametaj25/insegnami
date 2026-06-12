@@ -1,22 +1,10 @@
 import { prisma } from '@/lib/db';
-import type { AddonType } from '@prisma/client';
+import { getActiveUsage, getAddonExtras } from '@/lib/billing/plan-change';
 
 interface PlanLimits {
   maxStudents: number | null;
   maxTeachers: number | null;
   maxClasses: number | null;
-}
-
-/** Somma i posti extra acquistati via add-on, per tipo. */
-async function getAddonExtras(tenantId: string): Promise<{ students: number; teachers: number; classes: number }> {
-  const addons = await prisma.tenantAddon.findMany({ where: { tenantId, status: 'ACTIVE' } });
-  const sum = (type: AddonType) =>
-    addons.filter((a) => a.type === type).reduce((s, a) => s + a.quantity * a.unitSize, 0);
-  return {
-    students: sum('EXTRA_STUDENTS'),
-    teachers: sum('EXTRA_TEACHERS'),
-    classes: sum('EXTRA_CLASSES'),
-  };
 }
 
 interface LimitCheckResult {
@@ -53,7 +41,8 @@ export async function getTenantPlanLimits(tenantId: string): Promise<PlanLimits 
   }
 
   // If tenant has active subscription with plan, use those limits + add-on extras.
-  // null (illimitato) resta illimitato.
+  // null (illimitato) resta illimitato. getAddonExtras è condivisa con
+  // lib/billing/plan-change per garantire la stessa semantica ovunque.
   if (tenant.subscription?.plan) {
     const extras = await getAddonExtras(tenantId);
     const withExtra = (base: number | null, extra: number) => (base == null ? null : base + extra);
@@ -83,6 +72,39 @@ export async function getTenantPlanLimits(tenantId: string): Promise<PlanLimits 
 }
 
 /**
+ * Costruisce il risultato del check a partire da limite e conteggio attivo.
+ * Semantica unificata con lib/billing/plan-change: contano solo le risorse
+ * ATTIVE (studenti/docenti status ACTIVE, classi isActive true) — le risorse
+ * disattivate non occupano posti del piano.
+ */
+function buildLimitResult(
+  limit: number | null,
+  current: number,
+  limitMessage: string
+): LimitCheckResult {
+  // null means unlimited
+  if (limit === null) {
+    return {
+      allowed: true,
+      limit: null,
+      current,
+      remaining: null,
+    };
+  }
+
+  const remaining = limit - current;
+  const allowed = current < limit;
+
+  return {
+    allowed,
+    limit,
+    current,
+    remaining: Math.max(0, remaining),
+    message: allowed ? undefined : limitMessage,
+  };
+}
+
+/**
  * Check if tenant can add more students
  */
 export async function checkStudentLimit(tenantId: string): Promise<LimitCheckResult> {
@@ -98,32 +120,13 @@ export async function checkStudentLimit(tenantId: string): Promise<LimitCheckRes
     };
   }
 
-  const currentCount = await prisma.student.count({
-    where: { tenantId },
-  });
+  const usage = await getActiveUsage(tenantId);
 
-  // null means unlimited
-  if (limits.maxStudents === null) {
-    return {
-      allowed: true,
-      limit: null,
-      current: currentCount,
-      remaining: null,
-    };
-  }
-
-  const remaining = limits.maxStudents - currentCount;
-  const allowed = currentCount < limits.maxStudents;
-
-  return {
-    allowed,
-    limit: limits.maxStudents,
-    current: currentCount,
-    remaining: Math.max(0, remaining),
-    message: allowed
-      ? undefined
-      : `Limite studenti raggiunto (${limits.maxStudents}). Effettua l'upgrade del piano per aggiungere più studenti.`,
-  };
+  return buildLimitResult(
+    limits.maxStudents,
+    usage.students,
+    `Limite studenti raggiunto (${limits.maxStudents}). Effettua l'upgrade del piano per aggiungere più studenti.`
+  );
 }
 
 /**
@@ -142,31 +145,13 @@ export async function checkTeacherLimit(tenantId: string): Promise<LimitCheckRes
     };
   }
 
-  const currentCount = await prisma.teacher.count({
-    where: { tenantId },
-  });
+  const usage = await getActiveUsage(tenantId);
 
-  if (limits.maxTeachers === null) {
-    return {
-      allowed: true,
-      limit: null,
-      current: currentCount,
-      remaining: null,
-    };
-  }
-
-  const remaining = limits.maxTeachers - currentCount;
-  const allowed = currentCount < limits.maxTeachers;
-
-  return {
-    allowed,
-    limit: limits.maxTeachers,
-    current: currentCount,
-    remaining: Math.max(0, remaining),
-    message: allowed
-      ? undefined
-      : `Limite docenti raggiunto (${limits.maxTeachers}). Effettua l'upgrade del piano per aggiungere più docenti.`,
-  };
+  return buildLimitResult(
+    limits.maxTeachers,
+    usage.teachers,
+    `Limite docenti raggiunto (${limits.maxTeachers}). Effettua l'upgrade del piano per aggiungere più docenti.`
+  );
 }
 
 /**
@@ -185,31 +170,13 @@ export async function checkClassLimit(tenantId: string): Promise<LimitCheckResul
     };
   }
 
-  const currentCount = await prisma.class.count({
-    where: { tenantId },
-  });
+  const usage = await getActiveUsage(tenantId);
 
-  if (limits.maxClasses === null) {
-    return {
-      allowed: true,
-      limit: null,
-      current: currentCount,
-      remaining: null,
-    };
-  }
-
-  const remaining = limits.maxClasses - currentCount;
-  const allowed = currentCount < limits.maxClasses;
-
-  return {
-    allowed,
-    limit: limits.maxClasses,
-    current: currentCount,
-    remaining: Math.max(0, remaining),
-    message: allowed
-      ? undefined
-      : `Limite classi raggiunto (${limits.maxClasses}). Effettua l'upgrade del piano per aggiungere più classi.`,
-  };
+  return buildLimitResult(
+    limits.maxClasses,
+    usage.classes,
+    `Limite classi raggiunto (${limits.maxClasses}). Effettua l'upgrade del piano per aggiungere più classi.`
+  );
 }
 
 /**
@@ -222,27 +189,25 @@ export async function getTenantUsageWithLimits(tenantId: string) {
     return null;
   }
 
-  const [studentCount, teacherCount, classCount] = await Promise.all([
-    prisma.student.count({ where: { tenantId } }),
-    prisma.teacher.count({ where: { tenantId } }),
-    prisma.class.count({ where: { tenantId } }),
-  ]);
+  // Conteggi attivi condivisi con plan-change: stessa semantica della
+  // validazione cambio piano (downgrade) e dei check sulle singole risorse.
+  const usage = await getActiveUsage(tenantId);
 
   return {
     students: {
-      current: studentCount,
+      current: usage.students,
       limit: limits.maxStudents,
-      percentage: limits.maxStudents ? Math.round((studentCount / limits.maxStudents) * 100) : 0,
+      percentage: limits.maxStudents ? Math.round((usage.students / limits.maxStudents) * 100) : 0,
     },
     teachers: {
-      current: teacherCount,
+      current: usage.teachers,
       limit: limits.maxTeachers,
-      percentage: limits.maxTeachers ? Math.round((teacherCount / limits.maxTeachers) * 100) : 0,
+      percentage: limits.maxTeachers ? Math.round((usage.teachers / limits.maxTeachers) * 100) : 0,
     },
     classes: {
-      current: classCount,
+      current: usage.classes,
       limit: limits.maxClasses,
-      percentage: limits.maxClasses ? Math.round((classCount / limits.maxClasses) * 100) : 0,
+      percentage: limits.maxClasses ? Math.round((usage.classes / limits.maxClasses) * 100) : 0,
     },
   };
 }

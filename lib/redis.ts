@@ -100,6 +100,21 @@ class RedisManager {
     }
   }
 
+  // SET NX con TTL: ritorna true solo se la chiave NON esisteva (lock acquisito).
+  // Usato come lock distribuito (es. sync Stripe): il TTL evita lock orfani
+  // se il processo muore prima della release.
+  async setNX(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const client = this.initClient();
+    if (!client) return false;
+    try {
+      const result = await client.set(key, value, 'EX', ttlSeconds, 'NX');
+      return result === 'OK';
+    } catch (error) {
+      console.error(`Redis SETNX error for key ${key}:`, error);
+      return false;
+    }
+  }
+
   async del(key: string): Promise<boolean> {
     const client = this.initClient();
     if (!client) return false;

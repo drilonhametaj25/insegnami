@@ -12,6 +12,7 @@ jest.mock('@/lib/db', () => ({
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      findUnique: jest.fn(),
     },
     userTenant: {
       create: jest.fn(),
@@ -32,7 +33,10 @@ jest.mock('@/lib/config', () => ({
   isSaaSMode: true,
 }))
 
+// requireActual: slugifyUnique reale (la logica slug è sotto test), solo il
+// token di verifica è mockato per determinismo
 jest.mock('@/lib/auth-utils', () => ({
+  ...jest.requireActual('@/lib/auth-utils'),
   generateVerificationToken: jest.fn(() => 'mock-verification-token'),
 }))
 
@@ -89,6 +93,7 @@ describe('/api/auth/register', () => {
     prisma.userTenant.create.mockResolvedValue({})
     prisma.verificationToken.create.mockResolvedValue({})
     prisma.tenant.update.mockResolvedValue({})
+    prisma.tenant.findUnique.mockResolvedValue(null) // nessuna collisione slug di default
   })
 
   it('registers a valid user and creates Tenant + VerificationToken', async () => {
@@ -198,6 +203,44 @@ describe('/api/auth/register', () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toContain('email non valido')
+  })
+
+  it('registers two schools with the same name producing different slugs', async () => {
+    // Simula il DB: gli slug già creati esistono per le successive findUnique
+    const createdSlugs = new Set<string>()
+    prisma.tenant.findUnique.mockImplementation(({ where }: any) =>
+      Promise.resolve(createdSlugs.has(where?.slug) ? { id: 'tenant-existing', slug: where.slug } : null)
+    )
+    prisma.tenant.create.mockImplementation(({ data }: any) => {
+      createdSlugs.add(data.slug)
+      return Promise.resolve({ id: `tenant-${createdSlugs.size}`, name: data.name, slug: data.slug })
+    })
+
+    const first = await POST(createRequest({
+      firstName: 'Mario',
+      lastName: 'Rossi',
+      email: 'mario@scuola.it',
+      password: 'Password1',
+      schoolName: 'Liceo Galilei',
+      role: 'admin',
+    }))
+    const second = await POST(createRequest({
+      firstName: 'Anna',
+      lastName: 'Bianchi',
+      email: 'anna@altrascuola.it',
+      password: 'Password1',
+      schoolName: 'Liceo Galilei',
+      role: 'admin',
+    }))
+
+    const firstData = await first.json()
+    const secondData = await second.json()
+
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(200)
+    expect(firstData.user.tenant.slug).toBe('liceo-galilei')
+    expect(secondData.user.tenant.slug).toBe('liceo-galilei-2')
+    expect(firstData.user.tenant.slug).not.toBe(secondData.user.tenant.slug)
   })
 
   it('rolls back when email sending fails', async () => {

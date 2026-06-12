@@ -58,6 +58,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Difesa in profondità: se il customer Stripe della subscription non
+    // coincide più con quello del tenant (es. dati riconciliati male o
+    // customer rigenerato), il cambio piano agirebbe sull'abbonamento di un
+    // altro customer. Blocchiamo con 409 e logghiamo per investigazione.
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: session.user.tenantId },
+      select: { stripeCustomerId: true },
+    });
+    if (
+      subscription.stripeCustomerId &&
+      tenant?.stripeCustomerId &&
+      subscription.stripeCustomerId !== tenant.stripeCustomerId
+    ) {
+      console.error(
+        `change-plan: stripeCustomerId mismatch per tenant ${session.user.tenantId}: ` +
+          `subscription=${subscription.stripeCustomerId} tenant=${tenant.stripeCustomerId}`
+      );
+      return NextResponse.json(
+        { error: 'Dati di fatturazione non coerenti. Contatta il supporto.', code: 'CUSTOMER_MISMATCH' },
+        { status: 409 }
+      );
+    }
+
     if (subscription.plan?.slug === targetPlanSlug) {
       return NextResponse.json(
         { error: 'Sei già su questo piano' },

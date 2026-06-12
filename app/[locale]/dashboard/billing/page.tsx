@@ -22,6 +22,7 @@ import {
   Divider,
   Box,
   SimpleGrid,
+  Modal,
   rem
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -116,6 +117,10 @@ export default function BillingPage() {
   const [error, setError] = useState<string | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [changingPlan, setChangingPlan] = useState<string | null>(null);
+  // Annullamento/riattivazione self-service dell'abbonamento
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [reactivateLoading, setReactivateLoading] = useState(false);
   const [eligibility, setEligibility] = useState<
     Record<string, { allowed: boolean; message?: string }>
   >({});
@@ -291,6 +296,59 @@ export default function BillingPage() {
     }
   };
 
+  // Annulla l'abbonamento a fine periodo (resta attivo fino alla scadenza)
+  const handleCancelSubscription = async () => {
+    setCancelLoading(true);
+    try {
+      const res = await fetch('/api/subscriptions/cancel', { method: 'POST' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Errore nell'annullamento dell'abbonamento");
+      notifications.show({
+        title: 'Abbonamento annullato',
+        message: `L'abbonamento resterà attivo fino al ${
+          data?.subscription ? formatDate(data.subscription.currentPeriodEnd) : 'termine del periodo'
+        } e non verrà rinnovato.`,
+        color: 'orange',
+        icon: <IconCheck size={18} />
+      });
+      setCancelModalOpen(false);
+      await fetchSubscription();
+    } catch (err) {
+      notifications.show({
+        title: 'Errore',
+        message: err instanceof Error ? err.message : 'Errore imprevisto',
+        color: 'red'
+      });
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  // Riattiva un abbonamento in annullamento (prima della scadenza del periodo)
+  const handleReactivateSubscription = async () => {
+    setReactivateLoading(true);
+    try {
+      const res = await fetch('/api/subscriptions/reactivate', { method: 'POST' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Errore nella riattivazione dell'abbonamento");
+      notifications.show({
+        title: 'Abbonamento riattivato',
+        message: 'Il rinnovo automatico è stato ripristinato.',
+        color: 'green',
+        icon: <IconCheck size={18} />
+      });
+      await fetchSubscription();
+    } catch (err) {
+      notifications.show({
+        title: 'Errore',
+        message: err instanceof Error ? err.message : 'Errore imprevisto',
+        color: 'red'
+      });
+    } finally {
+      setReactivateLoading(false);
+    }
+  };
+
   const getUsagePercentage = (current: number, max: number | null): number => {
     if (!max) return 0;
     return Math.min((current / max) * 100, 100);
@@ -404,6 +462,19 @@ export default function BillingPage() {
             title="Pagamento in Ritardo"
           >
             Il tuo ultimo pagamento non è andato a buon fine. Aggiorna il metodo di pagamento per evitare l'interruzione del servizio.
+          </Alert>
+        )}
+
+        {/* Abbonamento in annullamento a fine periodo: riattivabile fino alla scadenza */}
+        {subscription?.cancelAtPeriodEnd && (
+          <Alert
+            icon={<IconAlertTriangle />}
+            color="orange"
+            title="Abbonamento in annullamento"
+            data-testid="cancel-at-period-end-alert"
+          >
+            L'abbonamento non verrà rinnovato e terminerà il {formatDate(subscription.currentPeriodEnd)}.
+            Puoi riattivarlo in qualsiasi momento prima di quella data.
           </Alert>
         )}
 
@@ -580,6 +651,32 @@ export default function BillingPage() {
                     Cambia Piano
                   </Button>
                 )}
+                {/* Annulla: visibile su abbonamento attivo/in prova non già in annullamento */}
+                {subscription &&
+                  ['active', 'trialing'].includes(status) &&
+                  !subscription.cancelAtPeriodEnd && (
+                    <Button
+                      color="red"
+                      variant="outline"
+                      leftSection={<IconX size={18} />}
+                      onClick={() => setCancelModalOpen(true)}
+                      data-testid="cancel-subscription-button"
+                    >
+                      Annulla abbonamento
+                    </Button>
+                  )}
+                {/* Riattiva: visibile quando l'abbonamento è in annullamento a fine periodo */}
+                {subscription && subscription.cancelAtPeriodEnd && (
+                  <Button
+                    color="green"
+                    leftSection={<IconRefresh size={18} />}
+                    loading={reactivateLoading}
+                    onClick={handleReactivateSubscription}
+                    data-testid="reactivate-subscription-button"
+                  >
+                    Riattiva abbonamento
+                  </Button>
+                )}
               </Group>
             </Paper>
           </Grid.Col>
@@ -706,6 +803,37 @@ export default function BillingPage() {
           <AddonsManager onChange={() => { fetchSubscription(); fetchUsage(); fetchEligibility(); }} />
         )}
       </Stack>
+
+      {/* Modal di conferma annullamento abbonamento */}
+      <Modal
+        opened={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        title="Annulla abbonamento"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            Sei sicuro di voler annullare l'abbonamento? Resterà attivo fino al{' '}
+            <Text span fw={600}>
+              {subscription ? formatDate(subscription.currentPeriodEnd) : 'termine del periodo'}
+            </Text>
+            {' '}e non verrà rinnovato. Potrai riattivarlo in qualsiasi momento prima di quella data.
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setCancelModalOpen(false)} disabled={cancelLoading}>
+              Mantieni abbonamento
+            </Button>
+            <Button
+              color="red"
+              loading={cancelLoading}
+              onClick={handleCancelSubscription}
+              data-testid="confirm-cancel-subscription"
+            >
+              Annulla abbonamento
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Container>
   );
 }
