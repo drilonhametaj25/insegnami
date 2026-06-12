@@ -1,50 +1,44 @@
 import nodemailer from 'nodemailer';
 import { SMTP_CONFIG, EMAIL_FROM } from '@/lib/config';
 import { EmailNotificationService } from '@/lib/email-queue';
+import { logger } from '@/lib/logger';
 
-// Create transporter only if not in build mode
+// Transporter SMTP lazy: creato alla PRIMA sendEmail che ne ha bisogno,
+// mai al caricamento del modulo (le route Next importano questo file).
 let transporter: nodemailer.Transporter | null = null;
+let transporterInitAttempted = false;
 
-// Initialize transporter safely
-function initializeTransporter() {
+function getTransporter(): nodemailer.Transporter | null {
+  if (transporter) return transporter;
+  if (transporterInitAttempted) return null; // config assente: inutile riprovare
+  transporterInitAttempted = true;
+
   try {
-    // Skip email setup during build or if no config
-    if (process.env.NEXT_PHASE === 'phase-production-build' || 
-        process.env.NODE_ENV === 'production' && !SMTP_CONFIG.host) {
-      console.log('⚠️ Skipping email transporter during build');
-      return;
+    if (!SMTP_CONFIG.host || !SMTP_CONFIG.auth.user) {
+      return null;
     }
 
-    if (SMTP_CONFIG.host && SMTP_CONFIG.auth.user) {
-      transporter = nodemailer.createTransport({
-        host: SMTP_CONFIG.host,
-        port: SMTP_CONFIG.port,
-        secure: SMTP_CONFIG.port === 465, // true per SSL (porta 465 Aruba)
-        auth: SMTP_CONFIG.auth,
-        tls: {
-          rejectUnauthorized: false,
-        },
-      });
+    transporter = nodemailer.createTransport({
+      host: SMTP_CONFIG.host,
+      port: SMTP_CONFIG.port,
+      secure: SMTP_CONFIG.port === 465, // true per SSL (porta 465 Aruba)
+      auth: SMTP_CONFIG.auth,
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
 
-      // Only verify in development
-      if (process.env.NODE_ENV === 'development' && transporter) {
-        transporter.verify((error: any, success: boolean) => {
-          if (error) {
-            console.error('❌ Email transporter error:', error);
-          } else {
-            console.log('✅ Email server is ready to take messages');
-          }
-        });
-      }
-    }
+    // verify() promisificata e loggata anche in produzione, ma NON bloccante:
+    // l'invio non aspetta l'esito della verifica.
+    void Promise.resolve(transporter.verify())
+      .then(() => logger.info('Email transporter verificato: SMTP pronto'))
+      .catch((error) => logger.error('Verifica email transporter fallita', error));
+
+    return transporter;
   } catch (error) {
-    console.warn('⚠️ Email transporter initialization failed:', error);
+    logger.warn('Inizializzazione email transporter fallita', error);
+    return null;
   }
-}
-
-// Initialize only if not building
-if (typeof window === 'undefined' && process.env.NEXT_PHASE !== 'phase-production-build') {
-  initializeTransporter();
 }
 
 export interface EmailOptions {
@@ -65,39 +59,57 @@ export interface EmailOptions {
 }
 
 export class EmailService {
-  async sendEmail(options: EmailOptions, useQueueFallback: boolean = true) {
-    try {
-      // Check if transporter is available
-      if (!transporter) {
-        if (useQueueFallback) {
-          // Fallback to queue system
-          console.log('📬 Email transporter not available, adding to queue');
-          try {
-            await EmailNotificationService.sendGenericEmail({
-              to: options.to,
-              subject: options.subject,
-              html: options.html,
-              text: options.text,
-              attachments: options.attachments?.map(a => ({
-                filename: a.filename,
-                content: a.content,
-                contentType: a.contentType,
-              })),
-            });
-            return {
-              success: true,
-              queued: true,
-              message: 'Email queued for delivery',
-            };
-          } catch (queueError) {
-            console.error('❌ Failed to queue email:', queueError);
-            throw new Error('Email transporter unavailable and queue failed');
-          }
-        }
-        // If no queue fallback, throw error instead of silent failure
-        throw new Error('Email transporter not configured');
+  /**
+   * Strategia queue-first: con Redis configurato l'email viene accodata su
+   * BullMQ (la consuma il processo worker dedicato). Se la coda non è
+   * disponibile si fa fallback sull'invio SMTP diretto. Se nessuno dei due
+   * canali è disponibile, l'errore viene loggato esplicitamente.
+   *
+   * @param useQueue passare false per forzare l'invio SMTP diretto
+   *                 (es. dal worker stesso, per evitare loop di accodamento)
+   */
+  async sendEmail(options: EmailOptions, useQueue: boolean = true) {
+    // 1) Tentativo queue-first
+    if (useQueue && process.env.REDIS_URL) {
+      try {
+        await EmailNotificationService.sendGenericEmail({
+          to: options.to,
+          subject: options.subject,
+          html: options.html,
+          text: options.text,
+          attachments: options.attachments?.map(a => ({
+            filename: a.filename,
+            content: a.content,
+            contentType: a.contentType,
+          })),
+        });
+        return {
+          success: true,
+          queued: true,
+          message: 'Email queued for delivery',
+        };
+      } catch (queueError) {
+        logger.warn('Accodamento email fallito, fallback su SMTP diretto', queueError);
+        // prosegue col fallback SMTP qui sotto
       }
+    }
 
+    // 2) Fallback (o invio primario senza Redis): SMTP diretto
+    const smtpTransporter = getTransporter();
+    if (!smtpTransporter) {
+      logger.error(
+        'Invio email impossibile: né coda BullMQ né SMTP disponibili. ' +
+        'Configurare REDIS_URL e/o SMTP_HOST + SMTP_USER.',
+        { to: options.to, subject: options.subject }
+      );
+      return {
+        success: false,
+        queued: false,
+        error: 'No email channel available (queue and SMTP both unavailable)',
+      };
+    }
+
+    try {
       const mailOptions = {
         from: options.from || EMAIL_FROM,
         to: Array.isArray(options.to) ? options.to.join(',') : options.to,
@@ -110,8 +122,8 @@ export class EmailService {
         attachments: options.attachments,
       };
 
-      const result = await transporter.sendMail(mailOptions);
-      console.log('✅ Email sent successfully:', result.messageId);
+      const result = await smtpTransporter.sendMail(mailOptions);
+      logger.info('Email inviata via SMTP diretto', { messageId: result.messageId });
       return {
         success: true,
         queued: false,
@@ -119,11 +131,7 @@ export class EmailService {
         response: result.response,
       };
     } catch (error) {
-      console.error('❌ Email sending failed:', error);
-      // Re-throw error so callers can handle it appropriately
-      if (error instanceof Error && error.message.includes('transporter')) {
-        throw error;
-      }
+      logger.error('Invio email SMTP fallito', error);
       return {
         success: false,
         queued: false,

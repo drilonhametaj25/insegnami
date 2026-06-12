@@ -58,11 +58,14 @@ services:
   worker:
     build:
       context: ..
-      dockerfile: Dockerfile
+      # Il path del dockerfile è relativo al context (la root del repo)
+      dockerfile: docker/Dockerfile
+      target: worker
     container_name: insegnami-worker
-    command: ["npm", "run", "worker"]
     env_file:
-      - ../.env
+      # required: false — "docker compose config" deve passare anche senza .env
+      - path: ../.env
+        required: false
     environment:
       # Override hostnames so the worker reaches services by container name.
       DATABASE_URL: postgresql://insegnami_user:insegnami_password@postgres:5432/insegnami_db

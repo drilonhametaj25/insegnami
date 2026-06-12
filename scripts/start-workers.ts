@@ -24,14 +24,18 @@ async function main() {
     process.exit(1);
   }
 
-  // Importing these modules has the side effect of creating Worker instances.
-  // The pattern is intentional: each module owns its lifecycle and exits cleanly
-  // when the process receives SIGTERM (handled below via worker.close()).
-  const [emailMod, automationMod, cron] = await Promise.all([
+  // NB: automation-worker istanzia ancora il proprio Worker a module load;
+  // email-queue e cron-scheduler usano invece il pattern factory e vanno
+  // avviati esplicitamente qui sotto.
+  const [emailMod, automationMod, cron, heartbeat] = await Promise.all([
     import('@/lib/email-queue'),
     import('@/lib/automation-worker'),
     import('@/lib/workers/cron-scheduler'),
+    import('@/lib/workers/heartbeat'),
   ]);
+
+  // Boot the email worker explicitly (factory pattern; not auto-instantiated).
+  emailMod.createEmailWorker();
 
   // Boot the cron worker explicitly (factory pattern; not auto-instantiated).
   const cronWorker = cron.getCronWorker();
@@ -44,11 +48,16 @@ async function main() {
   // schedule changes immediately.
   await cron.registerCronJobs();
 
-  logger.info('All workers up: email, automation, cron');
+  // Battito su Redis: /api/health/workers e deploy.sh lo usano per capire
+  // se il container worker è vivo.
+  const stopHeartbeat = heartbeat.startHeartbeat();
+
+  logger.info('All workers up: email, automation, cron (+heartbeat)');
 
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, draining workers...`);
     try {
+      stopHeartbeat();
       await Promise.all([
         emailMod.shutdownEmailQueue(),
         automationMod.automationWorker.close(),

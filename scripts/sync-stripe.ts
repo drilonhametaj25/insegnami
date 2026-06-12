@@ -14,10 +14,13 @@ const prisma = new PrismaClient();
 
 async function main() {
   if (!isStripeEnabled()) {
-    console.error(
-      'STRIPE_SECRET_KEY non configurata (o placeholder): sync non necessaria in dev billing.'
+    // exit(0), NON exit(1): in dev billing (o in un deploy senza chiavi
+    // Stripe) la sync è semplicemente superflua e non deve abortire la
+    // pipeline (deploy.sh gira con set -e).
+    console.warn(
+      'STRIPE_SECRET_KEY non configurata (o placeholder): salto la sync Stripe (dev billing).'
     );
-    process.exit(1);
+    process.exit(0);
   }
 
   const results = await syncAllToStripe(prisma);

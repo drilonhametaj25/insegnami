@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      # target esplicito: il Dockerfile ora ha anche lo stage "worker"
+      target: runner
     container_name: insegnami-app
     restart: unless-stopped
     ports:
@@ -16,7 +18,6 @@ services:
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
-      - RESEND_API_KEY=${RESEND_API_KEY}
       - REDIS_URL=redis://redis:6379
       # SMTP configuration
       - SMTP_HOST=${SMTP_HOST}
@@ -48,6 +49,51 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # BullMQ worker — consuma le code email/automation/cron + heartbeat.
+  # Il processo Next NON istanzia worker: le route pubblicano soltanto.
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: worker
+    container_name: insegnami-worker
+    restart: unless-stopped
+    environment:
+      # Il worker importa env-validation: in produzione richiede le stesse
+      # variabili del servizio app (DATABASE_URL, NEXTAUTH_*, STRIPE_* per MODE=saas).
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-insegnami}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-insegnami}?schema=public
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - REDIS_URL=redis://redis:6379
+      # SMTP configuration
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_FROM=${SMTP_FROM:-info@drilonhametaj.it}
+      - EMAIL_FROM=${EMAIL_FROM:-info@drilonhametaj.it}
+      - MODE=${MODE:-saas}
+    # Security hardening (come app). read_only + tmpfs: tsx/esbuild possono
+    # scrivere cache temporanee, che finiscono sulle tmpfs qui sotto.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/node_modules/.cache
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - insegnami_network
 
   # PostgreSQL Database
   postgres:

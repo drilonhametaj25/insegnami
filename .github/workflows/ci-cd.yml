@@ -170,6 +170,11 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          # Il file .env del server viene SOVRASCRITTO a ogni deploy: tutte le
+          # variabili usate da deploy.sh/backup devono passare da questi secrets.
+          SUPERADMIN_EMAIL: ${{ secrets.SUPERADMIN_EMAIL }}
+          SUPERADMIN_PASSWORD: ${{ secrets.SUPERADMIN_PASSWORD }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
         run: |
           # Create .env locally with printf (safe for any special characters)
           POSTGRES_PASSWORD=$(echo "$DATABASE_URL" | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
@@ -184,6 +189,9 @@ jobs:
             printf "SMTP_USER='%s'\n" "$SMTP_USER"
             printf "SMTP_PASSWORD='%s'\n" "$SMTP_PASSWORD"
             printf "EMAIL_FROM='%s'\n" "$EMAIL_FROM"
+            printf "SUPERADMIN_EMAIL='%s'\n" "$SUPERADMIN_EMAIL"
+            printf "SUPERADMIN_PASSWORD='%s'\n" "$SUPERADMIN_PASSWORD"
+            printf "BACKUP_ENCRYPTION_KEY='%s'\n" "$BACKUP_ENCRYPTION_KEY"
             printf "POSTGRES_DB='insegnami'\n"
             printf "POSTGRES_USER='insegnami'\n"
             printf "POSTGRES_PASSWORD='%s'\n" "$POSTGRES_PASSWORD"

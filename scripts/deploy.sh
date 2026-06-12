@@ -88,9 +88,9 @@ echo "Ensuring latest code..."
 git fetch origin main
 git reset --hard origin/main
 
-# Build new image
-echo "Building Docker image..."
-docker compose -f $COMPOSE_FILE build --no-cache app
+# Build new images (app + worker BullMQ)
+echo "Building Docker images (app + worker)..."
+docker compose -f $COMPOSE_FILE build --no-cache app worker
 
 # Stop old containers gracefully
 echo "Stopping old containers..."
@@ -107,6 +107,13 @@ sleep 10
 # Run database migrations (use local prisma, not npx which downloads latest)
 echo "Running database migrations..."
 docker compose -f $COMPOSE_FILE exec -T app node_modules/prisma/build/index.js migrate deploy
+
+# Sync del catalogo Stripe (piani + add-on). NON fatale: se fallisce il
+# catalogo precedente resta valido e il deploy prosegue. Con chiavi Stripe
+# assenti/placeholder lo script esce 0 da solo (dev billing).
+echo "Syncing Stripe catalog..."
+docker compose -f $COMPOSE_FILE run --rm worker node_modules/.bin/tsx scripts/sync-stripe.ts \
+    || echo "WARNING: Stripe sync failed — il catalogo precedente resta valido"
 
 # Database seed (only first time - checks if demo user exists)
 echo "Checking if database seed is needed..."
@@ -161,6 +168,23 @@ for i in {1..10}; do
     echo "Waiting for app to be ready... (attempt $i/10)"
     sleep 5
 done
+
+# Health check del worker BullMQ (non fatale: il sito resta su anche se il
+# worker zoppica; segnaliamo soltanto)
+echo "Checking worker status..."
+if docker compose -f $COMPOSE_FILE ps worker 2>/dev/null | grep -qi "running\|up"; then
+    echo "Worker container is running"
+    # Heartbeat su Redis (scritto da scripts/start-workers.ts ogni 30s, TTL 90s)
+    HEARTBEAT=$(docker compose -f $COMPOSE_FILE exec -T redis redis-cli GET worker:heartbeat 2>/dev/null || echo "")
+    if [ -n "$HEARTBEAT" ]; then
+        echo "Worker heartbeat OK (last beat epoch ms: $HEARTBEAT)"
+    else
+        echo "WARNING: worker heartbeat not found yet (container may still be booting)"
+    fi
+else
+    echo "WARNING: worker container is not running"
+    docker compose -f $COMPOSE_FILE logs worker --tail 30 || true
+fi
 
 # Cleanup old images
 echo "Cleaning up old Docker images..."

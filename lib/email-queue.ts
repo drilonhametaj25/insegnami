@@ -46,28 +46,56 @@ export enum EmailJobType {
   GENERIC = 'generic',
 }
 
-// Redis connection configuration
-const redisConnection = redis.getConnectionConfig();
+// ============================================================================
+// PRODUCER (lato Next: le route accodano soltanto)
+// La Queue è lazy: niente connessioni Redis al semplice import del modulo.
+// ============================================================================
 
-// Create email queue
-export const emailQueue = new Queue('email', {
-  connection: redisConnection,
-  defaultJobOptions: {
-    removeOnComplete: 10,
-    removeOnFail: 50,
-    backoff: {
-      type: 'exponential',
-      delay: 5000,
-    },
-    // BUG-025 fix: Increased retry attempts from 3 to 10 for better reliability
-    attempts: 10,
+let _emailQueue: Queue | null = null;
+
+export function getEmailQueue(): Queue {
+  if (!_emailQueue) {
+    _emailQueue = new Queue('email', {
+      connection: redis.getConnectionConfig(),
+      defaultJobOptions: {
+        removeOnComplete: 10,
+        removeOnFail: 50,
+        backoff: {
+          type: 'exponential',
+          delay: 5000,
+        },
+        // BUG-025 fix: Increased retry attempts from 3 to 10 for better reliability
+        attempts: 10,
+      },
+    });
+  }
+  return _emailQueue;
+}
+
+// Retrocompatibilità: storicamente il modulo esportava l'istanza creata a
+// module load. Il Proxy mantiene la stessa API ma istanzia la Queue solo
+// al primo accesso reale.
+export const emailQueue = new Proxy({} as Queue, {
+  get(_target, prop) {
+    const queue = getEmailQueue();
+    const value = (queue as any)[prop];
+    return typeof value === 'function' ? value.bind(queue) : value;
   },
 });
 
-// Email transporter configuration
-const createEmailTransporter = () => {
+// ============================================================================
+// CONSUMER (solo processo worker dedicato: scripts/start-workers.ts)
+// Worker, QueueEvents e transporter SMTP vengono creati esclusivamente
+// dalla factory createEmailWorker() — mai al caricamento del modulo.
+// ============================================================================
+
+// Transporter del worker: UNO solo, in pooling, riusato da tutti i job.
+const createWorkerTransporter = () => {
   const port = parseInt(process.env.SMTP_PORT || '587');
   return nodemailer.createTransport({
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 100,
     host: process.env.SMTP_HOST || 'localhost',
     port,
     secure: port === 465,
@@ -81,65 +109,81 @@ const createEmailTransporter = () => {
   });
 };
 
-// Email worker
-export const emailWorker = new Worker(
-  'email',
-  async (job: Job<EmailJobData>) => {
-    const { to, subject, html, text, attachments } = job.data;
-    
-    logger.info(`Processing email job ${job.id}: ${subject}`, { to, jobType: job.name });
-    
-    const transporter = createEmailTransporter();
-    
-    try {
-      const result = await transporter.sendMail({
-        from: process.env.SMTP_FROM || 'noreply@insegnami.pro',
-        to,
-        subject,
-        html,
-        text,
-        attachments,
-      });
-      
-      logger.info(`Email sent successfully for job ${job.id}`, { 
-        messageId: result.messageId,
-        to,
-        subject 
-      });
-      
-      return { messageId: result.messageId, status: 'sent' };
-    } catch (error) {
-      logger.error(`Failed to send email for job ${job.id}`, error, { to, subject });
-      throw error;
-    }
-  },
-  {
-    connection: redisConnection,
-    concurrency: 5,
+let _emailWorker: Worker | null = null;
+let _emailQueueEvents: QueueEvents | null = null;
+let _workerTransporter: nodemailer.Transporter | null = null;
+
+/**
+ * Factory del consumer email (pattern getCronWorker). Idempotente: la
+ * seconda chiamata ritorna la stessa istanza. Da invocare SOLO dal processo
+ * worker — il processo Next non deve mai consumare la coda.
+ */
+export function createEmailWorker(): Worker {
+  if (_emailWorker) return _emailWorker;
+
+  // Creato una volta per processo; chiuso in shutdownEmailQueue()
+  if (!_workerTransporter) {
+    _workerTransporter = createWorkerTransporter();
   }
-);
 
-// Queue events for monitoring
-export const emailQueueEvents = new QueueEvents('email', {
-  connection: redisConnection,
-});
+  _emailWorker = new Worker(
+    'email',
+    async (job: Job<EmailJobData>) => {
+      const { to, subject, html, text, attachments } = job.data;
 
-// Event listeners
-emailWorker.on('completed', (job: Job, result: any) => {
-  logger.info(`Email job ${job.id} completed`, { result });
-});
+      logger.info(`Processing email job ${job.id}: ${subject}`, { to, jobType: job.name });
 
-emailWorker.on('failed', (job: Job | undefined, err: Error) => {
-  logger.error(`Email job ${job?.id} failed`, err, { jobData: job?.data });
-});
+      try {
+        const result = await _workerTransporter!.sendMail({
+          from: process.env.SMTP_FROM || 'noreply@insegnami.pro',
+          to,
+          subject,
+          html,
+          text,
+          attachments,
+        });
 
-emailQueueEvents.on('waiting', ({ jobId }) => {
-  logger.debug(`Email job ${jobId} is waiting`);
-});
+        logger.info(`Email sent successfully for job ${job.id}`, {
+          messageId: result.messageId,
+          to,
+          subject,
+        });
 
-emailQueueEvents.on('active', ({ jobId }) => {
-  logger.debug(`Email job ${jobId} is active`);
-});
+        return { messageId: result.messageId, status: 'sent' };
+      } catch (error) {
+        logger.error(`Failed to send email for job ${job.id}`, error, { to, subject });
+        throw error;
+      }
+    },
+    {
+      connection: redis.getConnectionConfig(),
+      concurrency: 5,
+    }
+  );
+
+  // Event listeners di osservabilità
+  _emailWorker.on('completed', (job: Job, result: any) => {
+    logger.info(`Email job ${job.id} completed`, { result });
+  });
+
+  _emailWorker.on('failed', (job: Job | undefined, err: Error) => {
+    logger.error(`Email job ${job?.id} failed`, err, { jobData: job?.data });
+  });
+
+  _emailQueueEvents = new QueueEvents('email', {
+    connection: redis.getConnectionConfig(),
+  });
+
+  _emailQueueEvents.on('waiting', ({ jobId }) => {
+    logger.debug(`Email job ${jobId} is waiting`);
+  });
+
+  _emailQueueEvents.on('active', ({ jobId }) => {
+    logger.debug(`Email job ${jobId} is active`);
+  });
+
+  return _emailWorker;
+}
 
 // Email notification helpers
 export class EmailNotificationService {
@@ -241,11 +285,25 @@ export class EmailQueueMonitor {
   }
 }
 
-// Graceful shutdown
+// Graceful shutdown: chiude solo ciò che è stato effettivamente creato
+// (il processo Next ha al massimo la Queue producer; il worker ha tutto).
 export async function shutdownEmailQueue() {
   logger.info('Shutting down email queue...');
-  await emailWorker.close();
-  await emailQueue.close();
-  await emailQueueEvents.close();
+  if (_emailWorker) {
+    await _emailWorker.close();
+    _emailWorker = null;
+  }
+  if (_emailQueueEvents) {
+    await _emailQueueEvents.close();
+    _emailQueueEvents = null;
+  }
+  if (_workerTransporter) {
+    _workerTransporter.close();
+    _workerTransporter = null;
+  }
+  if (_emailQueue) {
+    await _emailQueue.close();
+    _emailQueue = null;
+  }
   logger.info('Email queue shutdown complete');
 }

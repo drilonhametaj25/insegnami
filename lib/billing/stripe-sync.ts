@@ -109,7 +109,11 @@ async function ensureProductAndPrice({
   }
 
   if (await isPriceValid(existingPriceId, spec)) {
-    const relinked = !productCreated && product.id !== existingProductId;
+    // 'relinked' solo se il chiamante PERSISTEVA un productId diverso da
+    // quello trovato: i piani non persistono il productId (sempre null),
+    // quindi senza il check su existingProductId ogni run risulterebbe
+    // erroneamente 'relinked' invece di 'unchanged'.
+    const relinked = !productCreated && !!existingProductId && product.id !== existingProductId;
     return {
       productId: product.id,
       priceId: existingPriceId!,

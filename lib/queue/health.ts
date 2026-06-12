@@ -14,7 +14,9 @@ export type QueueHealth = {
   error?: string;
 };
 
-const QUEUE_NAMES = ['email', 'pdf', 'notification', 'automation', 'cron'] as const;
+// Code effettivamente attive: pdf e notification sono state rimosse insieme
+// al modulo morto lib/queue.ts (nessun worker le processava più)
+const QUEUE_NAMES = ['email', 'automation', 'cron'] as const;
 
 /**
  * Inspect every BullMQ queue we use. Returns a stable shape for monitoring

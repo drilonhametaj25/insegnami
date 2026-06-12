@@ -12,6 +12,16 @@ const UNSAFE_SECRETS = [
   'your-nextauth-secret',
 ];
 
+// Password di default/insicure note: estende UNSAFE_SECRETS con i valori
+// tipici usati come placeholder per SUPERADMIN_PASSWORD e POSTGRES_PASSWORD
+const UNSAFE_PASSWORDS = [
+  ...UNSAFE_SECRETS,
+  'admin',
+  'admin123',
+  '123456',
+  'postgres',
+];
+
 // Environment variable schema
 const envSchema = z.object({
   // Node environment
@@ -129,9 +139,30 @@ export function validateEnv(): EnvValidationResult {
     }
   }
 
-  // Warn if Redis is not configured
+  // REDIS_URL è obbligatorio in produzione (rate limiting, code BullMQ, cache):
+  // stesso pattern fatale usato per Stripe in SaaS mode. Il check viene saltato
+  // durante la build di Next perché il job CI di build non setta REDIS_URL.
   if (!env.REDIS_URL) {
-    warnings.push('REDIS_URL not configured - rate limiting and caching will be disabled');
+    const msg = 'REDIS_URL not configured - rate limiting and caching will be disabled';
+    if (
+      process.env.NODE_ENV === 'production' &&
+      process.env.NEXT_PHASE !== 'phase-production-build'
+    ) {
+      console.error(`❌ ${msg}`);
+      throw new Error('REDIS_URL is required in production');
+    }
+    warnings.push(msg);
+  }
+
+  // Warning (non fatale) se le password operative usano valori di default noti
+  for (const key of ['SUPERADMIN_PASSWORD', 'POSTGRES_PASSWORD'] as const) {
+    const value = process.env[key];
+    if (
+      value &&
+      UNSAFE_PASSWORDS.some(unsafe => value.toLowerCase().includes(unsafe.toLowerCase()))
+    ) {
+      warnings.push(`${key} contains a known default/unsafe value - please change it`);
+    }
   }
 
   // Warn if SMTP is not configured

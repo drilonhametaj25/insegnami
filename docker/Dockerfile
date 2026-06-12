@@ -37,6 +37,27 @@ ARG NEXTAUTH_URL="http://localhost:3000"
 # Build the application
 RUN npm run build
 
+# ----------------------------------------------------------------------------
+# Worker stage — processo BullMQ standalone (email, automation, cron).
+# Parte dal builder perché tsx deve eseguire i sorgenti TypeScript e ha
+# bisogno di node_modules completi + Prisma client già generato.
+# NOTA: lo stage runner DEVE restare l'ultimo del file (default build target).
+FROM builder AS worker
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Utente non-root dedicato (stessi uid/gid dello stage runner per coerenza)
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
+
+USER nextjs
+
+# Nessuna porta esposta: il worker consuma solo code BullMQ via Redis
+CMD ["node_modules/.bin/tsx", "scripts/start-workers.ts"]
+
 # Production stage
 FROM node:18-alpine3.18 AS runner
 
