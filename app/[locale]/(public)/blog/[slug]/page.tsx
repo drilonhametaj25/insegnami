@@ -9,7 +9,6 @@ import {
   Breadcrumbs,
   Card,
   Container,
-  Divider,
   Group,
   SimpleGrid,
   Stack,
@@ -116,10 +115,11 @@ export default async function BlogPostPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <Container size="md" py={{ base: 32, sm: 48 }}>
-        <Stack gap="xl">
+      {/* Testata articolo su banda hero, come le altre pagine pubbliche */}
+      <Box className="pub-hero" py={{ base: 32, sm: 48 }}>
+        <Container size="md">
           {/* Breadcrumbs (navigazione unica verso Home e Blog) */}
-          <Breadcrumbs>
+          <Breadcrumbs mb="xl">
             <Anchor component={Link} href={`/${locale}`} size="sm" c="indigo.6" underline="hover">
               Home
             </Anchor>
@@ -137,7 +137,6 @@ export default async function BlogPostPage({
             </Text>
           </Breadcrumbs>
 
-          {/* Intestazione articolo */}
           <header>
             <Badge variant="light" color="indigo" radius="xl" mb="sm">
               {post.category}
@@ -183,8 +182,12 @@ export default async function BlogPostPage({
               </Group>
             </Group>
           </header>
+        </Container>
+      </Box>
 
-          {/* Corpo articolo: tipografia gestita dal mapping Mantine */}
+      {/* Corpo articolo su bianco */}
+      <Container size="md" py={{ base: 32, sm: 48 }}>
+        <Stack gap="xl">
           <Box component="article">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={blogMarkdownComponents}>
               {post.content}
@@ -204,47 +207,47 @@ export default async function BlogPostPage({
               ))}
             </Group>
           )}
-
-          <Divider />
-
-          {/* Articoli correlati */}
-          {relatedPosts.length > 0 && (
-            <section>
-              <Title order={2} fz={rem(24)} fw={800} c="var(--pub-ink)" mb="lg">
-                Articoli correlati
-              </Title>
-              <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg">
-                {relatedPosts.map((relatedPost) => (
-                  <Card
-                    key={relatedPost.slug}
-                    component={Link}
-                    href={`/${locale}/blog/${relatedPost.slug}`}
-                    padding="lg"
-                    radius="lg"
-                    bg="white"
-                    className="pub-card"
-                    style={{ textDecoration: 'none' }}
-                  >
-                    <Badge variant="light" color="indigo" size="sm" radius="xl" mb="xs">
-                      {relatedPost.category}
-                    </Badge>
-                    <Text fw={600} c="var(--pub-ink)" lineClamp={2}>
-                      {relatedPost.title}
-                    </Text>
-                    <Text size="xs" c="dimmed" mt="xs">
-                      {new Date(relatedPost.date).toLocaleDateString(locale, {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
-                    </Text>
-                  </Card>
-                ))}
-              </SimpleGrid>
-            </section>
-          )}
         </Stack>
       </Container>
+
+      {/* Articoli correlati in banda surface */}
+      {relatedPosts.length > 0 && (
+        <Box component="section" bg="var(--pub-surface)" py={{ base: 40, sm: 56 }}>
+          <Container size="md">
+            <Title order={2} fz={rem(24)} fw={800} c="var(--pub-ink)" mb="lg">
+              Articoli correlati
+            </Title>
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg">
+              {relatedPosts.map((relatedPost) => (
+                <Card
+                  key={relatedPost.slug}
+                  component={Link}
+                  href={`/${locale}/blog/${relatedPost.slug}`}
+                  padding="lg"
+                  radius="lg"
+                  bg="white"
+                  className="pub-card"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <Badge variant="light" color="indigo" size="sm" radius="xl" mb="xs">
+                    {relatedPost.category}
+                  </Badge>
+                  <Text fw={600} c="var(--pub-ink)" lineClamp={2}>
+                    {relatedPost.title}
+                  </Text>
+                  <Text size="xs" c="dimmed" mt="xs">
+                    {new Date(relatedPost.date).toLocaleDateString(locale, {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </Text>
+                </Card>
+              ))}
+            </SimpleGrid>
+          </Container>
+        </Box>
+      )}
 
       {/* CTA finale */}
       <CtaBanner

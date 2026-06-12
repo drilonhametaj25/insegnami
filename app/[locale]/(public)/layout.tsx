@@ -11,7 +11,16 @@ export default async function PublicLayout({
   const { locale } = await params;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        // Base bianca del sito pubblico: le sezioni colorate (pub-hero,
+        // pub-surface, pub-ink) sono scelte esplicite delle singole pagine.
+        backgroundColor: '#fff',
+      }}
+    >
       <PublicHeader locale={locale} />
       <main style={{ flex: 1 }}>{children}</main>
       <PublicFooter locale={locale} />
