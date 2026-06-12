@@ -137,6 +137,7 @@ export async function POST(request: NextRequest) {
     const updatedSub = await updateSubscriptionPlan({
       subscriptionId: subscription.stripeSubscriptionId,
       newPriceId: targetPlan.stripePriceId,
+      newYearlyPriceId: targetPlan.stripeYearlyPriceId,
     });
 
     // Read back authoritative state to surface to UI immediately. The webhook

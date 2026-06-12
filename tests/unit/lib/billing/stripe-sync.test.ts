@@ -91,7 +91,7 @@ jest.mock('@/lib/billing/billing-mode', () => ({
 }));
 
 import { syncAllToStripe } from '@/lib/billing/stripe-sync';
-import { PLAN_CATALOG } from '@/lib/billing/plans-catalog';
+import { PLAN_CATALOG, yearlyPriceOf } from '@/lib/billing/plans-catalog';
 import { ADDON_CATALOG } from '@/lib/billing/addons';
 
 const { createNewPrice, deactivatePrice, stripe, __state: mockStripeState } = require('@/lib/stripe');
@@ -146,7 +146,23 @@ describe('syncAllToStripe', () => {
     expect(results).toHaveLength(TOTAL_ITEMS);
     expect(results.every((r) => r.action === 'created')).toBe(true);
     expect(mockStripeState.products.size).toBe(TOTAL_ITEMS);
-    expect(mockStripeState.prices.size).toBe(TOTAL_ITEMS);
+    // i piani hanno DUE prezzi (mensile + annuale), gli add-on uno
+    expect(mockStripeState.prices.size).toBe(PLAN_CATALOG.length * 2 + Object.keys(ADDON_CATALOG).length);
+
+    // annuale: 12 mesi al prezzo di 10, interval year, stesso prodotto del mensile
+    for (const r of results.filter((x) => x.kind === 'plan')) {
+      const def = PLAN_CATALOG.find((d) => d.slug === r.key)!;
+      const monthly = mockStripeState.prices.get(r.priceId);
+      const yearly = mockStripeState.prices.get(r.yearlyPriceId!);
+      expect(monthly.recurring.interval).toBe('month');
+      expect(yearly.recurring.interval).toBe('year');
+      expect(yearly.unit_amount).toBe(Math.round(yearlyPriceOf(def.price) * 100));
+      expect(yearly.product).toBe(monthly.product);
+    }
+    // gli add-on restano solo mensili
+    for (const r of results.filter((x) => x.kind === 'addon')) {
+      expect(r.yearlyPriceId).toBeUndefined();
+    }
   });
 
   it('seconda run: idempotente, tutte le action sono unchanged', async () => {
@@ -175,9 +191,13 @@ describe('syncAllToStripe', () => {
 
     expect(starterSecond.action).toBe('price_rotated');
     expect(starterSecond.priceId).not.toBe(starterFirst.priceId);
-    // il vecchio prezzo è archiviato, non cancellato
+    // ruota anche l'annuale (derivato dal mensile: 12 mesi al prezzo di 10)
+    expect(starterSecond.yearlyPriceId).not.toBe(starterFirst.yearlyPriceId);
+    // i vecchi prezzi sono archiviati, non cancellati
     expect(deactivatePrice).toHaveBeenCalledWith(starterFirst.priceId);
+    expect(deactivatePrice).toHaveBeenCalledWith(starterFirst.yearlyPriceId);
     expect(mockStripeState.prices.get(starterFirst.priceId).active).toBe(false);
+    expect(mockStripeState.prices.get(starterFirst.yearlyPriceId!).active).toBe(false);
     // gli altri item restano unchanged
     const others = second.filter((r) => r.key !== PLAN_CATALOG[0].slug);
     expect(others.every((r) => r.action === 'unchanged')).toBe(true);
@@ -263,6 +283,7 @@ describe('syncAllToStripe', () => {
     for (const def of PLAN_CATALOG) {
       const row = await prisma.plan.findUnique({ where: { slug: def.slug } });
       expect(row.stripePriceId).toMatch(/^price_\d+$/); // niente placeholder *_dev
+      expect(row.stripeYearlyPriceId).toMatch(/^price_\d+$/);
     }
     expect(prisma.addonCatalog.upsert).toHaveBeenCalledTimes(Object.keys(ADDON_CATALOG).length);
     expect(results.filter((r) => r.kind === 'addon')).toHaveLength(

@@ -25,8 +25,9 @@ async function main() {
 
   const results = await syncAllToStripe(prisma);
   for (const r of results) {
+    const yearly = r.yearlyPriceId ? `, yearly=${r.yearlyPriceId}` : '';
     console.log(
-      `✔ [${r.kind}] ${r.key}: ${r.action} (product=${r.productId}, price=${r.priceId})`
+      `✔ [${r.kind}] ${r.key}: ${r.action} (product=${r.productId}, price=${r.priceId}${yearly})`
     );
   }
   console.log(`\nSync completata: ${results.length} elementi.`);

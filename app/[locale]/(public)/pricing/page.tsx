@@ -35,6 +35,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { CtaBanner, PUB_GRADIENT, PageHero, SectionHeader } from '@/components/public/PublicUI';
+import { yearlyPriceOf } from '@/lib/billing/plans-catalog';
 
 interface Plan {
   id: string;
@@ -184,9 +185,8 @@ export default function PricingPage() {
   };
 
   const getDisplayPrice = (plan: Plan): string => {
-    const price = billingInterval === 'yearly'
-      ? Math.round(plan.price * 10) // 2 mesi gratis con l'annuale
-      : plan.price;
+    // Annuale = 12 mesi al prezzo di 10 (stessa regola di catalogo e sync Stripe)
+    const price = billingInterval === 'yearly' ? Math.round(yearlyPriceOf(plan.price)) : plan.price;
     return `€${price}`;
   };
 

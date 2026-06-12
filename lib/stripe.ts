@@ -290,9 +290,13 @@ export async function reactivateSubscription(
 export async function updateSubscriptionPlan({
   subscriptionId,
   newPriceId,
+  newYearlyPriceId,
 }: {
   subscriptionId: string;
+  /** Prezzo MENSILE del piano di destinazione. */
   newPriceId: string;
+  /** Prezzo ANNUALE del piano di destinazione (Plan.stripeYearlyPriceId). */
+  newYearlyPriceId?: string | null;
 }): Promise<Stripe.Subscription> {
   // Con add-on attivi la subscription ha più items e items.data[0] può essere
   // l'item dell'ADD-ON: aggiornare quello cambierebbe il prezzo sbagliato.
@@ -311,11 +315,23 @@ export async function updateSubscriptionPlan({
     throw new Error('No subscription item found');
   }
 
+  // Il cambio piano preserva l'intervallo di fatturazione corrente: chi è
+  // sull'annuale passa al prezzo annuale del piano di destinazione, non al
+  // mensile (che cambierebbe silenziosamente la cadenza di addebito).
+  const isYearly =
+    (planItem.price as Stripe.Price | undefined)?.recurring?.interval === 'year';
+  if (isYearly && !newYearlyPriceId) {
+    throw new Error(
+      'Prezzo annuale non configurato per il piano di destinazione: esegui la sync Stripe.'
+    );
+  }
+  const targetPriceId = isYearly ? newYearlyPriceId! : newPriceId;
+
   return stripe.subscriptions.update(subscriptionId, {
     items: [
       {
         id: itemId,
-        price: newPriceId,
+        price: targetPriceId,
       },
     ],
     proration_behavior: 'create_prorations',

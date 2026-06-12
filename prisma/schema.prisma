@@ -265,12 +265,14 @@ model Tenant {
 // ========================================
 
 model Plan {
-  id            String       @id @default(cuid())
-  name          String // Starter, Professional, Enterprise
-  slug          String       @unique // starter, professional, enterprise
-  stripePriceId String       @unique // Stripe Price ID (price_xxx)
-  price         Decimal      @db.Decimal(10, 2)
-  interval      PlanInterval @default(MONTHLY)
+  id                  String  @id @default(cuid())
+  name                String // Starter, Professional, Enterprise
+  slug                String  @unique // starter, professional, enterprise
+  stripePriceId       String  @unique // Stripe Price ID mensile (price_xxx)
+  stripeYearlyPriceId String? @unique // Stripe Price ID annuale (12 mesi al prezzo di 10); null finché la sync non lo crea
+  price               Decimal @db.Decimal(10, 2) // €/mese
+
+  interval PlanInterval @default(MONTHLY)
 
   // Limits
   maxStudents Int? // null = unlimited
@@ -357,10 +359,10 @@ model TenantAddon {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  type     AddonType
-  quantity Int     @default(1) // numero di pacchetti acquistati
-  unitSize Int     @default(1) // entità per pacchetto (es. 50 studenti, 5 GB) — snapshot
-  unitPrice Decimal @db.Decimal(10, 2) // prezzo per pacchetto/mese — snapshot
+  type      AddonType
+  quantity  Int       @default(1) // numero di pacchetti acquistati
+  unitSize  Int       @default(1) // entità per pacchetto (es. 50 studenti, 5 GB) — snapshot
+  unitPrice Decimal   @db.Decimal(10, 2) // prezzo per pacchetto/mese — snapshot
 
   status AddonStatus @default(ACTIVE)
 

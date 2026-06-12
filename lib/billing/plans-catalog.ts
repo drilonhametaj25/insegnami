@@ -5,10 +5,20 @@
  * persistiti su Plan.stripePriceId.
  */
 
+/**
+ * Prezzo annuale = 12 mesi al prezzo di 10 (2 mesi gratis, ~ -17%).
+ * Unica definizione della regola: usata da sync Stripe e UI pricing.
+ */
+export const YEARLY_PRICE_MULTIPLIER = 10;
+
+export function yearlyPriceOf(monthlyPrice: number): number {
+  return monthlyPrice * YEARLY_PRICE_MULTIPLIER;
+}
+
 export interface PlanDefinition {
   name: string;
   slug: string;
-  price: number; // €/mese
+  price: number; // €/mese (l'annuale è derivato: yearlyPriceOf)
   interval: 'MONTHLY' | 'YEARLY';
   maxStudents: number | null;
   maxTeachers: number | null;

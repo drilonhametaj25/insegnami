@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const { planId, interval } = checkoutSchema.parse(body);
 
     // Get the plan
-    let plan = await prisma.plan.findUnique({
+    const plan = await prisma.plan.findUnique({
       where: { id: planId },
     });
 
@@ -42,21 +42,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If yearly interval requested, try to find the yearly version of this plan
-    if (interval === 'yearly' && plan.interval === 'MONTHLY') {
-      const yearlyPlan = await prisma.plan.findFirst({
-        where: {
-          slug: plan.slug,
-          interval: 'YEARLY',
-          isActive: true,
-        },
-      });
-
-      // Use yearly plan if available, otherwise continue with monthly
-      if (yearlyPlan) {
-        plan = yearlyPlan;
-      }
-    }
+    // Annuale: prezzo dedicato sullo stesso piano (12 mesi al prezzo di 10),
+    // creato dalla sync in Plan.stripeYearlyPriceId. Se non è ancora stato
+    // sincronizzato si procede col mensile invece di bloccare il checkout.
+    const useYearly = interval === 'yearly' && !!plan.stripeYearlyPriceId;
 
     // Get tenant and user info
     const tenant = await prisma.tenant.findUnique({
@@ -110,7 +99,12 @@ export async function POST(request: NextRequest) {
     // Dev billing mode: niente Stripe esterno. Attiviamo direttamente
     // l'abbonamento (con trial solo se residuo) e rimandiamo alla pagina di fatturazione.
     if (isDevBilling()) {
-      await devActivateSubscription({ tenantId: tenant.id, plan, withTrial: trialDays > 0 });
+      await devActivateSubscription({
+        tenantId: tenant.id,
+        plan,
+        withTrial: trialDays > 0,
+        yearly: interval === 'yearly',
+      });
       return NextResponse.json({
         url: `${baseUrl}/it/dashboard/billing?success=true`,
         dev: true,
@@ -136,7 +130,7 @@ export async function POST(request: NextRequest) {
     // Create checkout session
     const checkoutSession = await createSubscriptionCheckoutSession({
       customerId: customer.id,
-      priceId: plan.stripePriceId,
+      priceId: useYearly ? plan.stripeYearlyPriceId! : plan.stripePriceId,
       tenantId: tenant.id,
       successUrl: `${baseUrl}/it/dashboard/billing?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/it/dashboard/billing?cancelled=true`,

@@ -21,7 +21,7 @@ jest.mock('@/lib/redis', () => ({
 // Mock Prisma
 jest.mock('@/lib/db', () => ({
   prisma: {
-    plan: { findUnique: jest.fn() },
+    plan: { findFirst: jest.fn() },
     subscription: {
       upsert: jest.fn(),
       findUnique: jest.fn(),
@@ -152,7 +152,7 @@ describe('/api/webhooks/stripe', () => {
       trial_start: null,
       trial_end: null,
     })
-    prisma.plan.findUnique.mockResolvedValue({
+    prisma.plan.findFirst.mockResolvedValue({
       id: 'plan-1',
       slug: 'professional',
       name: 'Professional',
@@ -191,7 +191,7 @@ describe('/api/webhooks/stripe', () => {
       tenantId: 'tenant-1',
       planId: 'plan-1',
     })
-    prisma.plan.findUnique.mockResolvedValue({
+    prisma.plan.findFirst.mockResolvedValue({
       id: 'plan-1',
       slug: 'professional',
     })
@@ -330,7 +330,7 @@ describe('/api/webhooks/stripe', () => {
       // Subscription non in DB, ma il customer appartiene a un nostro tenant
       prisma.subscription.findUnique.mockResolvedValue(null)
       prisma.tenant.findUnique.mockResolvedValue({ id: 'tenant-1' })
-      prisma.plan.findUnique.mockResolvedValue({ id: 'plan-1', slug: 'professional' })
+      prisma.plan.findFirst.mockResolvedValue({ id: 'plan-1', slug: 'professional' })
       prisma.subscription.upsert.mockResolvedValue({
         id: 'sub-db-new',
         tenantId: 'tenant-1',
@@ -420,7 +420,7 @@ describe('/api/webhooks/stripe', () => {
         tenantId: 'tenant-1',
         planId: 'plan-1',
       })
-      prisma.plan.findUnique.mockResolvedValue({ id: 'plan-1', slug: 'professional' })
+      prisma.plan.findFirst.mockResolvedValue({ id: 'plan-1', slug: 'professional' })
       prisma.subscription.update.mockRejectedValue(new Error('DB down'))
 
       const req = createRequest('{}')
@@ -529,7 +529,7 @@ describe('/api/webhooks/stripe', () => {
         trial_start: null,
         trial_end: null,
       })
-      prisma.plan.findUnique.mockResolvedValue({
+      prisma.plan.findFirst.mockResolvedValue({
         id: 'plan-1',
         slug: 'professional',
         name: 'Professional',
@@ -576,7 +576,7 @@ describe('/api/webhooks/stripe', () => {
         tenantId: 'tenant-1',
         planId: 'plan-1',
       })
-      prisma.plan.findUnique.mockResolvedValue({
+      prisma.plan.findFirst.mockResolvedValue({
         id: 'plan-1',
         slug: 'professional',
         name: 'Professional',
@@ -596,7 +596,7 @@ describe('/api/webhooks/stripe', () => {
         tenantId: 'tenant-1',
         planId: 'plan-1', // piano attuale in DB...
       })
-      prisma.plan.findUnique.mockResolvedValue({
+      prisma.plan.findFirst.mockResolvedValue({
         id: 'plan-2', // ...diverso da quello risolto dal price Stripe
         slug: 'enterprise',
         name: 'Enterprise',

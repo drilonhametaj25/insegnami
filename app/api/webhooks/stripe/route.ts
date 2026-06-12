@@ -6,6 +6,7 @@ import { SubscriptionStatus } from '@prisma/client';
 import { redis } from '@/lib/redis';
 import { sanitizeError } from '@/lib/api-middleware';
 import { reconcileAddonItems } from '@/lib/billing/stripe-addons';
+import { findPlanByStripePriceId } from '@/lib/billing/stripe-sync';
 import { invalidateTenantAccessCache } from '@/lib/tenant-access';
 import { notifyTenantAdmins, type TenantAdminNotification } from '@/lib/notifications/billing-notifications';
 
@@ -210,9 +211,7 @@ export async function POST(request: NextRequest) {
           }
 
           // Find the plan by Stripe price ID
-          const plan = await prisma.plan.findUnique({
-            where: { stripePriceId: priceId },
-          });
+          const plan = await findPlanByStripePriceId(prisma, priceId);
 
           if (!plan) {
             // BUG-024 fix: Throw error instead of silent break - plan sync required
@@ -380,9 +379,7 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        const plan = await prisma.plan.findUnique({
-          where: { stripePriceId: priceId },
-        });
+        const plan = await findPlanByStripePriceId(prisma, priceId);
 
         if (!plan) {
           // BUG-024 fix: Throw error instead of silent break - plan sync required
@@ -450,7 +447,7 @@ export async function POST(request: NextRequest) {
 
           const backfillPriceId = findPlanPriceId(subscription.items.data);
           const backfillPlan = backfillPriceId
-            ? await prisma.plan.findUnique({ where: { stripePriceId: backfillPriceId } })
+            ? await findPlanByStripePriceId(prisma, backfillPriceId)
             : null;
 
           if (tenantId && backfillPlan) {
@@ -495,9 +492,7 @@ export async function POST(request: NextRequest) {
 
         // Check if plan changed
         if (priceId) {
-          const plan = await prisma.plan.findUnique({
-            where: { stripePriceId: priceId },
-          });
+          const plan = await findPlanByStripePriceId(prisma, priceId);
           if (plan) {
             planId = plan.id;
             if (plan.id !== previousPlanId) {

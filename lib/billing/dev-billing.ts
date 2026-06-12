@@ -25,13 +25,16 @@ export async function devActivateSubscription({
   tenantId,
   plan,
   withTrial = true,
+  yearly = false,
 }: {
   tenantId: string;
   plan: Plan;
   withTrial?: boolean;
+  /** Fatturazione annuale scelta al checkout (12 mesi al prezzo di 10). */
+  yearly?: boolean;
 }) {
   const now = new Date();
-  const periodEnd = addMonths(now, plan.interval === 'YEARLY' ? 12 : 1);
+  const periodEnd = addMonths(now, yearly || plan.interval === 'YEARLY' ? 12 : 1);
   const trialEnd = withTrial ? new Date(now.getTime() + TRIAL_DAYS * 86400000) : null;
 
   const subscription = await prisma.subscription.upsert({
