@@ -35,6 +35,11 @@ jobs:
       - name: Lint code
         run: npm run lint
 
+      - name: Validate Docker Compose files
+        run: |
+          docker compose -f docker-compose.prod.yml config -q
+          docker compose -f docker/docker-compose.yml config -q
+
   # Unit Tests
   test:
     runs-on: ubuntu-latest
@@ -90,9 +95,17 @@ jobs:
       - name: Run database migrations
         run: npx prisma migrate deploy
 
+      - name: Check schema/migrations drift
+        run: |
+          psql "$DATABASE_URL" -c 'CREATE DATABASE shadow_db;'
+          npx prisma migrate diff \
+            --from-migrations ./prisma/migrations \
+            --to-schema-datamodel ./prisma/schema.prisma \
+            --shadow-database-url "postgresql://test_user:test_pass@localhost:5432/shadow_db" \
+            --exit-code
+
       - name: Run unit tests
-        run: npm test || echo "Tests failed but continuing deployment"
-        continue-on-error: true
+        run: npm test
 
   # Build Test (ensure it builds correctly)
   build:
