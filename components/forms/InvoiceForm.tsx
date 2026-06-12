@@ -216,6 +216,7 @@ export function InvoiceForm({
                   label: s.prefix ? `${s.code} (${s.prefix})` : s.code,
                 }))}
                 withAsterisk
+                allowDeselect={false}
                 {...form.getInputProps('seriesId')}
               />
             </Grid.Col>

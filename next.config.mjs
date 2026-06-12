@@ -20,6 +20,13 @@ const withMDX = createMDX({
 const nextConfig = {
   output: 'standalone',
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'md', 'mdx'],
+  // Solo dev: evita lo smontaggio delle route compilate on-demand (default 60s
+  // di inattività), che in e2e locale causava ricompilazioni da 15-25s a metà
+  // suite e timeout spurii. Nessun effetto su build/produzione.
+  onDemandEntries: {
+    maxInactiveAge: 60 * 60 * 1000,
+    pagesBufferLength: 500,
+  },
   experimental: {
     serverActions: {
       allowedOrigins: ["localhost:3000", "127.0.0.1:3000", "insegnami.pro", "www.insegnami.pro"],

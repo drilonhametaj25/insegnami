@@ -76,14 +76,20 @@ test.describe('Lezioni — modifica serie ricorrente', () => {
     await page.getByRole('button', { name: 'Nuova Lezione' }).first().click();
 
     await page.getByPlaceholder('Es. Introduzione al Present Simple').fill(title);
-    await selectFirst(page, 'Seleziona classe');
+    // Ultima classe (docente diverso dalla prima): evita il conflitto di
+    // orario col test "crea una nuova lezione" che gira in parallelo usando
+    // la prima classe e lo stesso orario di default del form.
+    await page.getByPlaceholder('Seleziona classe').click();
+    await page.locator('[role="option"]:visible').last().click();
     const submit = page.getByRole('button', { name: 'Crea Lezione' });
     if (!(await submit.isEnabled())) {
       await selectFirst(page, 'Seleziona docente');
       await selectFirst(page, 'Seleziona corso');
     }
-    // Attiva la ricorrenza (Switch Mantine)
-    await page.getByLabel('Lezione Ricorrente').check({ force: true });
+    // Attiva la ricorrenza: l'input dello Switch Mantine è nascosto (fuori
+    // viewport), quindi si clicca la label visibile e si verifica lo stato.
+    await page.getByText('Lezione Ricorrente', { exact: true }).click();
+    await expect(page.getByLabel('Lezione Ricorrente')).toBeChecked();
     await expect(submit).toBeEnabled();
     await submit.click();
 
@@ -115,8 +121,9 @@ test.describe('Lezioni — modifica serie ricorrente', () => {
     await page.getByLabel('Tutta la serie').check({ force: true });
     await page.getByRole('button', { name: 'Conferma' }).click();
 
-    // Notifica di successo e titolo aggiornato nel dettaglio
-    await expect(page.getByText(/Serie aggiornata/)).toBeVisible({ timeout: 15000 });
+    // Notifica di successo e titolo aggiornato nel dettaglio (timeout largo:
+    // la PUT della serie sotto carico può superare i 15s in dev)
+    await expect(page.getByText(/Serie aggiornata/).first()).toBeVisible({ timeout: 30000 });
     await expect(
       page.getByRole('heading', { name: new RegExp(newTitle) }).first()
     ).toBeVisible({ timeout: 15000 });

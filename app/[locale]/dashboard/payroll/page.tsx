@@ -475,6 +475,7 @@ export default function PayrollPage() {
                     value: String(index + 1),
                     label,
                   }))}
+                  allowDeselect={false}
                   {...form.getInputProps('month')}
                 />
               </Grid.Col>

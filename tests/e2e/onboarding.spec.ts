@@ -1,27 +1,29 @@
 import { test, expect } from '@playwright/test';
-import { login, testApi, SEED_TENANT_SLUG } from './helpers/auth';
+import { login, testApi, SECOND_TENANT_SLUG } from './helpers/auth';
 
 /**
  * Wizard di onboarding: dal redirect post-login fino al completamento,
  * con persistenza dei dati della scuola.
- * Serial perché muta lo stato di setup del tenant seed.
+ * Serial perché muta lo stato di setup del tenant. Usa il SECONDO tenant
+ * (second-school/admin2): resettare l'onboarding di english-plus mentre le
+ * altre suite admin girano in parallelo le farebbe rimbalzare sul wizard.
  */
 test.describe.serial('Onboarding wizard', () => {
   test.afterAll(async ({ request }) => {
     // Ripristina lo stato completo per non disturbare gli altri test
-    await testApi(request, { action: 'complete-onboarding', slug: SEED_TENANT_SLUG });
+    await testApi(request, { action: 'complete-onboarding', slug: SECOND_TENANT_SLUG });
   });
 
   test('admin con onboarding incompleto viene reindirizzato al wizard', async ({ page, request }) => {
-    await testApi(request, { action: 'reset-onboarding', slug: SEED_TENANT_SLUG });
-    await login(page, 'admin');
+    await testApi(request, { action: 'reset-onboarding', slug: SECOND_TENANT_SLUG });
+    await login(page, 'admin2');
     await page.waitForURL(/onboarding/, { timeout: 20000 });
     await expect(page.getByText('Benvenuto su InsegnaMi.pro')).toBeVisible();
   });
 
   test('completamento del wizard salva i dati e porta alla dashboard', async ({ page, request }) => {
-    await testApi(request, { action: 'reset-onboarding', slug: SEED_TENANT_SLUG });
-    await login(page, 'admin');
+    await testApi(request, { action: 'reset-onboarding', slug: SECOND_TENANT_SLUG });
+    await login(page, 'admin2');
     await page.waitForURL(/onboarding/, { timeout: 20000 });
 
     // Step 0 → Inizia
@@ -29,10 +31,10 @@ test.describe.serial('Onboarding wizard', () => {
 
     // Step 1 — Dettagli scuola
     await expect(page.getByText('Dettagli della Scuola')).toBeVisible();
-    await page.getByPlaceholder('es. Scuola di Musica Milano').fill('English Plus Academy');
+    await page.getByPlaceholder('es. Scuola di Musica Milano').fill('Second School Academy');
     await page.getByPlaceholder('Via Roma 1, 20100 Milano').fill('Via Verdi 10, Milano');
     await page.getByPlaceholder('+39 02 1234567').fill('+39 02 9999999');
-    await page.getByPlaceholder('info@scuola.it').fill('info@englishplus.it');
+    await page.getByPlaceholder('info@scuola.it').fill('info@secondschool.it');
     await page.getByRole('button', { name: 'Continua' }).click();
 
     // Step 2 — Team (salta)
@@ -51,17 +53,17 @@ test.describe.serial('Onboarding wizard', () => {
     await page.waitForURL(/\/dashboard(\/|$)/, { timeout: 20000 });
 
     // Persistenza dati scuola
-    const { tenant } = await testApi(request, { action: 'get-tenant', slug: SEED_TENANT_SLUG });
-    expect(tenant.name).toBe('English Plus Academy');
+    const { tenant } = await testApi(request, { action: 'get-tenant', slug: SECOND_TENANT_SLUG });
+    expect(tenant.name).toBe('Second School Academy');
     expect(tenant.address).toBe('Via Verdi 10, Milano');
     expect(tenant.phone).toBe('+39 02 9999999');
-    expect(tenant.email).toBe('info@englishplus.it');
+    expect(tenant.email).toBe('info@secondschool.it');
     expect(tenant.setupStage).toBe('COMPLETE');
   });
 
   test('admin con onboarding completo va direttamente alla dashboard', async ({ page, request }) => {
-    await testApi(request, { action: 'complete-onboarding', slug: SEED_TENANT_SLUG });
-    await login(page, 'admin');
+    await testApi(request, { action: 'complete-onboarding', slug: SECOND_TENANT_SLUG });
+    await login(page, 'admin2');
     await page.goto('/it/dashboard');
     await expect(page).toHaveURL(/\/dashboard(\/|$)/);
     // Non deve rimbalzare su onboarding

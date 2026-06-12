@@ -6,16 +6,21 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seeding...');
 
+  // Trial lungo: l'enforcement runtime (tenant-guard) blocca i tenant senza
+  // subscription né trial attivo — i tenant seed devono restare operativi.
+  const seedTrialUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+
   // Create default tenant (for self-hosted mode)
   const tenant = await prisma.tenant.upsert({
     where: { id: '1' },
-    update: {},
+    update: { trialUntil: seedTrialUntil },
     create: {
       id: '1',
       name: 'Scuola di Inglese "English Plus"',
       slug: 'english-plus',
       plan: 'self-hosted',
       isActive: true,
+      trialUntil: seedTrialUntil,
       featureFlags: JSON.stringify({
         attendance: true,
         payments: true,
@@ -1186,12 +1191,13 @@ async function main() {
 
   const tenant2 = await prisma.tenant.upsert({
     where: { slug: 'second-school' },
-    update: {},
+    update: { trialUntil: seedTrialUntil },
     create: {
       name: 'Second School',
       slug: 'second-school',
       plan: 'self-hosted',
       isActive: true,
+      trialUntil: seedTrialUntil,
       setupStage: 'COMPLETE',
       setupCompletedAt: new Date(),
       featureFlags: JSON.stringify({

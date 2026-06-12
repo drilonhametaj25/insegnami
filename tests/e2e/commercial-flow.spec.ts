@@ -43,8 +43,9 @@ test.describe.serial('Flusso commerciale (billing)', () => {
     await login(page, 'admin');
     await page.goto('/it/pricing');
     await page.getByTestId('subscribe-starter').click();
-    // Dev billing → redirect interno alla pagina di fatturazione
-    await page.waitForURL(/\/dashboard\/billing/, { timeout: 20000 });
+    // Dev billing → redirect interno alla pagina di fatturazione (timeout
+    // largo: checkout+navigazione in dev sotto carico superano i 20s)
+    await page.waitForURL(/\/dashboard\/billing/, { timeout: 45000 });
     // L'abbonamento Starter è ora attivo (o in prova)
     await expect(page.getByText('Starter').first()).toBeVisible();
     await expect(page.getByTestId('plan-change-section')).toBeVisible();

@@ -59,8 +59,9 @@ test.describe.serial('Fatturazione elettronica', () => {
     await page.goto('/it/dashboard/invoices/new');
     await expect(page.getByRole('heading', { name: 'Nuova fattura' })).toBeVisible();
 
-    // Seleziona il sezionale creato nel test precedente
-    await page.getByLabel('Sezionale').click();
+    // Seleziona il sezionale creato nel test precedente (getByRole evita la
+    // listbox del Select montata hidden, che fa scattare lo strict mode)
+    await page.getByRole('textbox', { name: 'Sezionale' }).click();
     await page.getByRole('option', { name: seriesCode }).click();
 
     // Crea l'anagrafica cliente inline
@@ -96,8 +97,9 @@ test.describe.serial('Fatturazione elettronica', () => {
 
     await page.getByRole('button', { name: 'Crea fattura' }).click();
 
-    // Redirect al dettaglio della bozza appena creata
-    await page.waitForURL(/\/dashboard\/invoices\/c[a-z0-9]{15,}/, { timeout: 20000 });
+    // Redirect al dettaglio della bozza appena creata (timeout largo: la
+    // navigazione in dev sotto carico può superare i 20s)
+    await page.waitForURL(/\/dashboard\/invoices\/c[a-z0-9]{15,}/, { timeout: 45000 });
     invoiceId = page.url().split('/').pop()!;
     expect(invoiceId).toBeTruthy();
 

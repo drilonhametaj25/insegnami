@@ -44,9 +44,10 @@ test.describe('Contabilità — movimenti', () => {
     const dialog = page.getByRole('dialog', { name: 'Nuovo Movimento' });
     await expect(dialog).toBeVisible();
 
-    // Tipo REVENUE (permesso anche per i movimenti manuali)
-    await dialog.getByLabel('Tipo').click();
-    await page.locator('[role="option"]', { hasText: 'Ricavo' }).first().click();
+    // Tipo REVENUE (permesso anche per i movimenti manuali). Le option dei
+    // Select Mantine restano montate (hidden): filtriamo solo quelle visibili.
+    await dialog.getByRole('textbox', { name: 'Tipo' }).click();
+    await page.locator('[role="option"]:visible', { hasText: 'Ricavo' }).first().click();
 
     await dialog.getByLabel('Categoria').fill('altro');
     await dialog.getByLabel('Importo').fill('500');
@@ -64,9 +65,9 @@ test.describe('Contabilità — movimenti', () => {
   test('filtra i movimenti per tipo', async ({ page }) => {
     await page.goto('/it/dashboard/accounting');
 
-    // Applica il filtro tipo = Costo
-    await page.getByLabel('Tipo').click();
-    await page.locator('[role="option"]', { hasText: 'Costo' }).first().click();
+    // Applica il filtro tipo = Costo (getByRole evita la listbox montata hidden)
+    await page.getByRole('textbox', { name: 'Tipo' }).click();
+    await page.locator('[role="option"]:visible', { hasText: 'Costo' }).first().click();
 
     // La tabella si aggiorna senza errori e mostra solo badge Costo (se presenti)
     await page.waitForTimeout(1000);
@@ -97,8 +98,8 @@ test.describe('Contabilità — P&L', () => {
     await page.goto('/it/dashboard/accounting');
     await page.getByRole('tab', { name: 'P&L' }).click();
 
-    await page.getByLabel('Periodo').click();
-    await page.locator('[role="option"]', { hasText: 'Anno corrente' }).first().click();
+    await page.getByRole('textbox', { name: 'Periodo' }).click();
+    await page.locator('[role="option"]:visible', { hasText: 'Anno corrente' }).first().click();
 
     // Il report si ricarica senza errori fatali
     await expect(page.getByText('Risultato Netto').first()).toBeVisible({ timeout: 15000 });

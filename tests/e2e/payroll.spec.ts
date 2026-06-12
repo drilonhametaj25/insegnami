@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { storageStateFor } from './helpers/auth';
+import { storageStateFor, testApi, SEED_TENANT_SLUG } from './helpers/auth';
 
 /**
  * E2E C3 — Payroll docenti: flusso completo
@@ -21,18 +21,30 @@ const year = now.getFullYear();
 const monthLabel = MONTH_LABELS[now.getMonth()];
 const periodLabel = `${monthLabel} ${year}`;
 
-/** Espande il periodo corrente se i link Dettaglio non sono già visibili. */
+/**
+ * Espande il periodo corrente finché i link Dettaglio non sono visibili.
+ * Dopo "Genera cedolini" la riga si auto-espande ma il refetch può arrivare
+ * dopo: un singolo toggle rischia di RICHIUDERE il pannello ancora vuoto,
+ * quindi si ritenta l'apertura finché i link non compaiono.
+ */
 async function ensurePeriodExpanded(page: Page) {
   const detailLink = page.getByRole('link', { name: 'Dettaglio' }).first();
-  const visible = await detailLink.isVisible().catch(() => false);
-  if (!visible) {
+  await expect(async () => {
+    if (await detailLink.isVisible()) return;
     await page.getByLabel(`Espandi periodo ${periodLabel}`).click();
-  }
-  await expect(detailLink).toBeVisible({ timeout: 10000 });
+    await expect(detailLink).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20000 });
 }
 
 test.describe.serial('Payroll — flusso completo', () => {
+  test.beforeAll(async ({ request }) => {
+    // I cedolini PAID delle run precedenti non sono rigenerabili: si riparte puliti
+    await testApi(request, { action: 'reset-payroll', slug: SEED_TENANT_SLUG });
+  });
+
   test('crea periodo, genera cedolini, ritenuta docente, rigenera, approva e paga', async ({ page }) => {
+    // Flusso lungo su molte pagine: in dev ognuna compila al primo accesso
+    test.setTimeout(180_000);
     // Le conferme distruttive usano confirm(): accettiamo tutti i dialog nativi
     page.on('dialog', (dialog) => dialog.accept());
 
@@ -67,12 +79,18 @@ test.describe.serial('Payroll — flusso completo', () => {
     // -----------------------------------------------------------------
     // 3. Apri il dettaglio del primo cedolino e ricava il docente
     // -----------------------------------------------------------------
-    // Nome docente dalla prima cella della riga del cedolino
-    const firstPayrollRow = page.getByRole('row').filter({ has: detailLinks.first() }).first();
+    // Nome docente dalla prima cella della riga del cedolino. .last(): il
+    // filtro has matcha anche la riga-periodo espansa che contiene la tabella
+    // annidata; le righe interne dei cedolini vengono dopo nel DOM.
+    const firstPayrollRow = page
+      .getByRole('row')
+      .filter({ has: page.getByRole('link', { name: 'Dettaglio' }) })
+      .last();
     const teacherName = (await firstPayrollRow.locator('td').first().innerText()).trim();
     expect(teacherName.length).toBeGreaterThan(0);
 
-    await detailLinks.first().click();
+    // Clicca il Dettaglio DELLA STESSA riga da cui abbiamo letto il docente
+    await firstPayrollRow.getByRole('link', { name: 'Dettaglio' }).click();
     await page.waitForURL(/\/dashboard\/payroll\/[^/]+$/, { timeout: 15000 });
     await expect(page.getByRole('heading', { name: new RegExp(`Cedolino ${periodLabel}`) })).toBeVisible();
     await expect(page.getByText(teacherName).first()).toBeVisible();
@@ -101,7 +119,8 @@ test.describe.serial('Payroll — flusso completo', () => {
     await ensurePeriodExpanded(page);
 
     // Apri il cedolino del docente su cui abbiamo impostato la ritenuta
-    const teacherRow = page.getByRole('row', { name: new RegExp(teacherName) }).first();
+    // (.last(): la riga esterna del periodo contiene tutta la tabella annidata)
+    const teacherRow = page.getByRole('row', { name: new RegExp(teacherName) }).last();
     await teacherRow.getByRole('link', { name: 'Dettaglio' }).click();
     await page.waitForURL(/\/dashboard\/payroll\/[^/]+$/, { timeout: 15000 });
 
@@ -116,7 +135,7 @@ test.describe.serial('Payroll — flusso completo', () => {
     // 6. La ritenuta è presente nel cedolino rigenerato
     // -----------------------------------------------------------------
     await ensurePeriodExpanded(page);
-    const regeneratedRow = page.getByRole('row', { name: new RegExp(teacherName) }).first();
+    const regeneratedRow = page.getByRole('row', { name: new RegExp(teacherName) }).last();
     await regeneratedRow.getByRole('link', { name: 'Dettaglio' }).click();
     await page.waitForURL(/\/dashboard\/payroll\/[^/]+$/, { timeout: 15000 });
 

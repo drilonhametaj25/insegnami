@@ -128,6 +128,9 @@ export default function PricingPage() {
   };
 
   const handleSubscribe = async (planId: string) => {
+    // Sessione ancora in caricamento: ignora il click invece di trattare
+    // l'utente come anonimo (manderebbe un utente loggato alla registrazione)
+    if (status === 'loading') return;
     if (status !== 'authenticated') {
       // Redirect to register with plan info
       router.push(`/${locale}/auth/register?plan=${planId}`);
@@ -293,6 +296,7 @@ export default function PricingPage() {
                           variant={plan.isPopular ? 'filled' : 'light'}
                           mb="lg"
                           loading={isLoading}
+                          disabled={status === 'loading'}
                           onClick={() => handleSubscribe(plan.id)}
                           rightSection={!isLoading && <IconRocket size={18} />}
                           data-testid={`subscribe-${plan.slug}`}

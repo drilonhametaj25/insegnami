@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       SELECT 
         DATE_TRUNC('month', "publishAt") as month,
         COUNT(*) as count
-      FROM "Notice" 
+      FROM "notices"
       WHERE "tenantId" = ${tenantId}
         AND "publishAt" >= ${sixMonthsAgo}
       GROUP BY DATE_TRUNC('month', "publishAt")

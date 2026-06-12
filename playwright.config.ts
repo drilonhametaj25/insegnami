@@ -11,12 +11,17 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Timeout per test: il dev server di Next può essere lento sotto carico */
   timeout: 60 * 1000,
-  /* Timeout default delle asserzioni expect() — più tollerante in dev */
-  expect: { timeout: 15 * 1000 },
+  /* Timeout default delle asserzioni expect() — più tollerante in dev: a
+     inizio run (5 worker + dev server sullo stesso host) le prime risposte
+     API possono superare i 20s anche a route già compilate */
+  expect: { timeout: process.env.CI ? 15 * 1000 : 30 * 1000 },
   /* Un retry locale assorbe la flakiness residua del dev server */
   retries: process.env.CI ? 2 : 1,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Opt out of parallel tests on CI. In locale 2 worker: il dev server Next è
+     un singolo processo Node e con 5 chromium paralleli su una workstation
+     già carica le risposte API superano i 20-30s (timeout spurii a catena).
+     Override possibile con E2E_WORKERS. */
+  workers: process.env.CI ? 1 : Number(process.env.E2E_WORKERS || 2),
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   // In CI si aggiunge il reporter 'github' (annotazioni inline sui PR) mantenendo
   // l'html, che viene caricato come artifact in caso di fallimento.

@@ -16,7 +16,8 @@ test.describe('Comunicazione — template e gruppi', () => {
     const dialog = page.getByRole('dialog').filter({ has: page.getByLabel('Oggetto') });
     await expect(dialog).toBeVisible();
 
-    await dialog.getByLabel('Nome', { exact: true }).fill(name);
+    // getByRole: il "*" del withAsterisk fa fallire getByLabel con exact
+    await dialog.getByRole('textbox', { name: 'Nome', exact: true }).fill(name);
     await dialog.getByLabel('Descrizione').fill('Template creato dal test e2e');
     await dialog.getByLabel('Oggetto').fill(`Oggetto e2e ${stamp}`);
     await dialog.getByLabel('Contenuto').fill('Ciao {{nome}}, questo è un template di prova.');
@@ -54,7 +55,8 @@ test.describe('Comunicazione — template e gruppi', () => {
     const dialog = page.getByRole('dialog').filter({ has: page.getByLabel('Membri') });
     await expect(dialog).toBeVisible();
 
-    await dialog.getByLabel('Nome', { exact: true }).fill(name);
+    // getByRole: il "*" del withAsterisk fa fallire getByLabel con exact
+    await dialog.getByRole('textbox', { name: 'Nome', exact: true }).fill(name);
     await dialog.getByLabel('Descrizione').fill('Gruppo creato dal test e2e');
 
     // Seleziona il primo membro disponibile dalla MultiSelect

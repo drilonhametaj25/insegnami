@@ -59,9 +59,21 @@ export async function POST(request: NextRequest) {
 
       // 1) Pulizia dati di test (ordine FK-safe: lezioni → classi → docenti → studenti)
       await prisma.lesson.deleteMany({ where: { tenantId: tid, title: { startsWith: 'Lezione Test' } } });
+      await prisma.lesson.deleteMany({ where: { tenantId: tid, title: { startsWith: 'Serie Test' } } });
       await prisma.lesson.deleteMany({ where: { tenantId: tid, class: { name: { startsWith: 'Classe Test' } } } });
       await prisma.class.deleteMany({ where: { tenantId: tid, name: { startsWith: 'Classe Test' } } });
-      await prisma.teacher.deleteMany({ where: { tenantId: tid, firstName: { startsWith: 'TestDoc' } } }).catch(() => {});
+      // Esclude i 'TestDocLimite' di commercial-flow.spec (serial, parallelo a
+      // questi moduli): quei docenti servono a far scattare i limiti di piano
+      // e vengono ripuliti dalla suite stessa via delete-teachers-by-prefix.
+      await prisma.teacher
+        .deleteMany({
+          where: {
+            tenantId: tid,
+            firstName: { startsWith: 'TestDoc' },
+            NOT: { firstName: { startsWith: 'TestDocLimite' } },
+          },
+        })
+        .catch(() => {});
       const stud = await prisma.student.findMany({
         where: { tenantId: tid, firstName: { startsWith: 'TestStud' } },
         select: { id: true, userId: true },
@@ -70,14 +82,26 @@ export async function POST(request: NextRequest) {
       const sUserIds = stud.map((s) => s.userId).filter(Boolean) as string[];
       if (sUserIds.length) await prisma.user.deleteMany({ where: { id: { in: sUserIds } } });
 
-      // 2) Reset billing → nessun abbonamento + trial generoso
-      await prisma.tenantAddon.deleteMany({ where: { tenantId: tid } });
-      await prisma.subscription.deleteMany({ where: { tenantId: tid } });
+      // 2) Trial generoso + tenant attivo. NON tocca abbonamento/add-on:
+      // commercial-flow.spec (serial) dipende dal proprio stato billing e
+      // gira in parallelo ai moduli che chiamano reset-test-data; per il
+      // reset completo del billing c'è l'azione dedicata 'reset-billing'.
       await prisma.tenant.update({
         where: { id: tid },
         data: { plan: 'basic', trialUntil: new Date(Date.now() + 14 * 86400000), isActive: true },
       });
 
+      return NextResponse.json({ ok: true });
+    }
+
+    case 'reset-payroll': {
+      // Riporta il payroll del tenant allo stato vergine: il flusso e2e
+      // (genera → approva → paga) non è altrimenti ri-eseguibile perché i
+      // cedolini PAID non sono né rigenerabili né eliminabili dalla UI.
+      const tenant = await prisma.tenant.findFirst({ where: { slug: body.slug } });
+      if (!tenant) return NextResponse.json({ error: 'tenant not found' }, { status: 404 });
+      await prisma.payroll.deleteMany({ where: { tenantId: tenant.id } });
+      await prisma.payrollPeriod.deleteMany({ where: { tenantId: tenant.id } });
       return NextResponse.json({ ok: true });
     }
 
