@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { EmailNotificationService } from '@/lib/email-queue';
+import { rateLimitByKey } from '@/lib/rate-limit';
 import type { Notification, NotificationType, NotificationPriority } from '@prisma/client';
 import { escapeHtml } from '@/lib/api-middleware';
 
@@ -30,6 +31,11 @@ export type DispatchOptions = {
 
 const APP_URL = (process.env.NEXTAUTH_URL || 'http://localhost:3000').replace(/\/$/, '');
 const FROM_NAME = 'InsegnaMi.pro';
+
+// B3.4: quota per-tenant anti-DoS sull'enqueue email — max email/ora per
+// tenant. Riusa rateLimitByKey (sliding window su Redis, fail-open se giù).
+const EMAIL_QUEUE_MAX_PER_HOUR = 500;
+const EMAIL_QUEUE_WINDOW_MS = 3600000;
 
 function priorityLabel(priority: NotificationPriority): { color: string; label: string } {
   switch (priority) {
@@ -113,6 +119,13 @@ export async function dispatchNotification(
       reason = 'already-sent';
     } else if (!user?.email) {
       reason = 'no-recipient-email';
+    } else if (!(await rateLimitByKey(notification.tenantId, EMAIL_QUEUE_MAX_PER_HOUR, EMAIL_QUEUE_WINDOW_MS, 'rl:queue:email'))) {
+      // B3.4: quota tenant esaurita — la notifica resta in-app (emailSent
+      // false), nessun throw: un tenant rumoroso non deve saturare la coda.
+      logger.warn(
+        `dispatchNotification: quota email oraria esaurita per tenant ${notification.tenantId} — notifica ${notification.id} non accodata`,
+      );
+      reason = 'quota-exceeded';
     } else {
       const { html, text } = renderNotificationEmail(notification);
       const subject = `[${FROM_NAME}] ${notification.title}`;

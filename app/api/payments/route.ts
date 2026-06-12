@@ -5,6 +5,63 @@ import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { z } from 'zod';
 import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
 
+// C6 — Ricevuta di pagamento: notifica in-app + email (sendEmail: true) allo
+// user dello studente e, se collegato, al parentUser. Best-effort: qualsiasi
+// errore viene loggato e NON deve mai far fallire la richiesta chiamante.
+// NB: duplicata in app/api/payments/[id]/route.ts — i file route Next.js non
+// possono esportare helper condivisi senza rompere la validazione delle route.
+async function sendPaymentReceipt(payment: {
+  id: string;
+  tenantId: string;
+  studentId: string;
+  amount: unknown;
+  description: string;
+  paidDate?: Date | null;
+}) {
+  try {
+    const { createAndDispatch } = await import('@/lib/notifications/dispatcher');
+
+    // userId è obbligatorio su Student, parentUserId opzionale
+    const student = await prisma.student.findFirst({
+      where: { id: payment.studentId },
+      select: { userId: true, parentUserId: true },
+    });
+    if (!student) return;
+
+    // Importo in formato italiano (es. 1.250,00) e data del pagamento
+    const importo = Number(payment.amount).toLocaleString('it-IT', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const dataPagamento = (payment.paidDate ?? new Date()).toLocaleDateString('it-IT');
+    const base = {
+      tenantId: payment.tenantId,
+      title: 'Ricevuta di pagamento',
+      content: `Abbiamo registrato il pagamento di € ${importo} — "${payment.description}" — in data ${dataPagamento}. Questa notifica vale come ricevuta.`,
+      type: 'PAYMENT' as const,
+      sourceType: 'Payment',
+      sourceId: payment.id,
+    };
+
+    // Ricevuta allo studente
+    await createAndDispatch(
+      { ...base, userId: student.userId, actionUrl: '/dashboard/student' },
+      { sendEmail: true },
+    );
+
+    // Ricevuta al genitore, se esiste un account collegato
+    if (student.parentUserId) {
+      await createAndDispatch(
+        { ...base, userId: student.parentUserId, actionUrl: '/dashboard/parent' },
+        { sendEmail: true },
+      );
+    }
+  } catch (error) {
+    // Fire-and-forget: logghiamo e basta, niente throw verso il chiamante
+    console.error('Errore invio ricevuta di pagamento (non bloccante):', error);
+  }
+}
+
 const paymentSchema = z.object({
   studentId: z.string().min(1, 'Student ID required'),
   classId: z.string().optional(),
@@ -247,6 +304,19 @@ export async function POST(request: NextRequest) {
 
       return created;
     });
+
+    // C6 — Pagamento nato già PAID (es. incasso in cassa): ricevuta immediata
+    // DOPO il commit. Best-effort: non fa mai fallire la POST.
+    if (validatedData.status === 'PAID') {
+      await sendPaymentReceipt({
+        id: payment.id,
+        tenantId: payment.tenantId,
+        studentId: payment.studentId,
+        amount: payment.amount,
+        description: payment.description,
+        paidDate: payment.paidDate,
+      });
+    }
 
     return NextResponse.json(payment, { status: 201 });
   } catch (error) {

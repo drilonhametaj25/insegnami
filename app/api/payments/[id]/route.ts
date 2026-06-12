@@ -6,6 +6,62 @@ import { z } from 'zod';
 import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
 import { logAudit } from '@/lib/audit';
 
+// C6 — Ricevuta di pagamento: notifica in-app + email (sendEmail: true) allo
+// user dello studente e, se collegato, al parentUser. Best-effort: qualsiasi
+// errore viene loggato e NON deve mai far fallire la richiesta chiamante
+// (il pagamento è già committato quando questa funzione parte).
+async function sendPaymentReceipt(payment: {
+  id: string;
+  tenantId: string;
+  studentId: string;
+  amount: unknown;
+  description: string;
+  paidDate?: Date | null;
+}) {
+  try {
+    const { createAndDispatch } = await import('@/lib/notifications/dispatcher');
+
+    // userId è obbligatorio su Student, parentUserId opzionale
+    const student = await prisma.student.findFirst({
+      where: { id: payment.studentId },
+      select: { userId: true, parentUserId: true },
+    });
+    if (!student) return;
+
+    // Importo in formato italiano (es. 1.250,00) e data del pagamento
+    const importo = Number(payment.amount).toLocaleString('it-IT', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const dataPagamento = (payment.paidDate ?? new Date()).toLocaleDateString('it-IT');
+    const base = {
+      tenantId: payment.tenantId,
+      title: 'Ricevuta di pagamento',
+      content: `Abbiamo registrato il pagamento di € ${importo} — "${payment.description}" — in data ${dataPagamento}. Questa notifica vale come ricevuta.`,
+      type: 'PAYMENT' as const,
+      sourceType: 'Payment',
+      sourceId: payment.id,
+    };
+
+    // Ricevuta allo studente
+    await createAndDispatch(
+      { ...base, userId: student.userId, actionUrl: '/dashboard/student' },
+      { sendEmail: true },
+    );
+
+    // Ricevuta al genitore, se esiste un account collegato
+    if (student.parentUserId) {
+      await createAndDispatch(
+        { ...base, userId: student.parentUserId, actionUrl: '/dashboard/parent' },
+        { sendEmail: true },
+      );
+    }
+  } catch (error) {
+    // Fire-and-forget: logghiamo e basta, niente throw verso il chiamante
+    console.error('Errore invio ricevuta di pagamento (non bloccante):', error);
+  }
+}
+
 const paymentUpdateSchema = z.object({
   description: z.string().min(1, 'Descrizione richiesta').optional(),
   amount: z.number().positive('L\'importo deve essere positivo').optional(),
@@ -194,6 +250,20 @@ export async function PUT(
 
       return updated;
     });
+
+    // C6 — Ricevuta email DOPO il commit, solo sulla transizione *→PAID
+    // (PAID→PAID non rinvia: willBePaid è false). sendPaymentReceipt non
+    // lancia mai, quindi la PUT risponde 200 anche se il dispatcher fallisce.
+    if (willBePaid) {
+      await sendPaymentReceipt({
+        id: updatedPayment.id,
+        tenantId: updatedPayment.tenantId,
+        studentId: updatedPayment.studentId,
+        amount: updatedPayment.amount,
+        description: updatedPayment.description,
+        paidDate: updatedPayment.paidDate,
+      });
+    }
 
     return NextResponse.json(updatedPayment);
   } catch (error) {

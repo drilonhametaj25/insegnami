@@ -2,7 +2,32 @@ import { Queue } from 'bullmq';
 import { prisma } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
 import { logger } from '@/lib/logger';
+import { rateLimitByKey } from '@/lib/rate-limit';
 import { redis } from '@/lib/redis';
+
+// B3.4: quota per-tenant anti-DoS sull'enqueue dei job automation —
+// max job/ora per tenant. Sliding window su Redis, fail-open se Redis giù.
+const AUTOMATION_QUEUE_MAX_PER_HOUR = 1000;
+const AUTOMATION_QUEUE_WINDOW_MS = 3600000;
+
+/**
+ * Verifica la quota oraria di enqueue per il tenant. Ritorna true se il job
+ * può essere accodato; false (con warn) se la quota è esaurita.
+ */
+async function checkAutomationQuota(tenantId: string, jobLabel: string): Promise<boolean> {
+  const allowed = await rateLimitByKey(
+    tenantId,
+    AUTOMATION_QUEUE_MAX_PER_HOUR,
+    AUTOMATION_QUEUE_WINDOW_MS,
+    'rl:queue:automation',
+  );
+  if (!allowed) {
+    logger.warn(
+      `Automation quota esaurita per tenant ${tenantId}: job ${jobLabel} non accodato`,
+    );
+  }
+  return allowed;
+}
 
 // Define job types
 export interface AttendanceReminderJob {
@@ -113,6 +138,11 @@ export class AutomationService {
         return;
       }
 
+      // B3.4: quota per-tenant prima dell'enqueue
+      if (!(await checkAutomationQuota(lesson.tenantId, `attendance-${lessonId}-${reminderTime}`))) {
+        return;
+      }
+
       const job: AttendanceReminderJob = {
         type: 'attendance-reminder',
         tenantId: lesson.tenantId,
@@ -155,6 +185,11 @@ export class AutomationService {
 
       if (!payment) {
         logger.error(`Payment not found: ${paymentId}`);
+        return;
+      }
+
+      // B3.4: quota per-tenant prima dell'enqueue
+      if (!(await checkAutomationQuota(payment.tenantId, `payment-${paymentId}-${reminderType}`))) {
         return;
       }
 
@@ -202,6 +237,11 @@ export class AutomationService {
 
       // Warn when class is 90% full
       if (capacityPercentage >= 90) {
+        // B3.4: quota per-tenant prima dell'enqueue
+        if (!(await checkAutomationQuota(classData.tenantId, `capacity-${classId}`))) {
+          return;
+        }
+
         const job: ClassCapacityWarningJob = {
           type: 'class-capacity-warning',
           tenantId: classData.tenantId,

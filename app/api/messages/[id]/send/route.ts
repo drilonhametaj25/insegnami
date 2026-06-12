@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { EmailNotificationService } from '@/lib/email-queue';
+import { rateLimitByKey } from '@/lib/rate-limit';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+
+// B3.4: quota per-tenant anti-DoS sull'invio messaggi — max invii/ora
+const MSGSEND_QUEUE_MAX_PER_HOUR = 200;
+const MSGSEND_QUEUE_WINDOW_MS = 3600000;
 
 export async function POST(
   request: NextRequest,
@@ -53,6 +58,25 @@ export async function POST(
     // Can't send already sent messages
     if (message.status === 'SENT') {
       return NextResponse.json({ error: 'Messaggio già inviato' }, { status: 400 });
+    }
+
+    // B3.4: quota per-tenant prima del fan-out — un tenant non può saturare
+    // la coda email. Check PRIMA della transaction: con 429 il messaggio
+    // resta in DRAFT e può essere reinviato più tardi.
+    const withinQuota = await rateLimitByKey(
+      session.user.tenantId,
+      MSGSEND_QUEUE_MAX_PER_HOUR,
+      MSGSEND_QUEUE_WINDOW_MS,
+      'rl:queue:msgsend'
+    );
+    if (!withinQuota) {
+      return NextResponse.json(
+        {
+          error:
+            'Quota oraria di invio messaggi esaurita per questa scuola. Il messaggio resta in bozza: riprova più tardi.',
+        },
+        { status: 429 }
+      );
     }
 
     // BUG-046 fix: Wrap message and recipient updates in transaction for atomicity

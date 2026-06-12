@@ -1,9 +1,11 @@
 import { Queue, Worker, Job } from 'bullmq';
+import type { Prisma } from '@prisma/client';
 import { redis } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/db';
 import { AutomationService } from '@/lib/automation-service';
 import { notifyTenantAdmins } from '@/lib/notifications/billing-notifications';
+import { createAndDispatch } from '@/lib/notifications/dispatcher';
 
 /**
  * Cron jobs are modelled as BullMQ repeatable jobs in a dedicated queue.
@@ -40,11 +42,12 @@ function getCronQueue(): Queue | null {
 export const cronQueue = { get: getCronQueue };
 
 /**
- * AutomationRun audit-trail wrapper. Records start/finish/error per cron run.
- * If the AutomationRun model doesn't exist yet (migration pending) the run
- * still executes — only the bookkeeping is skipped.
+ * Wrapper di audit-trail AutomationRun: registra start/fine/errore per ogni
+ * esecuzione cron. Il bookkeeping non deve mai bloccare il job: in caso di
+ * problemi (DB transitorio, migrazione mancante) il job gira comunque, ma
+ * l'errore viene LOGGATO (logger.warn) — niente catch silenziosi.
  */
-async function withAuditRun<T>(
+export async function withAuditRun<T>(
   jobName: CronJobName,
   fn: () => Promise<T>,
 ): Promise<T> {
@@ -52,30 +55,37 @@ async function withAuditRun<T>(
   let runId: string | null = null;
 
   try {
-    const created = await (prisma as any).automationRun?.create({
+    const created = await prisma.automationRun.create({
       data: { jobName, startedAt, status: 'RUNNING' },
       select: { id: true },
     });
     runId = created?.id ?? null;
-  } catch {
-    // model missing or transient DB issue — proceed without bookkeeping
+  } catch (err) {
+    // Problema transitorio sul DB — il job procede senza bookkeeping
+    logger.warn('AutomationRun bookkeeping failed', err);
   }
 
   try {
     const result = await fn();
     if (runId) {
       try {
-        await (prisma as any).automationRun?.update({
+        await prisma.automationRun.update({
           where: { id: runId },
-          data: { finishedAt: new Date(), status: 'SUCCESS', resultJson: result ?? undefined },
+          data: {
+            finishedAt: new Date(),
+            status: 'SUCCESS',
+            resultJson: (result ?? undefined) as Prisma.InputJsonValue | undefined,
+          },
         });
-      } catch {/* swallow */}
+      } catch (err) {
+        logger.warn('AutomationRun bookkeeping failed', err);
+      }
     }
     return result;
   } catch (err) {
     if (runId) {
       try {
-        await (prisma as any).automationRun?.update({
+        await prisma.automationRun.update({
           where: { id: runId },
           data: {
             finishedAt: new Date(),
@@ -83,7 +93,9 @@ async function withAuditRun<T>(
             error: err instanceof Error ? err.message.slice(0, 1000) : String(err).slice(0, 1000),
           },
         });
-      } catch {/* swallow */}
+      } catch (bookkeepingErr) {
+        logger.warn('AutomationRun bookkeeping failed', bookkeepingErr);
+      }
     }
     throw err;
   }
@@ -108,15 +120,121 @@ export async function markPaymentsOverdue(): Promise<{ updated: number }> {
 }
 
 /**
- * Email a digest of yesterday's absences to parents. Stub for now — the
- * actual notification fan-out reuses AutomationService.schedulePaymentReminder
- * style. Implementing this fully requires Notification preferences UI which
- * is in Wave 2.
+ * Offset (ms) del fuso `timeZone` rispetto a UTC all'istante `date`.
+ * Tecnica standard via Intl: formattiamo l'istante nel fuso target e
+ * confrontiamo con l'epoch UTC corrispondente.
  */
-export async function parentAttendanceDigest(): Promise<{ pendingDigests: number }> {
-  // Placeholder counter — the dispatcher will be filled in Wave 2.8.
-  // Returning a structured result so the AutomationRun row carries something.
-  return { pendingDigests: 0 };
+function tzOffsetMs(date: Date, timeZone: string): number {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  const parts = dtf.formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const asUTC = Date.UTC(
+    get('year'), get('month') - 1, get('day'),
+    get('hour') % 24, get('minute'), get('second'),
+  );
+  return asUTC - Math.floor(date.getTime() / 1000) * 1000;
+}
+
+/**
+ * Istante UTC corrispondente alla mezzanotte civile del giorno di `date`
+ * nel fuso indicato. Robusto rispetto al cambio ora legale: la seconda
+ * iterazione ricalcola l'offset valido proprio a mezzanotte.
+ */
+export function startOfDayInTimeZone(date: Date, timeZone: string): Date {
+  const dtf = new Intl.DateTimeFormat('en-CA', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+  });
+  const [y, m, d] = dtf.format(date).split('-').map(Number);
+  let ts = Date.UTC(y, m - 1, d);
+  for (let i = 0; i < 2; i++) {
+    ts = Date.UTC(y, m - 1, d) - tzOffsetMs(new Date(ts), timeZone);
+  }
+  return new Date(ts);
+}
+
+/**
+ * Digest giornaliero per i genitori: assenze e ritardi (ABSENT, LATE) del
+ * GIORNO PRECEDENTE in Europe/Rome — finestra [ieri 00:00, oggi 00:00).
+ * Una sola notifica per genitore (raggruppata su tutti i figli); gli studenti
+ * senza account genitore collegato vengono saltati. Un errore di dispatch su
+ * un genitore non blocca gli altri.
+ */
+export async function parentAttendanceDigest(): Promise<{
+  pendingDigests: number;
+  emailsEnqueued: number;
+}> {
+  const tz = 'Europe/Rome';
+  const now = new Date();
+  const todayStart = startOfDayInTimeZone(now, tz);
+  // 1ms prima della mezzanotte di oggi cade sempre nel giorno civile precedente,
+  // anche nei giorni da 23/25 ore (cambio ora legale)
+  const yesterdayStart = startOfDayInTimeZone(new Date(todayStart.getTime() - 1), tz);
+
+  const records = await prisma.attendance.findMany({
+    where: {
+      status: { in: ['ABSENT', 'LATE'] },
+      lesson: { startTime: { gte: yesterdayStart, lt: todayStart } },
+    },
+    include: {
+      student: { select: { firstName: true, lastName: true, parentUserId: true } },
+      lesson: {
+        select: {
+          title: true,
+          startTime: true,
+          tenantId: true,
+          class: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  // Raggruppa per genitore — skip per chi non ha un account genitore collegato
+  const byParent = new Map<string, typeof records>();
+  for (const rec of records) {
+    const parentUserId = rec.student.parentUserId;
+    if (!parentUserId) continue;
+    const list = byParent.get(parentUserId) ?? [];
+    list.push(rec);
+    byParent.set(parentUserId, list);
+  }
+
+  let emailsEnqueued = 0;
+  for (const [parentUserId, items] of byParent) {
+    const lines = items.map((r) => {
+      const label = r.status === 'LATE' ? 'In ritardo' : 'Assente';
+      const className = r.lesson.class?.name ?? 'Senza classe';
+      return `${r.student.firstName} ${r.student.lastName} — ${r.lesson.title} (${className}) — ${label}`;
+    });
+
+    try {
+      await createAndDispatch(
+        {
+          tenantId: items[0].lesson.tenantId,
+          userId: parentUserId,
+          title: 'Riepilogo presenze di ieri',
+          content: `Assenze e ritardi registrati ieri:\n\n${lines.join('\n')}`,
+          type: 'ATTENDANCE',
+          actionUrl: '/dashboard/parent',
+          sourceType: 'attendance-digest',
+        },
+        { sendEmail: true },
+      );
+      emailsEnqueued++;
+    } catch (err) {
+      // Un genitore problematico non deve bloccare il giro degli altri
+      logger.warn(`parentAttendanceDigest: dispatch fallito per genitore ${parentUserId}`, err);
+    }
+  }
+
+  logger.info(
+    `parentAttendanceDigest: ${byParent.size} digest, ${emailsEnqueued} email accodate (${records.length} record)`,
+  );
+  return { pendingDigests: byParent.size, emailsEnqueued };
 }
 
 /**

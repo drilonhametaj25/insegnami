@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { NotificationService } from '@/lib/notification-service';
+import { createAndDispatch } from '@/lib/notifications/dispatcher';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
 interface RouteParams {
@@ -71,20 +71,23 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Create notification for parent
-    await NotificationService.createNotification({
-      tenantId: session.user.tenantId,
-      userId: note.student.parentUser.id,
-      title: `Nota disciplinare per ${note.student.firstName} ${note.student.lastName}`,
-      content: `${note.title}: ${note.description.substring(0, 200)}${note.description.length > 200 ? '...' : ''}`,
-      type: 'ATTENDANCE',
-      priority: note.severity === 'HIGH' ? 'HIGH' : 'NORMAL',
-      actionUrl: `/dashboard/students/${note.studentId}`,
-      actionLabel: 'Vedi dettagli studente',
-      sourceType: 'disciplinary_note',
-      sourceId: note.id,
-      sendEmail: true,
-    });
+    // B3.2: crea la notifica E la dispatcha davvero via email (il vecchio
+    // createNotification marcava emailSent=true senza inviare nulla)
+    await createAndDispatch(
+      {
+        tenantId: session.user.tenantId,
+        userId: note.student.parentUser.id,
+        title: `Nota disciplinare per ${note.student.firstName} ${note.student.lastName}`,
+        content: `${note.title}: ${note.description.substring(0, 200)}${note.description.length > 200 ? '...' : ''}`,
+        type: 'ATTENDANCE',
+        priority: note.severity === 'HIGH' ? 'HIGH' : 'NORMAL',
+        actionUrl: `/dashboard/students/${note.studentId}`,
+        actionLabel: 'Vedi dettagli studente',
+        sourceType: 'disciplinary_note',
+        sourceId: note.id,
+      },
+      { sendEmail: true }
+    );
 
     // Update the parentNotified flag
     const updatedNote = await prisma.disciplinaryNote.update({

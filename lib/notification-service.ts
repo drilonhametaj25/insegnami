@@ -21,6 +21,12 @@ export class NotificationService {
   
   /**
    * Crea una singola notifica
+   *
+   * NOTA (B3.2): questo metodo NON invia email/push — crea solo la riga
+   * in-app. I flag emailSent/pushSent nascono SEMPRE false: il flip a true
+   * è responsabilità del dispatcher (lib/notifications/dispatcher) dopo che
+   * l'enqueue è andato a buon fine. I parametri sendEmail/sendPush vengono
+   * ignorati qui: chi vuole inviare davvero deve usare createAndDispatch.
    */
   static async createNotification(data: CreateNotificationData) {
     try {
@@ -38,8 +44,9 @@ export class NotificationService {
           sourceId: data.sourceId,
           scheduledFor: data.scheduledFor,
           expiresAt: data.expiresAt,
-          emailSent: data.sendEmail ?? false,
-          pushSent: data.sendPush ?? false,
+          // Flag onesti: nessun invio avviene qui, quindi restano false
+          emailSent: false,
+          pushSent: false,
         }
       });
     } catch (error) {
@@ -51,6 +58,10 @@ export class NotificationService {
   /**
    * Crea notifiche per più utenti contemporaneamente
    * BUG-045 fix: Wrapped in transaction for atomicity
+   *
+   * NOTA (B3.2): come createNotification, nessun invio reale avviene qui —
+   * emailSent/pushSent restano false (flag onesti). I caller interni
+   * (notifyNewStudentEnrollment ecc.) creano quindi solo notifiche in-app.
    */
   static async createBulkNotifications(notifications: CreateNotificationData[]) {
     try {
@@ -67,8 +78,9 @@ export class NotificationService {
         sourceId: notif.sourceId,
         scheduledFor: notif.scheduledFor,
         expiresAt: notif.expiresAt,
-        emailSent: notif.sendEmail ?? false,
-        pushSent: notif.sendPush ?? false,
+        // Flag onesti: nessun invio avviene qui, quindi restano false
+        emailSent: false,
+        pushSent: false,
       }));
 
       // Use transaction to ensure all notifications are created atomically

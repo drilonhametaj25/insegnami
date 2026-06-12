@@ -24,15 +24,27 @@ export async function findLessonConflicts(params: {
   endTime: Date;
   /** Lesson id to exclude (e.g. when updating). */
   excludeLessonId?: string;
+  /**
+   * Più lezioni da escludere dai confronti (es. update di un'intera serie
+   * ricorrente: ogni occorrenza viene spostata, quindi i vecchi slot della
+   * serie non devono generare falsi conflitti). Cumulativo con excludeLessonId.
+   */
+  excludeLessonIds?: string[];
 }): Promise<LessonConflict[]> {
-  const { tenantId, teacherId, room, startTime, endTime, excludeLessonId } = params;
+  const { tenantId, teacherId, room, startTime, endTime, excludeLessonId, excludeLessonIds } = params;
+
+  // Unione degli id esclusi (singolo + array) per retrocompatibilità con i caller esistenti
+  const excludedIds = [
+    ...(excludeLessonId ? [excludeLessonId] : []),
+    ...(excludeLessonIds ?? []),
+  ];
 
   const overlapWhere = {
     tenantId,
     startTime: { lt: endTime },
     endTime: { gt: startTime },
     status: { notIn: ['CANCELLED' as const] },
-    ...(excludeLessonId ? { id: { not: excludeLessonId } } : {}),
+    ...(excludedIds.length > 0 ? { id: { notIn: excludedIds } } : {}),
   };
 
   const conflicts: LessonConflict[] = [];

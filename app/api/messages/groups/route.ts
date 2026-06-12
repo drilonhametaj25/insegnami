@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth, isAdminRole } from '@/lib/auth';
+import { getAuth, isAdminRole, canManage } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getTeacherIdForUser, type AuthContext } from '@/lib/api-auth';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { z } from 'zod';
+
+// Schema di validazione per la creazione di un gruppo di comunicazione custom
+const createGroupSchema = z.object({
+  name: z.string().min(2, 'Il nome deve avere almeno 2 caratteri'),
+  description: z.string().optional(),
+  memberIds: z.array(z.string().min(1)).min(1, 'Almeno un membro richiesto'),
+});
 
 export async function GET(request: NextRequest) {
   try {
@@ -186,7 +194,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching message groups:', error);
     return NextResponse.json(
-      { 
+      {
         groups: [],
         pagination: {
           page: 1,
@@ -195,6 +203,99 @@ export async function GET(request: NextRequest) {
           totalPages: 0,
         }
       },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/messages/groups — crea un gruppo di comunicazione custom con membri
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getAuth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
+    }
+
+    // Possono creare gruppi gli admin (ADMIN_ROLES) e i docenti
+    if (!canManage(session.user.role)) {
+      return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
+    }
+
+    const blocked = await blockIfTenantInaccessible(session);
+    if (blocked) return blocked;
+
+    const tenantId = session.user.tenantId;
+    const creatorId = session.user.id; // narrow: già verificato sopra
+
+    const body = await request.json();
+    const parsed = createGroupSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Dati non validi', details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      );
+    }
+
+    const { name, description, memberIds } = parsed.data;
+
+    // Verifica FK cross-tenant: TUTTI i memberIds devono essere utenti del tenant.
+    // Dedup per non farsi ingannare da id duplicati nel payload.
+    const uniqueMemberIds = Array.from(new Set(memberIds));
+    const memberships = await prisma.userTenant.findMany({
+      where: {
+        userId: { in: uniqueMemberIds },
+        tenantId,
+      },
+      select: { userId: true },
+    });
+    const validUserIds = new Set(memberships.map((m) => m.userId));
+    if (validUserIds.size !== uniqueMemberIds.length) {
+      const invalidIds = uniqueMemberIds.filter((id) => !validUserIds.has(id));
+      return NextResponse.json(
+        { error: 'Utenti non validi: alcuni ID non appartengono a questo tenant', invalidIds },
+        { status: 400 }
+      );
+    }
+
+    // Crea gruppo + membri in transazione (tutto o niente)
+    const group = await prisma.$transaction(async (tx) => {
+      const created = await tx.communicationGroup.create({
+        data: {
+          tenantId,
+          creatorId,
+          name,
+          description: description ?? null,
+          type: 'CUSTOM',
+        },
+      });
+
+      await tx.communicationGroupMember.createMany({
+        data: uniqueMemberIds.map((userId) => ({
+          groupId: created.id,
+          userId,
+        })),
+      });
+
+      return created;
+    });
+
+    return NextResponse.json(
+      {
+        group: {
+          id: group.id,
+          name: group.name,
+          description: group.description,
+          type: group.type,
+          memberCount: uniqueMemberIds.length,
+          createdAt: group.createdAt,
+        },
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('Error creating message group:', error);
+    return NextResponse.json(
+      { error: 'Errore interno del server' },
       { status: 500 }
     );
   }
