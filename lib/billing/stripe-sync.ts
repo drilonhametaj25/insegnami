@@ -58,13 +58,25 @@ async function findProduct(
   return found.data[0] ?? null;
 }
 
-/** Il prezzo è ancora valido per la spec corrente del catalogo? */
-async function isPriceValid(priceId: string | null | undefined, spec: PriceSpec): Promise<boolean> {
+/**
+ * Il prezzo è ancora valido per la spec corrente del catalogo?
+ * Oltre a importo/valuta/intervallo verifica che il prezzo appartenga al
+ * prodotto risolto: un priceId stale che punta al prezzo di un prodotto
+ * legacy (stesso importo, prodotto diverso) lascerebbe il prodotto nuovo
+ * senza prezzo e il checkout aggancierebbe il prodotto sbagliato.
+ */
+async function isPriceValid(
+  priceId: string | null | undefined,
+  spec: PriceSpec,
+  productId: string
+): Promise<boolean> {
   if (!priceId) return false;
   try {
     const price = await stripe.prices.retrieve(priceId);
+    const priceProductId = typeof price.product === 'string' ? price.product : price.product.id;
     return (
       price.active &&
+      priceProductId === productId &&
       price.currency === 'eur' &&
       price.recurring?.interval === spec.interval &&
       price.unit_amount === spec.amountCents
@@ -108,7 +120,7 @@ async function ensureProductAndPrice({
     await stripe.products.update(product.id, { name, description });
   }
 
-  if (await isPriceValid(existingPriceId, spec)) {
+  if (await isPriceValid(existingPriceId, spec, product.id)) {
     // 'relinked' solo se il chiamante PERSISTEVA un productId diverso da
     // quello trovato: i piani non persistono il productId (sempre null),
     // quindi senza il check su existingProductId ogni run risulterebbe

@@ -38,6 +38,7 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { PLAN_CATALOG } from '@/lib/billing/plans-catalog';
 import { CtaBanner, PUB_GRADIENT, SectionHeader } from './PublicUI';
 
 const features = [
@@ -117,35 +118,28 @@ const toolsShowcase = [
   },
 ];
 
-const plans = [
-  {
-    name: 'Starter',
-    price: '€29',
-    students: 'Fino a 50 studenti',
-    cta: 'Inizia ora',
-    href: (locale: string) => `/${locale}/pricing?plan=starter`,
-    items: ['Funzionalità base', 'Supporto email', 'Backup automatico'],
-    popular: false,
-  },
-  {
-    name: 'Professional',
-    price: '€59',
-    students: 'Fino a 200 studenti',
-    cta: 'Inizia ora',
-    href: (locale: string) => `/${locale}/pricing?plan=professional`,
-    items: ['Tutto di Starter', 'Analytics avanzate', 'API & integrazioni', 'White-label'],
-    popular: true,
-  },
-  {
-    name: 'Enterprise',
-    price: '€199',
-    students: 'Studenti illimitati',
-    cta: 'Contattaci',
-    href: (locale: string) => `/${locale}/contact?subject=enterprise`,
-    items: ['Tutto di Professional', 'Multi-tenant', 'SLA 99.9%', 'Supporto dedicato'],
-    popular: false,
-  },
-];
+// Bullet marketing per slug; prezzo, limiti e badge "popolare" arrivano dal
+// catalogo canonico (lib/billing/plans-catalog), lo stesso di seed e sync
+// Stripe: la homepage non può divergere da /pricing.
+const planBullets: Record<string, string[]> = {
+  starter: ['Funzionalità base', 'Supporto email', 'Backup automatico'],
+  professional: ['Tutto di Starter', 'Analytics avanzate', 'API & integrazioni', 'White-label'],
+  enterprise: ['Tutto di Professional', 'Multi-tenant', 'SLA 99.9%', 'Supporto dedicato'],
+};
+
+const plans = PLAN_CATALOG.map((plan) => ({
+  name: plan.name,
+  price: `€${plan.price}`,
+  students:
+    plan.maxStudents != null ? `Fino a ${plan.maxStudents} studenti` : 'Studenti illimitati',
+  cta: plan.slug === 'enterprise' ? 'Contattaci' : 'Inizia ora',
+  href: (locale: string) =>
+    plan.slug === 'enterprise'
+      ? `/${locale}/contact?subject=enterprise`
+      : `/${locale}/pricing?plan=${plan.slug}`,
+  items: planBullets[plan.slug] ?? [],
+  popular: plan.isPopular,
+}));
 
 export function HomepageContent({ locale }: { locale: string }) {
   return (

@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { PublicHeader } from '@/components/public/PublicHeader';
 import { PublicFooter } from '@/components/public/PublicFooter';
 import { HomepageContent } from '@/components/public/HomepageContent';
+import { PLAN_CATALOG } from '@/lib/billing/plans-catalog';
 
 export const metadata: Metadata = {
   title: { absolute: 'InsegnaMi.pro — Registro Elettronico e Gestione Scolastica' },
@@ -55,29 +56,14 @@ export default function LandingPage() {
         applicationCategory: 'BusinessApplication',
         operatingSystem: 'Web',
         url: 'https://insegnami.pro',
-        offers: [
-          {
-            '@type': 'Offer',
-            name: 'Starter',
-            price: '29',
-            priceCurrency: 'EUR',
-            priceSpecification: { '@type': 'UnitPriceSpecification', billingDuration: 'P1M' },
-          },
-          {
-            '@type': 'Offer',
-            name: 'Professional',
-            price: '59',
-            priceCurrency: 'EUR',
-            priceSpecification: { '@type': 'UnitPriceSpecification', billingDuration: 'P1M' },
-          },
-          {
-            '@type': 'Offer',
-            name: 'Enterprise',
-            price: '199',
-            priceCurrency: 'EUR',
-            priceSpecification: { '@type': 'UnitPriceSpecification', billingDuration: 'P1M' },
-          },
-        ],
+        // Prezzi dal catalogo canonico (lo stesso di seed/sync Stripe e homepage)
+        offers: PLAN_CATALOG.map((plan) => ({
+          '@type': 'Offer',
+          name: plan.name,
+          price: String(plan.price),
+          priceCurrency: 'EUR',
+          priceSpecification: { '@type': 'UnitPriceSpecification', billingDuration: 'P1M' },
+        })),
       },
       {
         '@type': 'Organization',

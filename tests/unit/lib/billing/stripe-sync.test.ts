@@ -211,6 +211,51 @@ describe('syncAllToStripe', () => {
     }
   });
 
+  it('priceId stale di un prodotto legacy (stesso importo): crea il prezzo sul prodotto nuovo', async () => {
+    // Regressione incidente 12/06/2026: i prodotti legacy "InsegnaMi - X"
+    // (senza metadata platform) non sono trovati dalla search → la sync crea
+    // prodotti nuovi; ma Plan.stripePriceId puntava ai prezzi legacy con lo
+    // stesso importo, isPriceValid li accettava e i prodotti nuovi restavano
+    // SENZA prezzo. Il prezzo deve invece appartenere al prodotto risolto.
+    const starter = PLAN_CATALOG[0];
+    mockStripeState.products.set('prod_legacy', {
+      id: 'prod_legacy',
+      deleted: false,
+      name: `InsegnaMi - ${starter.name}`,
+      metadata: {}, // niente platform/planSlug: invisibile alla search della sync
+    });
+    mockStripeState.prices.set('price_legacy', {
+      id: 'price_legacy',
+      product: 'prod_legacy',
+      active: true,
+      currency: 'eur',
+      unit_amount: Math.round(starter.price * 100), // stesso importo del catalogo
+      recurring: { interval: 'month' },
+      metadata: {},
+    });
+
+    const prisma = createFakePrisma();
+    await prisma.plan.create({
+      data: { ...starter, stripePriceId: 'price_legacy', isActive: true },
+    });
+
+    const results = await syncAllToStripe(prisma);
+    const starterResult = results.find((r) => r.kind === 'plan' && r.key === starter.slug)!;
+
+    // Prodotto nuovo creato (il legacy non è riconosciuto) con un prezzo SUO
+    expect(starterResult.productId).not.toBe('prod_legacy');
+    expect(starterResult.priceId).not.toBe('price_legacy');
+    const newPrice = mockStripeState.prices.get(starterResult.priceId);
+    expect(newPrice.product).toBe(starterResult.productId);
+    expect(newPrice.unit_amount).toBe(Math.round(starter.price * 100));
+    // Il DB punta al prezzo nuovo e il prezzo legacy è archiviato
+    const row = await prisma.plan.findUnique({ where: { slug: starter.slug } });
+    expect(row.stripePriceId).toBe(starterResult.priceId);
+    expect(mockStripeState.prices.get('price_legacy').active).toBe(false);
+    // Il prodotto legacy non viene toccato dalla sync (lo gestisce il cleanup)
+    expect(mockStripeState.products.get('prod_legacy').deleted).toBe(false);
+  });
+
   it('persiste gli ID Stripe: Plan.stripePriceId reale e AddonCatalog completo', async () => {
     const prisma = createFakePrisma();
     const results = await syncAllToStripe(prisma);
