@@ -1,0 +1,95 @@
+# Suite e2e Playwright completa (~20+ minuti): troppo lenta per la pipeline
+# di CI/CD, si lancia a mano quando serve (Actions -> Run workflow) o in
+# locale con `npm run test:e2e`.
+name: E2E Tests (manual)
+
+on:
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
+      REDIS_URL: redis://localhost:6379
+      # 32+ caratteri e senza sottostringhe vietate da lib/env-validation.ts
+      # (es. 'secret', 'test', 'password' farebbero fallire il refine)
+      NEXTAUTH_SECRET: 'e2e-ci-nextauth-key-32-chars-okay!!'
+      NEXTAUTH_URL: http://localhost:3000
+      MODE: saas
+      # NODE_ENV=test e NON production: l'helper /api/test usato dalla suite
+      # e2e risponde 404 in produzione e Next inlina NODE_ENV al build-time;
+      # inoltre con 'test' env-validation non rende fatale Stripe mancante.
+      NODE_ENV: test
+      # Placeholder valido per lo schema env ma rifiutato da isStripeEnabled()
+      # (contiene 'placeholder') → la suite gira col dev billing interno.
+      STRIPE_SECRET_KEY: sk_test_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_placeholder
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+
+      - name: Seed database
+        run: npm run db:seed
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # Il project 'setup' (auth.setup.ts) parte automaticamente come
+      # dependency di 'chromium'; build e start dell'app sono gestiti dal
+      # webServer di playwright.config.ts (timeout 300s in CI).
+      - name: Run e2e tests
+        run: npx playwright test --project=chromium
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
