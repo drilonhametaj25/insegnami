@@ -79,11 +79,14 @@ export interface CommunicationGroup {
   name: string;
   description?: string;
   type: string;
-  autoSync: boolean;
+  // L'API GET /api/messages/groups ritorna gruppi sintetici (classi, corsi,
+  // ruoli) e CUSTOM con il conteggio membri già calcolato
+  memberCount?: number;
+  autoSync?: boolean;
   syncRules?: string;
-  isActive: boolean;
+  isActive?: boolean;
   createdAt: Date;
-  updatedAt: Date;
+  updatedAt?: Date;
   creator: {
     id: string;
     firstName: string;

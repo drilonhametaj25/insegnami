@@ -69,10 +69,16 @@ export interface Payroll {
   teacherId: string;
   periodId: string;
   status: PayrollStatus;
-  grossAmount: string | number;
-  withholdingAmount: string | number;
+  // Campi reali del modello Prisma Payroll
+  hoursWorked: string | number;
+  grossBase: string | number;
+  extrasTotal: string | number;
+  withholdingsTotal: string | number;
   netAmount: string | number;
   hourlyRateSnapshot?: string | number | null;
+  currency?: string;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
   notes?: string | null;
   paidAt?: string | null;
   paymentReference?: string | null;

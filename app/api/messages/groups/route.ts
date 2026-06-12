@@ -160,6 +160,23 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // Gruppi CUSTOM creati dagli utenti (POST sottostante)
+      const customGroups = await prisma.communicationGroup.findMany({
+        where: { tenantId: session.user.tenantId, isActive: true },
+        include: { _count: { select: { memberships: true } } },
+        orderBy: { createdAt: 'desc' },
+      });
+      customGroups.forEach((g) => {
+        groups.push({
+          id: g.id,
+          name: g.name,
+          description: g.description || '',
+          type: 'CUSTOM',
+          memberCount: g._count.memberships,
+          createdAt: g.createdAt,
+        });
+      });
+
       // Sort by creation date
       groups.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 

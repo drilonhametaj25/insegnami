@@ -24,8 +24,22 @@ import { useSession } from 'next-auth/react';
 // vengono serializzati come stringhe da NextResponse.json)
 // ---------------------------------------------------------------------------
 
-export type InvoiceStatus = 'DRAFT' | 'ISSUED' | 'TRANSMITTED' | 'PAID' | 'CANCELLED';
-export type SdiStatus = 'NOT_SENT' | 'TRANSMITTED' | 'ACCEPTED' | 'REJECTED' | 'FAILED';
+// Allineati agli enum Prisma InvoiceStatus / SdiTransmissionStatus
+export type InvoiceStatus =
+  | 'DRAFT'
+  | 'ISSUED'
+  | 'SENT'
+  | 'ACCEPTED'
+  | 'REJECTED'
+  | 'PAID'
+  | 'CANCELLED';
+export type SdiStatus =
+  | 'PENDING'
+  | 'TRANSMITTED'
+  | 'ACCEPTED'
+  | 'REJECTED'
+  | 'NOT_DELIVERED'
+  | 'EXPIRED';
 
 export interface InvoiceLine {
   id: string;
@@ -95,6 +109,7 @@ export interface Invoice {
   paymentTerms?: unknown;
   notes?: string | null;
   relatedInvoiceId?: string | null;
+  sdiRejectedReason?: string | null;
   createdAt: string;
   updatedAt: string;
   // Include della lista
@@ -103,7 +118,15 @@ export interface Invoice {
   _count?: { lines: number; sdiEvents: number };
   // Include del dettaglio
   lines?: InvoiceLine[];
-  sdiEvents?: Array<{ id: string; type: string; receivedAt: string; payload?: unknown }>;
+  sdiEvents?: Array<{
+    id: string;
+    eventType: string;
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    receivedAt?: string;
+    createdAt?: string;
+    payload?: unknown;
+  }>;
   payments?: Array<{ id: string; status: string; amount: string | number; paidDate?: string | null }>;
   relatedInvoice?: { id: string; number: number; year: number; documentType: string } | null;
   creditNotes?: Array<{ id: string; number: number; year: number; documentType: string; status: InvoiceStatus }>;

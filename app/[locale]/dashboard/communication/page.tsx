@@ -473,7 +473,7 @@ export default function CommunicationPage() {
                   <Group justify="space-between" mb="xs">
                     <Text fw={500}>{group.name}</Text>
                     <Badge variant="light">
-                      {group._count?.memberships || 0} {t('communication.groups.members')}
+                      {group.memberCount ?? group._count?.memberships ?? 0} {t('communication.groups.members')}
                     </Badge>
                   </Group>
                   {group.description && (

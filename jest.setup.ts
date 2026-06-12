@@ -99,10 +99,18 @@ jest.mock('next/navigation', () => ({
   usePathname: () => '/dashboard',
 }))
 
-// Mock Mantine notifications
+// Mock Mantine notifications (sia l'API legacy showNotification sia
+// l'oggetto notifications.show usato dalle pagine)
 jest.mock('@mantine/notifications', () => ({
   showNotification: jest.fn(),
   hideNotification: jest.fn(),
+  notifications: {
+    show: jest.fn(),
+    hide: jest.fn(),
+    update: jest.fn(),
+    clean: jest.fn(),
+    cleanQueue: jest.fn(),
+  },
 }))
 
 // Note: React Query is NOT mocked - tests use real QueryClient/QueryClientProvider
