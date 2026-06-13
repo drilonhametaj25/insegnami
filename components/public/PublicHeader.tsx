@@ -6,11 +6,8 @@ import Link from 'next/link';
 import { PUB_GRADIENT } from './PublicUI';
 
 function Logo() {
-  return (
-    <Text size="xl" fw={800} variant="gradient" gradient={PUB_GRADIENT} lh={1}>
-      InsegnaMi.pro
-    </Text>
-  );
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/images/logo.svg" alt="InsegnaMi.pro" height={34} style={{ height: 34, width: 'auto', display: 'block' }} />;
 }
 
 export function PublicHeader({ locale }: { locale: string }) {

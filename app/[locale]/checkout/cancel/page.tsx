@@ -16,7 +16,7 @@ export default async function CheckoutCancelPage({
   const { locale } = await params;
 
   return (
-    <Box style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)' }}>
+    <Box style={{ minHeight: '100vh', background: 'var(--mantine-color-body)' }}>
       <Container size="sm" py={100}>
         <Center>
           <Paper p="xl" radius="xl" shadow="xl" style={{ maxWidth: 500, width: '100%' }}>

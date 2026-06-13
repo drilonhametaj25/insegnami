@@ -57,7 +57,7 @@ export function ToolHero({
           component={Link}
           href={`/${locale}/tools`}
           size="sm"
-          c="indigo.6"
+          c="navy.6"
           fw={500}
           underline="hover"
           display="inline-block"
@@ -143,7 +143,7 @@ export function ToolCtaCard({ locale }: { locale: string }) {
           component={Link}
           href={`/${locale}/auth/register`}
           variant="white"
-          c="indigo.7"
+          c="navy.7"
           radius="xl"
           fw={700}
           fullWidth
@@ -188,7 +188,7 @@ export function RelatedToolsCard({
             component={Link}
             href={`/${locale}/tools/${tool.slug}`}
             size="sm"
-            c="indigo.6"
+            c="navy.6"
             fw={500}
             underline="hover"
           >

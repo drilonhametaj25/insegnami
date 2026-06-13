@@ -485,7 +485,7 @@ export default function LessonsPage() {
           title: 'Lezioni Totali',
           value: stats.total.toString(),
           icon: <IconBook2 size={24} />,
-          gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          gradient: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
           change: {
             value: 12,
             type: 'increase' as const,
@@ -519,7 +519,7 @@ export default function LessonsPage() {
           title: 'Oggi',
           value: stats.upcomingToday.toString(),
           icon: <IconTrendingUp size={24} />,
-          gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+          gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
           badge: {
             text: 'In programma',
             color: 'blue',
@@ -685,9 +685,9 @@ export default function LessonsPage() {
             onSelectEvent={(event) => handleView(event.resource)}
             eventPropGetter={(event) => {
               const status = event.resource.status;
-              let backgroundColor = '#667eea';
+              let backgroundColor = '#1e3a8a';
               if (status === 'COMPLETED') backgroundColor = '#43e97b';
-              if (status === 'CANCELLED') backgroundColor = '#f5576c';
+              if (status === 'CANCELLED') backgroundColor = '#d97706';
               return {
                 style: {
                   backgroundColor,

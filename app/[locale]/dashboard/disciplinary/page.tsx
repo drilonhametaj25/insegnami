@@ -200,7 +200,7 @@ export default function DisciplinaryNotesPage() {
               title={t('totalNotes')}
               value={statistics.total}
               icon={<IconClipboardList size={28} />}
-              gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+              gradient="linear-gradient(135deg, #1e3a8a 0%, #172554 100%)"
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
@@ -208,7 +208,7 @@ export default function DisciplinaryNotesPage() {
               title={t('openNotes')}
               value={statistics.unresolved}
               icon={<IconAlertTriangle size={28} />}
-              gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+              gradient="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>

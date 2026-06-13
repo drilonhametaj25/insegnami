@@ -121,7 +121,7 @@ export function UserForm({
       size="lg"
       styles={{
         header: {
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
           color: 'white',
         },
         title: {
@@ -147,8 +147,8 @@ export function UserForm({
           {/* Personal Information Card */}
           <Card withBorder radius="md" p="lg" style={{ backgroundColor: 'rgba(102, 126, 234, 0.05)' }}>
             <Group mb="md">
-              <IconUser size={20} color="#667eea" />
-              <Title order={4} style={{ color: '#667eea' }}>Informazioni Personali</Title>
+              <IconUser size={20} color="#1e3a8a" />
+              <Title order={4} style={{ color: '#1e3a8a' }}>Informazioni Personali</Title>
             </Group>
             <Grid>
               <Grid.Col span={6}>
@@ -160,7 +160,7 @@ export function UserForm({
                   styles={{
                     input: {
                       '&:focus': {
-                        borderColor: '#667eea',
+                        borderColor: '#1e3a8a',
                       },
                     },
                   }}
@@ -176,7 +176,7 @@ export function UserForm({
                   styles={{
                     input: {
                       '&:focus': {
-                        borderColor: '#667eea',
+                        borderColor: '#1e3a8a',
                       },
                     },
                   }}
@@ -189,8 +189,8 @@ export function UserForm({
           {/* Contact Information Card */}
           <Card withBorder radius="md" p="lg" style={{ backgroundColor: 'rgba(118, 75, 162, 0.05)' }}>
             <Group mb="md">
-              <IconMail size={20} color="#764ba2" />
-              <Title order={4} style={{ color: '#764ba2' }}>Contatti</Title>
+              <IconMail size={20} color="#172554" />
+              <Title order={4} style={{ color: '#172554' }}>Contatti</Title>
             </Group>
             <Stack gap="md">
               <TextInput
@@ -202,7 +202,7 @@ export function UserForm({
                 styles={{
                   input: {
                     '&:focus': {
-                      borderColor: '#764ba2',
+                      borderColor: '#172554',
                     },
                   },
                 }}
@@ -215,7 +215,7 @@ export function UserForm({
                 styles={{
                   input: {
                     '&:focus': {
-                      borderColor: '#764ba2',
+                      borderColor: '#172554',
                     },
                   },
                 }}
@@ -227,8 +227,8 @@ export function UserForm({
           {/* Role Card */}
           <Card withBorder radius="md" p="lg" style={{ backgroundColor: 'rgba(102, 126, 234, 0.05)' }}>
             <Group mb="md">
-              <IconShield size={20} color="#667eea" />
-              <Title order={4} style={{ color: '#667eea' }}>Ruolo e Permessi</Title>
+              <IconShield size={20} color="#1e3a8a" />
+              <Title order={4} style={{ color: '#1e3a8a' }}>Ruolo e Permessi</Title>
             </Group>
             <Select
               label="Ruolo"
@@ -239,7 +239,7 @@ export function UserForm({
               styles={{
                 input: {
                   '&:focus': {
-                    borderColor: '#667eea',
+                    borderColor: '#1e3a8a',
                   },
                 },
               }}
@@ -250,8 +250,8 @@ export function UserForm({
           {/* Password Card */}
           <Card withBorder radius="md" p="lg" style={{ backgroundColor: 'rgba(118, 75, 162, 0.05)' }}>
             <Group mb="md">
-              <IconLock size={20} color="#764ba2" />
-              <Title order={4} style={{ color: '#764ba2' }}>
+              <IconLock size={20} color="#172554" />
+              <Title order={4} style={{ color: '#172554' }}>
                 {isEdit ? 'Modifica Password (opzionale)' : 'Password'}
               </Title>
             </Group>
@@ -266,7 +266,7 @@ export function UserForm({
                   styles={{
                     input: {
                       '&:focus': {
-                        borderColor: '#764ba2',
+                        borderColor: '#172554',
                       },
                     },
                   }}
@@ -283,7 +283,7 @@ export function UserForm({
                   styles={{
                     input: {
                       '&:focus': {
-                        borderColor: '#764ba2',
+                        borderColor: '#172554',
                       },
                     },
                   }}
@@ -307,7 +307,7 @@ export function UserForm({
               type="submit"
               loading={loading}
               style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
               }}
             >
               {isEdit ? 'Aggiorna' : 'Crea'} Utente

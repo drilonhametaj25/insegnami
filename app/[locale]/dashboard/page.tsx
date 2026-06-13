@@ -1,8 +1,8 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { Container, Title, Grid, Space, Group, Text, Badge, LoadingOverlay, Skeleton } from '@mantine/core';
-import { IconDashboard } from '@tabler/icons-react';
+import { Container, Title, Grid, Group, Text, Badge, LoadingOverlay, Skeleton, Paper } from '@mantine/core';
+import { IconDashboard, IconSparkles } from '@tabler/icons-react';
 import { useTranslations } from 'next-intl';
 import DashboardStats from '@/components/cards/DashboardStats';
 import { LessonCalendar } from '@/components/calendar/LessonCalendar';
@@ -13,6 +13,7 @@ import { useClasses } from '@/lib/hooks/useClasses';
 import { usePayments } from '@/lib/hooks/usePayments';
 import { useCalendarLessons } from '@/lib/hooks/useLessons';
 import { useNotices } from '@/lib/hooks/useNotices';
+import { useOverviewStats } from '@/lib/hooks/useAnalytics';
 
 export default function DashboardPage() {
   const { data: session } = useSession();
@@ -45,10 +46,16 @@ export default function DashboardPage() {
     isLoading: lessonsLoading 
   } = useCalendarLessons();
 
-  const { 
-    data: noticesData, 
-    isLoading: noticesLoading 
+  const {
+    data: noticesData,
+    isLoading: noticesLoading
   } = useNotices(1, 5, { status: 'PUBLISHED' }); // Recent published notices
+
+  // Real tenant-wide stats (attendanceRate, totalRevenue, totalStudents, ...)
+  const {
+    data: overview,
+    isLoading: overviewLoading,
+  } = useOverviewStats('30');
 
   if (!session?.user) {
     return (
@@ -56,7 +63,7 @@ export default function DashboardPage() {
         size="xl"
         py="md"
         style={{
-          background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+          background: 'var(--mantine-color-body)',
           minHeight: '100vh',
         }}
       >
@@ -118,21 +125,55 @@ export default function DashboardPage() {
   const welcomeInfo = getWelcomeMessage();
 
   // Check if we're loading essential data
-  const isLoadingEssentialData = studentsLoading || teachersLoading || classesLoading;
+  const isLoadingEssentialData =
+    studentsLoading || teachersLoading || classesLoading || overviewLoading;
+
+  // Build the stats payload preferring real /api/analytics overview numbers
+  // (tenant-real), falling back to the paginated hook totals when overview is
+  // unavailable. No invented values: missing data stays at 0.
+  const upcomingLessons =
+    lessons?.filter((l) => l.status === 'SCHEDULED' && new Date(l.startTime) > new Date()).length || 0;
+
+  const statsData = {
+    students: overview?.totalStudents ?? studentsData?.pagination?.total ?? 0,
+    teachers: overview?.totalTeachers ?? teachersData?.pagination?.total ?? 0,
+    classes: overview?.totalClasses ?? classesData?.pagination?.total ?? 0,
+    lessons: overview?.totalLessons ?? lessons?.length ?? 0,
+    // Real revenue from analytics overview (paid payments, last 30 days)
+    revenue:
+      overview?.totalRevenue ??
+      paymentsData?.payments.reduce((sum, p) => sum + p.amount, 0) ??
+      0,
+    // Real attendance rate from analytics overview (no more hardcoded 87)
+    attendance: overview?.attendanceRate,
+    pendingPayments:
+      overview?.overduePayments ??
+      paymentsData?.payments.filter((p) => p.status === 'PENDING').length ??
+      0,
+    upcomingLessons,
+  };
+
+  // Empty state: brand-new school with no real data yet.
+  const isEmptySchool =
+    !isLoadingEssentialData &&
+    statsData.students === 0 &&
+    statsData.teachers === 0 &&
+    statsData.classes === 0 &&
+    statsData.lessons === 0;
 
   return (
     <Container 
       size="xl" 
       py="md"
       style={{
-        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+        background: 'var(--mantine-color-body)',
         minHeight: '100vh',
       }}
     >
       {/* Welcome Header with gradient background */}
       <div
         style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
           borderRadius: '24px',
           padding: '32px',
           marginBottom: '32px',
@@ -197,19 +238,27 @@ export default function DashboardPage() {
           ) : studentsError ? (
             <Text c="red">Errore nel caricamento delle statistiche: {studentsError.message}</Text>
           ) : (
-            <DashboardStats
-              role={user.role === 'SUPERADMIN' ? 'ADMIN' : user.role}
-              data={{
-                students: studentsData?.pagination?.total || 0,
-                teachers: teachersData?.pagination?.total || 0,
-                classes: classesData?.pagination?.total || 0,
-                lessons: lessons?.length || 0,
-                revenue: paymentsData?.payments.reduce((sum, p) => sum + p.amount, 0) || 0,
-                attendance: 87, // This would come from attendance API
-                pendingPayments: paymentsData?.payments.filter(p => p.status === 'PENDING').length || 0,
-                upcomingLessons: lessons?.filter(l => l.status === 'SCHEDULED' && new Date(l.startTime) > new Date()).length || 0,
-              }}
-            />
+            <>
+              {isEmptySchool && (
+                <Paper withBorder radius="lg" p="lg" mb="md">
+                  <Group gap="sm" align="flex-start" wrap="nowrap">
+                    <IconSparkles size={24} color="var(--mantine-color-amber-5)" />
+                    <div>
+                      <Text fw={600}>Benvenuto su InsegnaMi.pro</Text>
+                      <Text size="sm" c="dimmed">
+                        La tua scuola non ha ancora dati. Inizia aggiungendo docenti,
+                        classi e studenti: le statistiche qui sotto si popoleranno
+                        automaticamente con i numeri reali.
+                      </Text>
+                    </div>
+                  </Group>
+                </Paper>
+              )}
+              <DashboardStats
+                role={user.role === 'SUPERADMIN' ? 'ADMIN' : user.role}
+                data={statsData}
+              />
+            </>
           )}
         </Grid.Col>
       </Grid>

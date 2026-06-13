@@ -338,7 +338,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
               title={t('courses.stats.totalClasses')}
               value={String(course.classCount || 0)}
               icon={<IconSchool size={24} />}
-              gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+              gradient="linear-gradient(135deg, #1e3a8a 0%, #172554 100%)"
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
@@ -346,7 +346,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
               title={t('courses.stats.activeClasses')}
               value={String(activeClasses)}
               icon={<IconCheck size={24} />}
-              gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+              gradient="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>

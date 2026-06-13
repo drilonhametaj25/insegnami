@@ -37,7 +37,7 @@ export function ModernModal({
           overflow: 'hidden',
         },
         header: {
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
           borderBottom: 'none',
           padding: '20px 24px',
           margin: 0,
@@ -110,7 +110,7 @@ export function ModernFormField({
             color: '#a0aec0'
           },
           '&:focus': {
-            borderColor: '#667eea',
+            borderColor: '#1e3a8a',
             boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)',
           },
           '&:hover': {

@@ -28,7 +28,8 @@ import {
   IconPlus,
   IconInfoCircle
 } from '@tabler/icons-react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { useDisclosure } from '@mantine/hooks';
 import { format } from 'date-fns';
 import { useReports, useCreateReport, useDeleteReport } from '@/lib/hooks/useAnalytics';
@@ -53,6 +54,8 @@ const reportPeriods = [
 
 export default function ReportsPage() {
   const t = useTranslations('Analytics');
+  const locale = useLocale();
+  const router = useRouter();
   const [opened, { open, close }] = useDisclosure(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -120,12 +123,16 @@ export default function ReportsPage() {
     }
   };
 
+  const viewReport = (id: string) => {
+    router.push(`/${locale}/dashboard/reports/${id}`);
+  };
+
   const getBadgeColor = (type: string) => {
     const colors: Record<string, string> = {
       ATTENDANCE: 'blue',
       FINANCIAL: 'green',
       PROGRESS: 'orange',
-      OVERVIEW: 'purple',
+      OVERVIEW: 'navy',
       CLASS_ANALYTICS: 'cyan',
       TEACHER_PERFORMANCE: 'pink',
     };
@@ -175,7 +182,14 @@ export default function ReportsPage() {
               {reports.map((report) => (
                 <Table.Tr key={report.id}>
                   <Table.Td>
-                    <Text fw={500}>{report.title}</Text>
+                    <Text
+                      fw={500}
+                      c="navy"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => viewReport(report.id)}
+                    >
+                      {report.title}
+                    </Text>
                   </Table.Td>
                   <Table.Td>
                     <Badge color={getBadgeColor(report.type)} size="sm">
@@ -202,10 +216,20 @@ export default function ReportsPage() {
                   </Table.Td>
                   <Table.Td>
                     <Group gap="xs">
-                      <ActionIcon variant="subtle" size="sm">
+                      <ActionIcon
+                        variant="subtle"
+                        size="sm"
+                        aria-label="View report"
+                        onClick={() => viewReport(report.id)}
+                      >
                         <IconEye size={16} />
                       </ActionIcon>
-                      <ActionIcon variant="subtle" size="sm">
+                      <ActionIcon
+                        variant="subtle"
+                        size="sm"
+                        aria-label="Download report"
+                        onClick={() => viewReport(report.id)}
+                      >
                         <IconDownload size={16} />
                       </ActionIcon>
                       <Menu shadow="md" width={200}>

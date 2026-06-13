@@ -440,7 +440,7 @@ export default function ClassesPage() {
       title: 'Classi Totali',
       value: stats.total.toString(),
       icon: <IconBook2 size={24} />,
-      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      gradient: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
       change: {
         value: 12,
         type: 'increase' as const,
@@ -451,7 +451,7 @@ export default function ClassesPage() {
       title: 'Classi Attive',
       value: stats.active.toString(),
       icon: <IconUsers size={24} />,
-      gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
       change: {
         value: 8,
         type: 'increase' as const,

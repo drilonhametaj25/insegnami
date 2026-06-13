@@ -42,7 +42,6 @@ import {
   IconX
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import Link from 'next/link';
 import { AddonsManager } from '@/components/billing/AddonsManager';
 
 interface Plan {
@@ -55,6 +54,8 @@ interface Plan {
   maxTeachers: number | null;
   maxClasses: number | null;
   features: Record<string, boolean>;
+  description?: string | null;
+  isPopular?: boolean;
 }
 
 interface Subscription {
@@ -117,6 +118,9 @@ export default function BillingPage() {
   const [error, setError] = useState<string | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [changingPlan, setChangingPlan] = useState<string | null>(null);
+  // Checkout Stripe per i tenant SENZA abbonamento attivo (trial / no_subscription)
+  const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
+  const [checkoutInterval, setCheckoutInterval] = useState<'monthly' | 'yearly'>('monthly');
   // Annullamento/riattivazione self-service dell'abbonamento
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
@@ -207,6 +211,34 @@ export default function BillingPage() {
       });
     } finally {
       setChangingPlan(null);
+    }
+  };
+
+  // Avvia il checkout Stripe REALE per un piano scelto. Endpoint verificato:
+  // POST /api/subscriptions/checkout  body { planId, interval } → { url, ... }.
+  // In dev-billing l'endpoint attiva la subscription e ritorna comunque una url.
+  const handleStartCheckout = async (planId: string) => {
+    setCheckoutPlan(planId);
+    try {
+      const res = await fetch('/api/subscriptions/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planId, interval: checkoutInterval }),
+      });
+      const result = await res.json();
+      if (!res.ok || !result.url) {
+        throw new Error(result.error || 'Errore nell\'avvio del checkout');
+      }
+      // Redirect verso Stripe Checkout (o, in dev-billing, verso billing?success).
+      window.location.href = result.url;
+    } catch (err) {
+      notifications.show({
+        title: 'Errore',
+        message: err instanceof Error ? err.message : 'Errore imprevisto',
+        color: 'red',
+        icon: <IconAlertTriangle size={18} />,
+      });
+      setCheckoutPlan(null);
     }
   };
 
@@ -395,6 +427,24 @@ export default function BillingPage() {
   const status = data?.status || 'no_subscription';
   const plan = subscription?.plan;
 
+  // Il checkout Stripe è destinato a chi NON ha un abbonamento attivo/in prova
+  // gestito da Stripe: trial-tenant senza subscription, trial scaduto,
+  // abbonamento cancellato/insoluto. Per ACTIVE/TRIALING reali si usa
+  // "Cambia piano" (change-plan) o il portale di fatturazione.
+  const canCheckout =
+    !subscription || ['cancelled', 'unpaid', 'past_due', 'no_subscription'].includes(status);
+  // In prova (con o senza subscription Stripe) mostriamo comunque i piani per
+  // permettere l'attivazione anticipata, tranne quando la subscription Stripe
+  // è già TRIALING (in quel caso l'endpoint checkout blocca: si usa change-plan/portale).
+  const showCheckoutPlans =
+    canCheckout || (status === 'trialing' && !subscription);
+
+  const scrollToCheckout = () => {
+    document
+      .querySelector('[data-testid="checkout-plans-section"]')
+      ?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <Container size="xl" py="xl">
       <Stack gap="xl">
@@ -478,20 +528,22 @@ export default function BillingPage() {
           </Alert>
         )}
 
-        {status === 'no_subscription' && tenant?.trialUntil && (
+        {(status === 'trialing' || status === 'no_subscription') && tenant?.trialUntil && !subscription && (
           <Alert
             icon={<IconClock />}
-            color="blue"
+            color="navy"
             title="Periodo di Prova"
           >
-            Stai utilizzando la versione di prova. La prova termina il {formatDate(tenant.trialUntil)}.
+            {new Date(tenant.trialUntil) > new Date()
+              ? `Stai utilizzando la versione di prova. La prova termina il ${formatDate(tenant.trialUntil)} (${getDaysRemaining(tenant.trialUntil)} giorni rimasti).`
+              : `Il tuo periodo di prova è terminato il ${formatDate(tenant.trialUntil)}. Scegli un piano per continuare a usare InsegnaMi.`}
             <Button
-              component={Link}
-              href={`/${locale}/pricing`}
               size="xs"
               variant="filled"
-              color="blue"
+              color="amber"
               mt="sm"
+              onClick={scrollToCheckout}
+              data-testid="trial-choose-plan-button"
             >
               Scegli un Piano
             </Button>
@@ -505,7 +557,7 @@ export default function BillingPage() {
               <Group justify="space-between" mb="xl">
                 <div>
                   <Group gap="sm" mb="xs">
-                    <ThemeIcon size="lg" radius="md" color="violet" variant="light">
+                    <ThemeIcon size="lg" radius="md" color="navy" variant="light">
                       <IconCrown size={20} />
                     </ThemeIcon>
                     <Title order={3}>
@@ -518,7 +570,7 @@ export default function BillingPage() {
                 </div>
                 {plan && (
                   <div style={{ textAlign: 'right' }}>
-                    <Text size={rem(36)} fw={900} c="violet">
+                    <Text size={rem(36)} fw={900} c="navy">
                       €{plan.price}
                     </Text>
                     <Text size="sm" c="dimmed">
@@ -608,7 +660,7 @@ export default function BillingPage() {
                       </Group>
                       <Progress
                         value={getUsagePercentage(usage.classes, plan.maxClasses)}
-                        color={getUsagePercentage(usage.classes, plan.maxClasses) > 80 ? 'orange' : 'violet'}
+                        color={getUsagePercentage(usage.classes, plan.maxClasses) > 80 ? 'orange' : 'navy'}
                         size="sm"
                         radius="xl"
                       />
@@ -632,20 +684,24 @@ export default function BillingPage() {
                   </Button>
                 ) : (
                   <Button
-                    component={Link}
-                    href={`/${locale}/pricing`}
                     leftSection={<IconCrown size={18} />}
                     variant="filled"
-                    color="violet"
+                    color="navy"
+                    onClick={scrollToCheckout}
+                    data-testid="choose-plan-button"
                   >
                     Scegli un Piano
                   </Button>
                 )}
                 {subscription && (
                   <Button
-                    component={Link}
-                    href={`/${locale}/pricing`}
+                    onClick={() =>
+                      document
+                        .querySelector('[data-testid="plan-change-section"]')
+                        ?.scrollIntoView({ behavior: 'smooth' })
+                    }
                     variant="light"
+                    color="navy"
                     leftSection={<IconTrendingUp size={18} />}
                   >
                     Cambia Piano
@@ -728,7 +784,7 @@ export default function BillingPage() {
               </Card>
 
               {/* Help Card */}
-              <Card p="lg" radius="md" withBorder bg="gray.0">
+              <Card p="lg" radius="md" withBorder bg="var(--mantine-color-body)">
                 <Text fw={600} mb="sm">Hai bisogno di aiuto?</Text>
                 <Text size="sm" c="dimmed" mb="md">
                   Il nostro team è qui per assisterti con qualsiasi domanda sulla fatturazione.
@@ -747,6 +803,110 @@ export default function BillingPage() {
           </Grid.Col>
         </Grid>
 
+        {/* Scegli un piano → Stripe Checkout (tenant in prova / senza abbonamento attivo) */}
+        {showCheckoutPlans && plans.length > 0 && (
+          <Paper p="xl" radius="md" withBorder data-testid="checkout-plans-section">
+            <Group justify="space-between" align="flex-start" mb="xs" wrap="wrap">
+              <div>
+                <Title order={3} mb={4}>
+                  Scegli il tuo piano
+                </Title>
+                <Text c="dimmed" size="sm">
+                  Attiva un abbonamento per continuare a usare InsegnaMi senza interruzioni.
+                </Text>
+              </div>
+              {/* Toggle intervallo: mensile / annuale */}
+              <Button.Group>
+                <Button
+                  variant={checkoutInterval === 'monthly' ? 'filled' : 'default'}
+                  color="navy"
+                  size="sm"
+                  onClick={() => setCheckoutInterval('monthly')}
+                  data-testid="checkout-interval-monthly"
+                >
+                  Mensile
+                </Button>
+                <Button
+                  variant={checkoutInterval === 'yearly' ? 'filled' : 'default'}
+                  color="navy"
+                  size="sm"
+                  onClick={() => setCheckoutInterval('yearly')}
+                  data-testid="checkout-interval-yearly"
+                >
+                  Annuale
+                </Button>
+              </Button.Group>
+            </Group>
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" mt="lg">
+              {plans.map((p) => (
+                <Card
+                  key={p.id}
+                  withBorder
+                  radius="md"
+                  p="lg"
+                  data-testid={`checkout-plan-${p.slug}`}
+                  style={
+                    p.isPopular
+                      ? { borderColor: 'var(--mantine-color-amber-5)', borderWidth: 2 }
+                      : undefined
+                  }
+                >
+                  <Group justify="space-between" mb="xs">
+                    <Text fw={700}>{p.name}</Text>
+                    {p.isPopular && (
+                      <Badge color="amber" variant="filled">
+                        Consigliato
+                      </Badge>
+                    )}
+                  </Group>
+                  {p.description && (
+                    <Text size="xs" c="dimmed" mb="xs">
+                      {p.description}
+                    </Text>
+                  )}
+                  <Text size="xl" fw={900} c="navy" mb="xs">
+                    €{p.price}
+                    <Text span size="sm" c="dimmed" fw={400}>
+                      /{p.interval === 'MONTHLY' ? 'mese' : 'anno'}
+                    </Text>
+                  </Text>
+                  <Stack gap={4} mb="md">
+                    <Group gap="xs">
+                      <IconUsers size={14} />
+                      <Text size="xs" c="dimmed">
+                        {p.maxStudents ?? '∞'} studenti
+                      </Text>
+                    </Group>
+                    <Group gap="xs">
+                      <IconSchool size={14} />
+                      <Text size="xs" c="dimmed">
+                        {p.maxTeachers ?? '∞'} docenti
+                      </Text>
+                    </Group>
+                    <Group gap="xs">
+                      <IconBook size={14} />
+                      <Text size="xs" c="dimmed">
+                        {p.maxClasses ?? '∞'} classi
+                      </Text>
+                    </Group>
+                  </Stack>
+                  <Button
+                    fullWidth
+                    color="amber"
+                    leftSection={<IconCreditCard size={16} />}
+                    loading={checkoutPlan === p.id}
+                    disabled={checkoutPlan !== null && checkoutPlan !== p.id}
+                    onClick={() => handleStartCheckout(p.id)}
+                    data-testid={`checkout-plan-button-${p.slug}`}
+                  >
+                    Attiva abbonamento
+                  </Button>
+                </Card>
+              ))}
+            </SimpleGrid>
+          </Paper>
+        )}
+
         {/* Plan change (in-app upgrade/downgrade) */}
         {subscription && plans.length > 0 && (
           <Paper p="xl" radius="md" withBorder data-testid="plan-change-section">
@@ -762,9 +922,9 @@ export default function BillingPage() {
                   <Card key={p.id} withBorder radius="md" p="lg" data-testid={`plan-option-${p.slug}`}>
                     <Group justify="space-between" mb="xs">
                       <Text fw={700}>{p.name}</Text>
-                      {isCurrent && <Badge color="violet">Attuale</Badge>}
+                      {isCurrent && <Badge color="navy">Attuale</Badge>}
                     </Group>
-                    <Text size="xl" fw={900} c="violet" mb="xs">
+                    <Text size="xl" fw={900} c="navy" mb="xs">
                       €{p.price}
                       <Text span size="sm" c="dimmed" fw={400}>
                         /{p.interval === 'MONTHLY' ? 'mese' : 'anno'}
@@ -778,7 +938,7 @@ export default function BillingPage() {
                     <Button
                       fullWidth
                       variant={isCurrent ? 'light' : 'filled'}
-                      color="violet"
+                      color="navy"
                       disabled={isCurrent || blocked || changingPlan !== null}
                       loading={changingPlan === p.slug}
                       onClick={() => handleChangePlan(p.slug)}

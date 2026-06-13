@@ -152,7 +152,7 @@ export function HomepageContent({ locale }: { locale: string }) {
               <Badge
                 size="lg"
                 variant="light"
-                color="indigo"
+                color="navy"
                 radius="xl"
                 leftSection={<IconSparkles size={14} />}
                 mb="lg"
@@ -214,7 +214,7 @@ export function HomepageContent({ locale }: { locale: string }) {
                   href={`/${locale}/auth/login`}
                   inherit
                   fw={600}
-                  c="indigo.6"
+                  c="navy.6"
                   style={{ textDecoration: 'none' }}
                 >
                   Accedi
@@ -235,7 +235,7 @@ export function HomepageContent({ locale }: { locale: string }) {
                 <SimpleGrid cols={2} spacing="lg">
                   {stats.map((stat) => (
                     <Stack key={stat.label} gap={4} align="center" ta="center" py="sm">
-                      <ThemeIcon size={44} radius="md" variant="light" color="indigo">
+                      <ThemeIcon size={44} radius="md" variant="light" color="navy">
                         <stat.icon size={24} />
                       </ThemeIcon>
                       <Text fz={rem(28)} fw={900} c="var(--pub-ink)" mt={6}>
@@ -266,7 +266,7 @@ export function HomepageContent({ locale }: { locale: string }) {
           <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="lg">
             {features.map((feature) => (
               <Card key={feature.title} padding="xl" radius="lg" className="pub-card" h="100%">
-                <ThemeIcon size={52} radius="md" color="indigo" variant="light" mb="md">
+                <ThemeIcon size={52} radius="md" color="navy" variant="light" mb="md">
                   <feature.icon size={28} />
                 </ThemeIcon>
                 <Text fw={700} size="lg" mb={6} c="var(--pub-ink)">
@@ -303,7 +303,7 @@ export function HomepageContent({ locale }: { locale: string }) {
                 className="pub-card"
                 style={{ textDecoration: 'none' }}
               >
-                <ThemeIcon size={52} radius="md" color="violet" variant="light" mb="md">
+                <ThemeIcon size={52} radius="md" color="navy" variant="light" mb="md">
                   <tool.icon size={28} />
                 </ThemeIcon>
                 <Text fw={700} size="lg" mb={6} c="var(--pub-ink)">
@@ -321,7 +321,7 @@ export function HomepageContent({ locale }: { locale: string }) {
               component={Link}
               href={`/${locale}/tools`}
               variant="outline"
-              color="indigo"
+              color="navy"
               size="md"
               radius="xl"
               rightSection={<IconArrowRight size={16} />}
@@ -361,7 +361,7 @@ export function HomepageContent({ locale }: { locale: string }) {
                     size="md"
                     variant={plan.popular ? 'gradient' : 'light'}
                     gradient={plan.popular ? PUB_GRADIENT : undefined}
-                    color="indigo"
+                    color="navy"
                     radius="xl"
                     leftSection={plan.popular ? <IconStar size={12} /> : undefined}
                   >
@@ -369,7 +369,7 @@ export function HomepageContent({ locale }: { locale: string }) {
                   </Badge>
                 </Group>
                 {plan.popular && (
-                  <Text fw={700} size="sm" c="indigo.6" mb={4}>
+                  <Text fw={700} size="sm" c="navy.6" mb={4}>
                     {plan.name}
                   </Text>
                 )}
@@ -389,7 +389,7 @@ export function HomepageContent({ locale }: { locale: string }) {
                   radius="xl"
                   variant={plan.popular ? 'gradient' : 'light'}
                   gradient={plan.popular ? PUB_GRADIENT : undefined}
-                  color="indigo"
+                  color="navy"
                   fw={600}
                   mb="lg"
                 >

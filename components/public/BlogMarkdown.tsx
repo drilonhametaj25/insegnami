@@ -77,7 +77,7 @@ export const blogMarkdownComponents: Components = {
     return (
       <Anchor
         href={href}
-        c="indigo.6"
+        c="navy.6"
         underline="hover"
         fw={500}
         {...(esterno ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
@@ -92,7 +92,7 @@ export const blogMarkdownComponents: Components = {
       mb="md"
       radius="md"
       bg="gray.0"
-      style={{ borderLeft: '3px solid var(--mantine-color-indigo-6)', fontStyle: 'italic' }}
+      style={{ borderLeft: '3px solid var(--mantine-color-navy-6)', fontStyle: 'italic' }}
     >
       {children}
     </Paper>

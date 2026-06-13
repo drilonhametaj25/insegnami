@@ -150,7 +150,7 @@ function LoginForm() {
     <Box 
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
         position: 'relative',
       }}
     >
@@ -195,7 +195,7 @@ function LoginForm() {
                     order={1}
                     ta="center"
                     style={{
-                      background: 'linear-gradient(45deg, #667eea, #764ba2)',
+                      background: 'linear-gradient(45deg, #1e3a8a, #172554)',
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
                       backgroundClip: 'text',
@@ -290,7 +290,7 @@ function LoginForm() {
                         input: {
                           border: '2px solid #e9ecef',
                           '&:focus': {
-                            borderColor: '#667eea',
+                            borderColor: '#1e3a8a',
                             boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)',
                           },
                         },
@@ -311,7 +311,7 @@ function LoginForm() {
                         input: {
                           border: '2px solid #e9ecef',
                           '&:focus': {
-                            borderColor: '#667eea',
+                            borderColor: '#1e3a8a',
                             boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)',
                           },
                         },
@@ -331,7 +331,7 @@ function LoginForm() {
                           input: {
                             border: '2px solid #e9ecef',
                             '&:focus': {
-                              borderColor: '#667eea',
+                              borderColor: '#1e3a8a',
                               boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)',
                             },
                           },
@@ -456,7 +456,7 @@ export default function LoginPage() {
         <Box 
           style={{
             minHeight: '100vh',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

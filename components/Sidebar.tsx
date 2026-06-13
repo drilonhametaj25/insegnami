@@ -1,19 +1,18 @@
 'use client';
 
-import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useLocale, useTranslations } from 'next-intl';
-import { 
-  AppShell, 
-  NavLink, 
-  Group, 
-  Text, 
+import {
+  AppShell,
+  NavLink,
+  Text,
   UnstyledButton,
   Avatar,
   Menu,
   rem,
   Box,
   Stack,
+  ScrollArea,
 } from '@mantine/core';
 import {
   IconDashboard,
@@ -25,7 +24,7 @@ import {
   IconReport,
   IconSettings,
   IconLogout,
-  IconChevronDown,
+  IconChevronUp,
   IconUserCircle,
   IconBook,
   IconClipboardList,
@@ -69,10 +68,10 @@ export function Sidebar({ opened }: SidebarProps) {
   // Define navigation items based on role
   const getNavigationItems = () => {
     const commonItems = [
-      { 
-        icon: IconDashboard, 
-        label: t('dashboard'), 
-        href: `/${locale}/dashboard` 
+      {
+        icon: IconDashboard,
+        label: t('dashboard'),
+        href: `/${locale}/dashboard`,
       },
     ];
 
@@ -115,7 +114,7 @@ export function Sidebar({ opened }: SidebarProps) {
         { icon: IconClipboardList, label: t('attendance'), href: `/${locale}/dashboard/attendance` },
         { icon: IconWallet, label: t('myPayslips'), href: `/${locale}/dashboard/payroll` },
         { icon: IconBell, label: t('notices'), href: `/${locale}/dashboard/notices` },
-        { icon: IconUserCircle, label: 'Profile', href: `/${locale}/dashboard/teacher` },
+        { icon: IconUserCircle, label: 'Profilo', href: `/${locale}/dashboard/profile` },
       ],
       STUDENT: [
         { icon: IconBook, label: 'My Courses', href: `/${locale}/dashboard/classes` },
@@ -123,7 +122,7 @@ export function Sidebar({ opened }: SidebarProps) {
         { icon: IconClipboardList, label: t('attendance'), href: `/${locale}/dashboard/attendance` },
         { icon: IconCash, label: t('payments'), href: `/${locale}/dashboard/payments` },
         { icon: IconBell, label: t('notices'), href: `/${locale}/dashboard/notices` },
-        { icon: IconUserCircle, label: 'Profile', href: `/${locale}/dashboard/student` },
+        { icon: IconUserCircle, label: 'Profilo', href: `/${locale}/dashboard/profile` },
       ],
       PARENT: [
         { icon: IconUserHeart, label: 'My Children', href: `/${locale}/dashboard/students` },
@@ -131,7 +130,7 @@ export function Sidebar({ opened }: SidebarProps) {
         { icon: IconCalendarEvent, label: t('meetings'), href: `/${locale}/dashboard/meetings` },
         { icon: IconCash, label: t('payments'), href: `/${locale}/dashboard/payments` },
         { icon: IconBell, label: t('notices'), href: `/${locale}/dashboard/notices` },
-        { icon: IconUserCircle, label: 'Profile', href: `/${locale}/dashboard/parent` },
+        { icon: IconUserCircle, label: 'Profilo', href: `/${locale}/dashboard/profile` },
       ],
       SUPERADMIN: [
         { icon: IconHome, label: 'Dashboard', href: `/${locale}/dashboard/superadmin` },
@@ -151,67 +150,33 @@ export function Sidebar({ opened }: SidebarProps) {
   const navigationItems = getNavigationItems();
 
   return (
-    <AppShell.Navbar 
-      p="md" 
-      w={300}
-      style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        borderRight: 'none',
-      }}
-    >
-      {/* Logo section removed - moved to navbar */}
-
-      <AppShell.Section grow>
-        <Stack gap="xs">
-          {navigationItems.map((item, index) => {
+    <>
+      {/* Nav links — scrollable so a long menu never overflows the viewport */}
+      <AppShell.Section grow component={ScrollArea} px="sm" py="md" scrollbarSize={6} type="hover">
+        <Stack gap={4}>
+          {navigationItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
-            
+            const isActive =
+              pathname === item.href ||
+              (item.href !== `/${locale}/dashboard` && pathname.startsWith(item.href));
+
             return (
               <NavLink
-                key={index}
+                key={item.href}
                 component={Link}
                 href={item.href}
                 label={item.label}
-                leftSection={<Icon size="1rem" stroke={1.5} />}
+                leftSection={<Icon size="1.1rem" stroke={1.6} />}
                 active={isActive}
                 styles={{
                   root: {
-                    borderRadius: rem(12),
-                    backgroundColor: isActive ? 'rgba(255, 255, 255, 0.25)' : 'transparent',
-                    fontWeight: isActive ? 600 : 'normal',
-                    boxShadow: isActive ? '0 4px 15px rgba(0, 0, 0, 0.2)' : 'none',
-                    transition: 'all 0.3s ease',
-                    
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                      transform: 'translateY(-2px) translateX(4px)',
-                      boxShadow: '0 8px 25px rgba(0, 0, 0, 0.25)',
-                      backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      
-                      // Effetti hover per gli elementi interni
-                      '& .mantine-NavLink-label': {
-                        fontWeight: 600,
-                        textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
-                      },
-                      
-                      '& .mantine-NavLink-section': {
-                        transform: 'scale(1.1)',
-                        filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))',
-                      },
-                    },
+                    borderRadius: rem(10),
+                    transition: 'background-color 0.15s ease',
+                    backgroundColor: isActive ? 'rgba(255,255,255,0.18)' : 'transparent',
+                    boxShadow: isActive ? 'inset 3px 0 0 0 var(--mantine-color-amber-5)' : 'none',
                   },
-                  label: {
-                    color: '#ffffff',
-                    fontWeight: 500,
-                    fontSize: '14px',
-                    transition: 'all 0.3s ease',
-                  },
-                  section: {
-                    color: '#ffffff',
-                    transition: 'all 0.3s ease',
-                  },
+                  label: { color: '#fff', fontWeight: isActive ? 600 : 500, fontSize: rem(14) },
+                  section: { color: 'rgba(255,255,255,0.85)' },
                 }}
               />
             );
@@ -219,49 +184,35 @@ export function Sidebar({ opened }: SidebarProps) {
         </Stack>
       </AppShell.Section>
 
-      <AppShell.Section>
-        <Group style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: 16 }}>
-          <Menu shadow="md" width={200}>
+      {/* Account menu pinned to the bottom */}
+      <AppShell.Section p="sm">
+        <Box style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: rem(12) }}>
+          <Menu shadow="md" width={220} position="top-start" withinPortal>
             <Menu.Target>
               <UnstyledButton
                 style={{
                   width: '100%',
-                  padding: 12,
-                  borderRadius: 12,
+                  padding: rem(10),
+                  borderRadius: rem(10),
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 12,
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  backdropFilter: 'blur(10px)',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                  gap: rem(10),
+                  background: 'rgba(255,255,255,0.08)',
                 }}
               >
-                <Avatar
-                  src={session?.user?.avatar}
-                  size="sm"
-                  radius="xl"
-                  style={{
-                    background: 'linear-gradient(45deg, #fff, #f1f5f9)',
-                    color: '#475569',
-                  }}
-                >
-                  {session?.user?.firstName?.[0]}{session?.user?.lastName?.[0]}
+                <Avatar src={session?.user?.avatar} size="sm" radius="xl" color="amber" variant="filled">
+                  {session?.user?.firstName?.[0]}
+                  {session?.user?.lastName?.[0]}
                 </Avatar>
-                <Box style={{ flex: 1, textAlign: 'left' }}>
-                  <Text size="sm" fw={500} c="white">
+                <Box style={{ flex: 1, textAlign: 'left', overflow: 'hidden' }}>
+                  <Text size="sm" fw={600} c="white" truncate>
                     {session?.user?.firstName} {session?.user?.lastName}
                   </Text>
-                  <Text size="xs" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  <Text size="xs" style={{ color: 'rgba(255,255,255,0.65)' }} truncate>
                     {userRole?.toLowerCase() || 'user'}
                   </Text>
                 </Box>
-                <IconChevronDown size="0.875rem" stroke={1.5} color="rgba(255, 255, 255, 0.7)" />
+                <IconChevronUp size="0.9rem" stroke={1.5} color="rgba(255,255,255,0.7)" />
               </UnstyledButton>
             </Menu.Target>
 
@@ -270,31 +221,29 @@ export function Sidebar({ opened }: SidebarProps) {
               <Menu.Item
                 component={Link}
                 href={`/${locale}/dashboard/profile`}
-                leftSection={<IconUserCircle size="0.875rem" />}
+                leftSection={<IconUserCircle size="0.9rem" />}
               >
                 Profilo
               </Menu.Item>
               <Menu.Item
                 component={Link}
-                href={`/${locale}/dashboard/profile`}
-                leftSection={<IconSettings size="0.875rem" />}
+                href={`/${locale}/dashboard/settings`}
+                leftSection={<IconSettings size="0.9rem" />}
               >
                 Impostazioni
               </Menu.Item>
-              
               <Menu.Divider />
-              
               <Menu.Item
                 color="red"
-                leftSection={<IconLogout size="0.875rem" />}
+                leftSection={<IconLogout size="0.9rem" />}
                 onClick={() => signOut({ callbackUrl: `/${locale}/auth/login` })}
               >
                 Logout
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>
-        </Group>
+        </Box>
       </AppShell.Section>
-    </AppShell.Navbar>
+    </>
   );
 }

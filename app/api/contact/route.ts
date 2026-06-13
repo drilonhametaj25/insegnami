@@ -50,10 +50,10 @@ export async function POST(request: NextRequest) {
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header { background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { padding: 20px; background-color: #f9f9f9; border: 1px solid #e0e0e0; }
           .field { margin-bottom: 15px; }
-          .field-label { font-weight: bold; color: #667eea; margin-bottom: 5px; }
+          .field-label { font-weight: bold; color: #1e3a8a; margin-bottom: 5px; }
           .field-value { background: white; padding: 10px; border-radius: 4px; border: 1px solid #e0e0e0; }
           .message-box { white-space: pre-wrap; }
           .footer { text-align: center; padding: 15px; font-size: 12px; color: #666; background-color: #f0f0f0; border-radius: 0 0 8px 8px; }
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header { background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { padding: 30px; background-color: #ffffff; border: 1px solid #e0e0e0; }
           .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; background-color: #f0f0f0; border-radius: 0 0 8px 8px; }
           .highlight { background-color: #f0f4ff; padding: 15px; border-radius: 8px; margin: 20px 0; }

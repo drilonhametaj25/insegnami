@@ -214,7 +214,7 @@ export default function HomeworkPage() {
               title={t('totalHomework')}
               value={stats.total}
               icon="📚"
-              gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+              gradient="linear-gradient(135deg, #1e3a8a 0%, #172554 100%)"
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
@@ -230,7 +230,7 @@ export default function HomeworkPage() {
               title={t('overdue')}
               value={stats.overdue}
               icon="⏰"
-              gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+              gradient="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>

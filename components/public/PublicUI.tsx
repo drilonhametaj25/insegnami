@@ -14,11 +14,11 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 /**
- * Brand unico del sito pubblico (indigo -> violet).
+ * Brand unico del sito pubblico (navy, accento ambra).
  * Da usare per Button variant="gradient" e Text variant="gradient":
  * mai gradienti hardcoded nelle singole pagine.
  */
-export const PUB_GRADIENT = { from: 'indigo.6', to: 'violet.6', deg: 135 } as const;
+export const PUB_GRADIENT = { from: 'navy.8', to: 'navy.6', deg: 135 } as const;
 
 /** Intestazione di sezione: eyebrow + titolo (con parte evidenziata) + sottotitolo. */
 export function SectionHeader({
@@ -37,7 +37,7 @@ export function SectionHeader({
   return (
     <Stack gap="sm" align="center" ta="center" maw={720} mx="auto" mb={56}>
       {badge && (
-        <Badge size="lg" variant="light" color="indigo" radius="xl">
+        <Badge size="lg" variant="light" color="navy" radius="xl">
           {badge}
         </Badge>
       )}
@@ -84,7 +84,7 @@ export function PageHero({
       <Container size="xl">
         <Stack gap="md" align="center" ta="center" maw={780} mx="auto">
           {badge && (
-            <Badge size="lg" variant="light" color="indigo" radius="xl">
+            <Badge size="lg" variant="light" color="navy" radius="xl">
               {badge}
             </Badge>
           )}
@@ -136,7 +136,7 @@ export function CtaBanner({
               size="lg"
               radius="xl"
               variant="white"
-              c="indigo.7"
+              c="navy.7"
               fw={700}
               rightSection={<IconArrowRight size={18} />}
             >

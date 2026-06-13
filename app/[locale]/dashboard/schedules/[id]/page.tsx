@@ -113,7 +113,7 @@ const StatusBadge = ({ status }: { status: Schedule['status'] }) => {
 // Color mapping for subjects (consistent colors)
 const getSubjectColor = (subjectId: string) => {
   const colors = [
-    '#667eea', '#f093fb', '#43e97b', '#fa709a', '#4facfe',
+    '#1e3a8a', '#f59e0b', '#43e97b', '#fa709a', '#4facfe',
     '#ff9a9e', '#a8edea', '#fed6e3', '#ffecd2', '#d299c2',
   ];
   // Simple hash to get consistent color

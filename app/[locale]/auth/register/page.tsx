@@ -228,7 +228,7 @@ export default function RegisterPage() {
           <Loader size="sm" />
         </Center>
       ) : selectedPlan && (
-        <Card withBorder p="md" radius="md" mb="xl" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+        <Card withBorder p="md" radius="md" mb="xl" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)' }}>
           <Group justify="space-between" align="center">
             <Group>
               <IconRocket size="1.5rem" color="white" />

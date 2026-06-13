@@ -233,7 +233,7 @@ export default function HoursPackagesPage() {
             title={t('hoursPackages.totalPackages')}
             value={totalPackages.toString()}
             icon={<IconPackage size="1.5rem" />}
-            gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+            gradient="linear-gradient(135deg, #1e3a8a 0%, #172554 100%)"
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
@@ -241,7 +241,7 @@ export default function HoursPackagesPage() {
             title={t('hoursPackages.hoursSold')}
             value={totalHoursSold.toFixed(1)}
             icon={<IconClock size="1.5rem" />}
-            gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+            gradient="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>

@@ -1,184 +1,114 @@
 'use client';
 
-import { 
-  Group, 
-  ActionIcon, 
-  Text, 
-  Indicator, 
-  Menu,
-  Badge,
-  rem,
+import {
+  Group,
+  ActionIcon,
+  Text,
   Burger,
-  Button,
+  useMantineColorScheme,
+  useComputedColorScheme,
 } from '@mantine/core';
 import {
-  IconBell,
   IconSettings,
   IconSearch,
   IconSun,
   IconMoon,
 } from '@tabler/icons-react';
 import { useSession } from 'next-auth/react';
-import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useLocale } from 'next-intl';
+import Link from 'next/link';
 import { LanguageSelector } from './LanguageSelector';
 import { NotificationBell } from './notifications/NotificationCenter';
+import { BRAND } from '@/lib/theme';
 
 interface NavbarProps {
   opened: boolean;
   toggle: () => void;
 }
 
+const iconBtnStyle = {
+  color: 'white',
+  backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  border: '1px solid rgba(255, 255, 255, 0.18)',
+} as const;
+
 export function Navbar({ opened, toggle }: NavbarProps) {
   const { data: session } = useSession();
-  const t = useTranslations('common');
-  const [colorScheme, setColorScheme] = useState<'light' | 'dark'>('light');
+  const locale = useLocale();
+  const { setColorScheme } = useMantineColorScheme();
+  const computed = useComputedColorScheme('light', { getInitialValueInEffect: true });
 
-  const toggleColorScheme = () => {
-    setColorScheme(colorScheme === 'dark' ? 'light' : 'dark');
-  };
+  const toggleColorScheme = () => setColorScheme(computed === 'dark' ? 'light' : 'dark');
 
   return (
     <div
       style={{
         height: '100%',
-        padding: '0 24px',
+        padding: '0 20px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        borderBottom: 'none',
-        backdropFilter: 'blur(10px)',
-        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
+        background: BRAND.gradient,
       }}
     >
-      <Group>
+      <Group gap="md">
         <Burger
           opened={opened}
           onClick={toggle}
           hiddenFrom="sm"
           size="sm"
           color="white"
-          style={{ color: 'white' }}
         />
-        
-        {/* Logo - shown only on desktop when sidebar is present */}
-        <Group visibleFrom="sm">
-          <img 
-            src="/images/logo-white.svg" 
-            alt="InsegnaMi.pro" 
-            height="32"
-            style={{ 
-              height: '32px', 
-              width: 'auto',
-              filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))',
-            }}
-          />
-        </Group>
+
+        {/* Logo — leggibile anche nella navbar */}
+        <img
+          src="/images/logo-white.svg"
+          alt="InsegnaMi.pro"
+          height={38}
+          style={{ height: 38, width: 'auto', display: 'block' }}
+        />
       </Group>
 
-      <Group>
-        {/* Search */}
-        <ActionIcon
-          variant="subtle"
-          size="lg"
-          title="Cerca"
-          style={{
-            color: 'white',
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            backdropFilter: 'blur(10px)',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          <IconSearch size="1.25rem" />
+      <Group gap="sm">
+        <ActionIcon variant="default" size="lg" title="Cerca" style={iconBtnStyle}>
+          <IconSearch size="1.2rem" />
         </ActionIcon>
 
-        {/* Language Selector */}
         <LanguageSelector />
 
-        {/* Theme Toggle */}
+        {/* Theme toggle — ora collegato allo schema colori Mantine */}
         <ActionIcon
           size="lg"
-          title="Cambia tema"
+          title={computed === 'dark' ? 'Tema chiaro' : 'Tema scuro'}
           onClick={toggleColorScheme}
-          style={{
-            color: 'white',
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            backdropFilter: 'blur(10px)',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
+          style={iconBtnStyle}
         >
-          {colorScheme === 'dark' ? (
-            <IconSun size="1.25rem" />
-          ) : (
-            <IconMoon size="1.25rem" />
-          )}
+          {computed === 'dark' ? <IconSun size="1.2rem" /> : <IconMoon size="1.2rem" />}
         </ActionIcon>
 
-        {/* Notifications */}
         <div
           style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            borderRadius: '8px',
-            backdropFilter: 'blur(10px)',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-            e.currentTarget.style.transform = 'translateY(0)';
+            backgroundColor: 'rgba(255, 255, 255, 0.12)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            borderRadius: 8,
+            display: 'flex',
           }}
         >
           <NotificationBell size={20} />
         </div>
 
-        {/* Settings */}
+        {/* Settings — ora naviga davvero alla pagina impostazioni */}
         <ActionIcon
+          component={Link}
+          href={`/${locale}/dashboard/settings`}
           size="lg"
           title="Impostazioni"
-          style={{
-            color: 'white',
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            backdropFilter: 'blur(10px)',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
+          style={iconBtnStyle}
         >
-          <IconSettings size="1.25rem" />
+          <IconSettings size="1.2rem" />
         </ActionIcon>
 
-        {/* User Info - Mobile */}
-        <Text size="sm" fw={500} hiddenFrom="sm" style={{ color: 'white' }}>
+        <Text size="sm" fw={500} hiddenFrom="sm" c="white">
           {session?.user?.firstName}
         </Text>
       </Group>

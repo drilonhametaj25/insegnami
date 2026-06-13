@@ -1,17 +1,17 @@
 'use client';
 
 import { Paper, Group, Text, ThemeIcon, SimpleGrid, Progress, Badge, Stack } from '@mantine/core';
-import { 
-  IconUsers, 
-  IconBook, 
-  IconCalendar, 
-  IconCurrencyEuro, 
-  IconTrendingUp, 
+import {
+  IconUsers,
+  IconBook,
+  IconCalendar,
+  IconCurrencyEuro,
+  IconTrendingUp,
   IconTrendingDown,
   IconMinus,
   IconCheck,
   IconClock,
-  IconAlertTriangle
+  IconAlertTriangle,
 } from '@tabler/icons-react';
 
 interface StatCardProps {
@@ -38,7 +38,7 @@ interface StatCardProps {
 function StatCard({ title, value, icon, color, change, progress, badge }: StatCardProps) {
   const getTrendIcon = () => {
     if (!change) return null;
-    
+
     switch (change.type) {
       case 'increase':
         return <IconTrendingUp size={14} />;
@@ -51,7 +51,7 @@ function StatCard({ title, value, icon, color, change, progress, badge }: StatCa
 
   const getTrendColor = () => {
     if (!change) return 'gray';
-    
+
     switch (change.type) {
       case 'increase':
         return 'green';
@@ -63,13 +63,11 @@ function StatCard({ title, value, icon, color, change, progress, badge }: StatCa
   };
 
   return (
-    <Paper 
-      withBorder 
-      p="lg" 
-      radius="xl" 
+    <Paper
+      withBorder
+      p="lg"
+      radius="xl"
       style={{
-        background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-        border: '1px solid #e2e8f0',
         transition: 'all 0.2s ease',
         cursor: 'default',
       }}
@@ -79,7 +77,7 @@ function StatCard({ title, value, icon, color, change, progress, badge }: StatCa
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0px)';
-        e.currentTarget.style.boxShadow = '0 1px 3px 0 rgb(0 0 0 / 0.1)';
+        e.currentTarget.style.boxShadow = '';
       }}
     >
       <Group justify="space-between">
@@ -153,220 +151,209 @@ interface DashboardStatsProps {
   };
 }
 
-export default function DashboardStats({ role, data }: DashboardStatsProps) {
-  // Sample data if none provided
-  const defaultData = {
-    students: 156,
-    teachers: 12,
-    classes: 18,
-    lessons: 45,
-    revenue: 12500,
-    attendance: 87,
-    pendingPayments: 8,
-    upcomingLessons: 12,
+// Helper: attendance progress (real ratio) with traffic-light color.
+// Returns undefined when no attendance value was provided so we don't fake a bar.
+function attendanceProgress(attendance: number | undefined, label: string) {
+  if (attendance === undefined || attendance === null) return undefined;
+  const value = Math.round(attendance);
+  return {
+    value,
+    label,
+    color: value >= 90 ? 'green' : value >= 80 ? 'amber' : 'red',
   };
+}
 
-  const stats = { ...defaultData, ...data };
+export default function DashboardStats({ role, data }: DashboardStatsProps) {
+  // No fake fallbacks: when a metric is missing we show 0 / empty, not invented numbers.
+  const d = data ?? {};
 
-  const getStatsForRole = () => {
+  const getStatsForRole = (): StatCardProps[] => {
     switch (role) {
       case 'ADMIN':
       case 'DIRECTOR':
-      case 'SECRETARY':
+      case 'SECRETARY': {
+        const students = d.students ?? 0;
+        const teachers = d.teachers ?? 0;
+        const classes = d.classes ?? 0;
+        const lessons = d.lessons ?? 0;
+        const revenue = d.revenue ?? 0;
+
         return [
           {
             title: 'Studenti Attivi',
-            value: stats.students,
+            value: students,
             icon: <IconUsers size={24} />,
-            color: 'blue',
-            change: {
-              value: 12,
-              type: 'increase' as const,
-              period: 'questo mese',
-            },
-            progress: {
-              value: 78,
-              label: 'Capacità utilizzo',
-              color: 'blue',
-            },
+            color: 'navy',
+            // ratio reale studenti/classe come badge informativo (niente trend inventato)
+            ...(classes > 0
+              ? { badge: { text: `${(students / classes).toFixed(1)} std/classe`, color: 'navy' } }
+              : {}),
           },
           {
             title: 'Docenti',
-            value: stats.teachers,
+            value: teachers,
             icon: <IconBook size={24} />,
             color: 'green',
-            badge: {
-              text: `${Math.floor(stats.students / stats.teachers)} std/doc`,
-              color: 'green',
-            },
+            // ratio reale studenti/docente (solo se ci sono docenti)
+            ...(teachers > 0
+              ? { badge: { text: `${Math.round(students / teachers)} std/doc`, color: 'green' } }
+              : {}),
           },
           {
             title: 'Classi Attive',
-            value: stats.classes,
+            value: classes,
             icon: <IconCalendar size={24} />,
-            color: 'violet',
-            change: {
-              value: 5,
-              type: 'increase' as const,
-              period: 'ultimo trimestre',
-            },
+            color: 'navy',
           },
           {
-            title: 'Fatturato Mensile',
-            value: `€${stats.revenue.toLocaleString()}`,
+            title: 'Fatturato (30gg)',
+            value: `€${revenue.toLocaleString('it-IT')}`,
             icon: <IconCurrencyEuro size={24} />,
-            color: 'orange',
-            change: {
-              value: 8,
-              type: 'increase' as const,
-              period: 'vs mese scorso',
-            },
-            badge: {
-              text: `${stats.pendingPayments} in sospeso`,
-              color: 'yellow',
-            },
+            color: 'amber',
+            // badge solo se ci sono davvero pagamenti in sospeso
+            ...(d.pendingPayments && d.pendingPayments > 0
+              ? { badge: { text: `${d.pendingPayments} in sospeso`, color: 'amber' } }
+              : {}),
           },
           {
             title: 'Presenze Medie',
-            value: `${stats.attendance}%`,
+            value: d.attendance !== undefined ? `${Math.round(d.attendance)}%` : '—',
             icon: <IconCheck size={24} />,
             color: 'teal',
-            progress: {
-              value: stats.attendance,
-              label: 'Obiettivo: 90%',
-              color: stats.attendance >= 90 ? 'green' : stats.attendance >= 80 ? 'yellow' : 'red',
-            },
+            // progress basata sul rapporto presenze REALE (se fornito)
+            ...(attendanceProgress(d.attendance, 'Obiettivo: 90%')
+              ? { progress: attendanceProgress(d.attendance, 'Obiettivo: 90%') }
+              : {}),
           },
           {
-            title: 'Lezioni Oggi',
-            value: stats.lessons,
+            title: 'Lezioni (30gg)',
+            value: lessons,
             icon: <IconClock size={24} />,
-            color: 'indigo',
-            badge: {
-              text: `${stats.upcomingLessons} prossime`,
-              color: 'blue',
-            },
+            color: 'navy',
+            ...(d.upcomingLessons && d.upcomingLessons > 0
+              ? { badge: { text: `${d.upcomingLessons} prossime`, color: 'navy' } }
+              : {}),
           },
         ];
+      }
 
-      case 'TEACHER':
+      case 'TEACHER': {
+        const students = d.students ?? 0;
+        const classes = d.classes ?? 0;
+        const lessons = d.lessons ?? 0;
+        const pending = d.pendingPayments ?? 0;
+
         return [
           {
             title: 'I Miei Studenti',
-            value: 42,
+            value: students,
             icon: <IconUsers size={24} />,
-            color: 'blue',
-            progress: {
-              value: 85,
-              label: 'Frequenza media',
-              color: 'blue',
-            },
+            color: 'navy',
+            ...(attendanceProgress(d.attendance, 'Frequenza media')
+              ? { progress: attendanceProgress(d.attendance, 'Frequenza media') }
+              : {}),
           },
           {
             title: 'Classi Assegnate',
-            value: 6,
+            value: classes,
             icon: <IconBook size={24} />,
             color: 'green',
           },
           {
             title: 'Lezioni Oggi',
-            value: 4,
+            value: lessons,
             icon: <IconCalendar size={24} />,
-            color: 'violet',
-            badge: {
-              text: '2 completate',
-              color: 'green',
-            },
+            color: 'navy',
+            ...(d.upcomingLessons && d.upcomingLessons > 0
+              ? { badge: { text: `${d.upcomingLessons} prossime`, color: 'navy' } }
+              : {}),
           },
           {
             title: 'Presenze da Confermare',
-            value: 12,
+            value: pending,
             icon: <IconAlertTriangle size={24} />,
-            color: 'orange',
-            badge: {
-              text: 'Urgente',
-              color: 'red',
-            },
+            color: 'amber',
+            ...(pending > 0 ? { badge: { text: 'Da gestire', color: 'red' } } : {}),
           },
         ];
+      }
 
-      case 'STUDENT':
+      case 'STUDENT': {
+        const classes = d.classes ?? 0;
+        const lessons = d.lessons ?? 0;
+
         return [
           {
             title: 'Corsi Attivi',
-            value: 3,
+            value: classes,
             icon: <IconBook size={24} />,
-            color: 'blue',
+            color: 'navy',
           },
           {
-            title: 'Lezioni Questa Settimana',
-            value: 8,
+            title: 'Lezioni (settimana)',
+            value: lessons,
             icon: <IconCalendar size={24} />,
             color: 'green',
-            badge: {
-              text: '2 completate',
-              color: 'green',
-            },
+            ...(d.upcomingLessons && d.upcomingLessons > 0
+              ? { badge: { text: `${d.upcomingLessons} prossime`, color: 'navy' } }
+              : {}),
           },
           {
             title: 'Frequenza',
-            value: '92%',
+            value: d.attendance !== undefined ? `${Math.round(d.attendance)}%` : '—',
             icon: <IconCheck size={24} />,
             color: 'teal',
-            progress: {
-              value: 92,
-              label: 'Obiettivo personale',
-              color: 'green',
-            },
+            ...(attendanceProgress(d.attendance, 'Le tue presenze')
+              ? { progress: attendanceProgress(d.attendance, 'Le tue presenze') }
+              : {}),
           },
           {
-            title: 'Prossima Lezione',
-            value: 'Oggi 15:00',
+            title: 'Pagamenti in Sospeso',
+            value: d.pendingPayments ?? 0,
             icon: <IconClock size={24} />,
-            color: 'violet',
-            badge: {
-              text: 'Inglese Avanzato',
-              color: 'blue',
-            },
+            color: 'amber',
           },
         ];
+      }
 
-      case 'PARENT':
+      case 'PARENT': {
+        const students = d.students ?? 0;
+        const classes = d.classes ?? 0;
+        const pendingAmount = d.revenue ?? 0;
+
         return [
           {
             title: 'Figli Iscritti',
-            value: 2,
+            value: students,
             icon: <IconUsers size={24} />,
-            color: 'blue',
+            color: 'navy',
           },
           {
             title: 'Corsi Attivi',
-            value: 4,
+            value: classes,
             icon: <IconBook size={24} />,
             color: 'green',
           },
           {
             title: 'Frequenza Media',
-            value: '89%',
+            value: d.attendance !== undefined ? `${Math.round(d.attendance)}%` : '—',
             icon: <IconCheck size={24} />,
             color: 'teal',
-            progress: {
-              value: 89,
-              label: 'Ultimo mese',
-              color: 'yellow',
-            },
+            ...(attendanceProgress(d.attendance, 'Ultimo periodo')
+              ? { progress: attendanceProgress(d.attendance, 'Ultimo periodo') }
+              : {}),
           },
           {
             title: 'Pagamenti in Sospeso',
-            value: '€320',
+            value: `€${pendingAmount.toLocaleString('it-IT')}`,
             icon: <IconCurrencyEuro size={24} />,
-            color: 'orange',
-            badge: {
-              text: 'Scade in 3 giorni',
-              color: 'red',
-            },
+            color: 'amber',
+            ...(d.pendingPayments && d.pendingPayments > 0
+              ? { badge: { text: `${d.pendingPayments} da saldare`, color: 'red' } }
+              : {}),
           },
         ];
+      }
 
       default:
         return [];

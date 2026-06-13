@@ -211,7 +211,7 @@ export function EnrollStudentsModal({
     >
       <Stack gap="md">
         {/* Capacity Info */}
-        <Paper p="md" withBorder style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+        <Paper p="md" withBorder style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)', color: 'white' }}>
           <Group justify="space-between" mb="sm">
             <Text fw={500}>Capacità Classe</Text>
             <Text fw={700}>{currentCapacity}/{maxCapacity}</Text>

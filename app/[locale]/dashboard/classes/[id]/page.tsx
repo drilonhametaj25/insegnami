@@ -551,7 +551,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Class Info Header Card */}
       <Paper p="xl" mb="xl" radius="lg" style={{ 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
         color: 'white' 
       }}>
         <Grid>
@@ -639,7 +639,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
             title="Studenti Iscritti"
             value={`${totalStudents}/${maxStudents}`}
             icon={<IconUsers size={24} />}
-            gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+            gradient="linear-gradient(135deg, #1e3a8a 0%, #172554 100%)"
             progress={{
               value: occupancyRate,
               label: 'Capacità',
@@ -652,7 +652,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
             title="Lezioni Totali"
             value={totalLessons.toString()}
             icon={<IconBook2 size={24} />}
-            gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+            gradient="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>

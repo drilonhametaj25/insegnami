@@ -175,7 +175,7 @@ export function ClassForm({
           borderRadius: '20px',
         },
         header: {
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
           borderRadius: '20px 20px 0 0',
           color: 'white',
           borderBottom: 'none',

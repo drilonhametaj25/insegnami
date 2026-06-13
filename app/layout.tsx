@@ -1,5 +1,6 @@
 import { ColorSchemeScript, MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
+import { appTheme } from '@/lib/theme';
 import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
 import '@mantine/notifications/styles.css';
@@ -70,7 +71,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
         />
       </head>
       <body>
-        <MantineProvider>
+        <MantineProvider theme={appTheme} defaultColorScheme="light">
           <Notifications />
           {children}
         </MantineProvider>

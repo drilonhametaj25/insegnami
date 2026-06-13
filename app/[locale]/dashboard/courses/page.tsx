@@ -334,13 +334,13 @@ export default function CoursesPage() {
       title: 'Corsi Totali',
       value: stats.total.toString(),
       icon: <IconBook2 size={24} />,
-      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      gradient: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
     },
     {
       title: 'Corsi Attivi',
       value: stats.active.toString(),
       icon: <IconSchool size={24} />,
-      gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
     },
     {
       title: 'Classi Totali',

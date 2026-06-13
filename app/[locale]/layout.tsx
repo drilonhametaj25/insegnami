@@ -4,6 +4,7 @@ import { SessionProvider } from 'next-auth/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
+import { appTheme } from '@/lib/theme';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -55,7 +56,7 @@ export default function LocaleLayout({
     <QueryClientProvider client={queryClient}>
       <NextIntlClientProvider locale={locale || 'it'} messages={messages}>
         <SessionProvider>
-          <MantineProvider>
+          <MantineProvider theme={appTheme} defaultColorScheme="light">
             <ModalsProvider>
               <Notifications />
               <div data-locale={locale || 'it'}>
