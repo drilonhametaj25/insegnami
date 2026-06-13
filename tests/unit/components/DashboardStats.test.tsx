@@ -1,176 +1,83 @@
-import { render, screen, fireEvent, waitFor } from '../../test-utils'
+import { render, screen, waitFor } from '../../test-utils'
 import DashboardStats from '@/components/cards/DashboardStats'
 
-// Mock the analytics hooks
-jest.mock('@/lib/hooks/useAnalytics', () => ({
-  useOverviewStats: jest.fn(),
-  useAttendanceStats: jest.fn(),
-  useFinancialStats: jest.fn(),
-  useTrendStats: jest.fn(),
-}))
+// DashboardStats is a pure presentational component driven by its `data` prop
+// (the dashboard page feeds it real values from /api/analytics). It no longer
+// invents fallback numbers or fake trends, so the tests assert real behaviour:
+// passing data renders those values + derived badges/progress; no data renders
+// zeros / em-dashes, never fabricated figures.
 
-// Mock the dashboard service
-jest.mock('@/lib/dashboard-service', () => ({
-  getDashboardData: jest.fn(),
-}))
+// Realistic admin payload used to exercise badges + progress.
+const adminData = {
+  students: 150,
+  teachers: 25,
+  classes: 12,
+  lessons: 45,
+  revenue: 15000,
+  attendance: 92,
+  pendingPayments: 3,
+  upcomingLessons: 5,
+}
 
 describe('DashboardStats Component', () => {
-  const mockOverviewStats = {
-    totalStudents: 150,
-    totalTeachers: 25,
-    totalClasses: 12,
-    totalLessons: 45,
-    activeStudents: 142,
-    overduePayments: 3,
-    totalRevenue: 15000,
-    attendanceRate: 92.5,
-    paymentRate: 85.2,
-  }
+  it('renders the admin stat titles and real values', async () => {
+    render(<DashboardStats role="ADMIN" data={adminData} />)
 
-  const mockAttendanceStats = {
-    byStatus: [
-      { status: 'PRESENT', _count: { status: 120 } },
-      { status: 'ABSENT', _count: { status: 15 } },
-      { status: 'LATE', _count: { status: 5 } },
-    ],
-    daily: {
-      '2024-01-01': 25,
-      '2024-01-02': 28,
-      '2024-01-03': 23,
-    },
-    totalRecords: 140,
-  }
-
-  const mockFinancialStats = {
-    byStatus: [
-      { status: 'PAID', _count: { status: 85 }, _sum: { amount: 12500 } },
-      { status: 'PENDING', _count: { status: 12 }, _sum: { amount: 1800 } },
-      { status: 'OVERDUE', _count: { status: 3 }, _sum: { amount: 450 } },
-    ],
-    dailyRevenue: {
-      '2024-01-01': 500,
-      '2024-01-02': 750,
-      '2024-01-03': 650,
-    },
-    totalRevenue: 14750,
-  }
-
-  beforeEach(() => {
-    const { useOverviewStats, useAttendanceStats, useFinancialStats, useTrendStats } = require('@/lib/hooks/useAnalytics')
-    
-    useOverviewStats.mockReturnValue({
-      data: mockOverviewStats,
-      isLoading: false,
-      error: null,
-      refetch: jest.fn(),
-    })
-
-    useAttendanceStats.mockReturnValue({
-      data: mockAttendanceStats,
-      isLoading: false,
-      error: null,
-    })
-
-    useFinancialStats.mockReturnValue({
-      data: mockFinancialStats,
-      isLoading: false,
-      error: null,
-    })
-
-    useTrendStats.mockReturnValue({
-      data: {
-        enrollments: { '2024-01-01': 5, '2024-01-02': 3, '2024-01-03': 7 },
-        lessons: { '2024-01-01': 12, '2024-01-02': 15, '2024-01-03': 11 },
-      },
-      isLoading: false,
-      error: null,
-    })
-  })
-
-  afterEach(() => {
-    jest.clearAllMocks()
-  })
-
-  it('renders all dashboard stats correctly', async () => {
-    render(<DashboardStats role="ADMIN" />)
-
-    // Check for main stats based on admin role
     await waitFor(() => {
       expect(screen.getByText(/studenti attivi/i)).toBeInTheDocument()
       expect(screen.getByText(/docenti/i)).toBeInTheDocument()
       expect(screen.getByText(/classi attive/i)).toBeInTheDocument()
-      expect(screen.getByText(/fatturato mensile/i)).toBeInTheDocument()
+      expect(screen.getByText(/fatturato/i)).toBeInTheDocument()
     })
 
-    // Check for some default values
-    expect(screen.getByText('156')).toBeInTheDocument() // default students
-    expect(screen.getByText('12')).toBeInTheDocument()  // default teachers
+    // Real values from the data prop (no fabricated defaults like 156/12)
+    expect(screen.getByText('150')).toBeInTheDocument()
+    expect(screen.getByText('25')).toBeInTheDocument()
   })
 
-  it('displays loading state correctly', async () => {
-    const { useOverviewStats } = require('@/lib/hooks/useAnalytics')
-    useOverviewStats.mockReturnValue({
-      data: null,
-      isLoading: true,
-      error: null,
-      refetch: jest.fn(),
-    })
-
+  it('renders without crashing when no data is provided', () => {
     render(<DashboardStats role="ADMIN" />)
-
-    // Component should still render with default data even when analytics are loading
     expect(screen.getByText(/studenti attivi/i)).toBeInTheDocument()
   })
 
-  it('handles error states gracefully', async () => {
-    const { useOverviewStats } = require('@/lib/hooks/useAnalytics')
-    useOverviewStats.mockReturnValue({
-      data: null,
-      isLoading: false,
-      error: new Error('Failed to fetch stats'),
-      refetch: jest.fn(),
-    })
-
+  it('does NOT fabricate fake fallback numbers when data is absent', () => {
     render(<DashboardStats role="ADMIN" />)
-
-    // Component should still render with default data even when analytics fail
-    expect(screen.getByText(/studenti attivi/i)).toBeInTheDocument()
+    // The old fake defaults must be gone.
+    expect(screen.queryByText('156')).not.toBeInTheDocument()
+    // Missing metrics render as 0, not invented figures.
+    const zeros = screen.queryAllByText('0')
+    expect(zeros.length).toBeGreaterThan(0)
   })
 
-  it('shows trend indicators correctly', async () => {
-    render(<DashboardStats role="ADMIN" />)
+  it('derives real ratio badges instead of fake trends', async () => {
+    render(<DashboardStats role="ADMIN" data={adminData} />)
 
     await waitFor(() => {
-      // Look for trend indicators (increase/decrease text)
-      const trendElements = screen.queryAllByText(/questo mese|vs mese scorso|ultimo trimestre/i)
-      expect(trendElements.length).toBeGreaterThan(0)
+      // 150 students / 25 teachers -> "6 std/doc"; no "+12% questo mese" anymore.
+      const badges = screen.queryAllByText(/std\/doc|std\/classe|in sospeso|prossime/i)
+      expect(badges.length).toBeGreaterThan(0)
     })
+    expect(screen.queryByText(/questo mese|vs mese scorso|ultimo trimestre/i)).not.toBeInTheDocument()
   })
 
-  it('supports time period selection', async () => {
-    render(<DashboardStats role="ADMIN" />)
-
-    // Look for period-related text
+  it('labels the analytics window on admin cards', async () => {
+    render(<DashboardStats role="ADMIN" data={adminData} />)
     await waitFor(() => {
-      const periodText = screen.queryAllByText(/mese|trimestre|oggi/i)
-      expect(periodText.length).toBeGreaterThan(0)
+      // Titles now carry a concrete window ("Fatturato (30gg)", "Lezioni (30gg)").
+      const windowed = screen.queryAllByText(/30gg/i)
+      expect(windowed.length).toBeGreaterThan(0)
     })
   })
 
-  it('displays correct stat cards with proper formatting', async () => {
-    render(<DashboardStats role="ADMIN" />)
-
+  it('formats currency and percentage from real data', async () => {
+    render(<DashboardStats role="ADMIN" data={adminData} />)
     await waitFor(() => {
-      // Check for properly formatted currency
-      const currencyElements = screen.queryAllByText(/€/)
-      const percentageElements = screen.queryAllByText(/%/)
-      
-      expect(currencyElements.length).toBeGreaterThan(0)
-      expect(percentageElements.length).toBeGreaterThan(0)
+      expect(screen.queryAllByText(/€/).length).toBeGreaterThan(0)
+      expect(screen.queryAllByText(/%/).length).toBeGreaterThan(0)
     })
   })
 
-  it('handles empty data gracefully', async () => {
+  it('handles empty (all-zero) data gracefully', async () => {
     const customData = {
       students: 0,
       teachers: 0,
@@ -184,78 +91,43 @@ describe('DashboardStats Component', () => {
 
     render(<DashboardStats role="ADMIN" data={customData} />)
 
-    // Should display zeros properly
     await waitFor(() => {
       const zeroElements = screen.queryAllByText('0')
       expect(zeroElements.length).toBeGreaterThan(0)
     })
   })
 
-  it('triggers refresh on demand', async () => {
-    const mockRefetch = jest.fn()
-    const { useOverviewStats } = require('@/lib/hooks/useAnalytics')
-    useOverviewStats.mockReturnValue({
-      data: mockOverviewStats,
-      isLoading: false,
-      error: null,
-      refetch: mockRefetch,
-    })
-
-    render(<DashboardStats role="ADMIN" />)
-
-    // Component doesn't have explicit refresh button, but renders successfully
-    expect(screen.getByText(/studenti attivi/i)).toBeInTheDocument()
+  it('renders an em-dash for attendance when not provided', () => {
+    render(<DashboardStats role="ADMIN" data={{ students: 10 }} />)
+    expect(screen.getByText('—')).toBeInTheDocument()
   })
 
-  it('shows comparative data when available', async () => {
-    render(<DashboardStats role="ADMIN" />)
+  it('shows a progress bar only when real attendance is supplied', async () => {
+    const { rerender } = render(<DashboardStats role="ADMIN" data={{ students: 10 }} />)
+    // No attendance -> no progress bar (we never fake one).
+    expect(screen.queryAllByRole('progressbar').length).toBe(0)
 
+    rerender(<DashboardStats role="ADMIN" data={adminData} />)
     await waitFor(() => {
-      // Look for comparison text
-      const comparisonText = screen.queryAllByText(/vs|questo|ultimo/i)
-      expect(comparisonText.length).toBeGreaterThan(0)
+      expect(screen.queryAllByRole('progressbar').length).toBeGreaterThan(0)
     })
   })
 
   it('displays different stats based on user role', async () => {
-    // Test ADMIN role
-    const { rerender } = render(<DashboardStats role="ADMIN" />)
+    const { rerender } = render(<DashboardStats role="ADMIN" data={adminData} />)
     expect(screen.getByText(/studenti attivi/i)).toBeInTheDocument()
-    expect(screen.getByText(/fatturato mensile/i)).toBeInTheDocument()
+    expect(screen.getByText(/fatturato/i)).toBeInTheDocument()
 
-    // Test TEACHER role
-    rerender(<DashboardStats role="TEACHER" />)
+    rerender(<DashboardStats role="TEACHER" data={adminData} />)
     expect(screen.getByText(/i miei studenti/i)).toBeInTheDocument()
     expect(screen.getByText(/classi assegnate/i)).toBeInTheDocument()
 
-    // Test STUDENT role
-    rerender(<DashboardStats role="STUDENT" />)
+    rerender(<DashboardStats role="STUDENT" data={adminData} />)
     expect(screen.getByText(/corsi attivi/i)).toBeInTheDocument()
     expect(screen.getByText(/frequenza/i)).toBeInTheDocument()
 
-    // Test PARENT role
-    rerender(<DashboardStats role="PARENT" />)
+    rerender(<DashboardStats role="PARENT" data={adminData} />)
     expect(screen.getByText(/figli iscritti/i)).toBeInTheDocument()
     expect(screen.getByText(/pagamenti in sospeso/i)).toBeInTheDocument()
-  })
-
-  it('displays progress bars when available', async () => {
-    render(<DashboardStats role="ADMIN" />)
-
-    await waitFor(() => {
-      // Look for progress bars (using progressbar role)
-      const progressBars = screen.queryAllByRole('progressbar')
-      expect(progressBars.length).toBeGreaterThan(0)
-    })
-  })
-
-  it('displays badges when available', async () => {
-    render(<DashboardStats role="ADMIN" />)
-
-    await waitFor(() => {
-      // Look for badge text
-      const badgeTexts = screen.queryAllByText(/std\/doc|in sospeso|prossime/i)
-      expect(badgeTexts.length).toBeGreaterThan(0)
-    })
   })
 })
