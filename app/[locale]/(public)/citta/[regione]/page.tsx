@@ -331,7 +331,7 @@ export default async function RegionePage({
       <CtaBanner
         locale={locale}
         title="Prova InsegnaMi.pro nella Tua Scuola"
-        subtitle={`Unisciti alle scuole di ${regione.nome} che già usano InsegnaMi.pro. Prova gratuita di 14 giorni, nessun impegno.`}
+        subtitle={`Porta la gestione della tua scuola in ${regione.nome} nel digitale. Prova gratuita di 14 giorni, nessun impegno.`}
       />
     </>
   );

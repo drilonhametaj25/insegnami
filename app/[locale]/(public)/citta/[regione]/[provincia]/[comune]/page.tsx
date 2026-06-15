@@ -542,7 +542,7 @@ export default async function ComunePage({
       <CtaBanner
         locale={locale}
         title={`Inizia Oggi con InsegnaMi.pro a ${comune.nome}`}
-        subtitle={`Unisciti alle scuole di ${comune.nome} e ${provincia.nome} che hanno già scelto InsegnaMi.pro per semplificare la gestione quotidiana. Prova gratuita di 14 giorni, nessuna carta di credito richiesta.`}
+        subtitle={`Semplifica la gestione quotidiana della tua scuola a ${comune.nome} (${provincia.nome}). Prova gratuita di 14 giorni, nessuna carta di credito richiesta.`}
       />
     </>
   );

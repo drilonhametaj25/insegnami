@@ -48,7 +48,7 @@ export async function generateMetadata({
 // Punti di forza mostrati nell'hero: claim qualitativi, non numerici
 const heroStats = [
   { icon: IconBuilding, label: 'Tutte le 20 regioni' },
-  { icon: IconMapPin, label: 'Presenza in tutta Italia' },
+  { icon: IconMapPin, label: 'Disponibile in tutta Italia' },
   { icon: IconHeadset, label: 'Supporto in italiano' },
 ];
 

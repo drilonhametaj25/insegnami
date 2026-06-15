@@ -336,7 +336,7 @@ export default async function ProvinciaPage({
       <CtaBanner
         locale={locale}
         title={`La Tua Scuola a ${provincia.nome} Merita il Meglio`}
-        subtitle={`Unisciti alle scuole di ${provincia.nome} che hanno già scelto InsegnaMi.pro. Inizia la tua prova gratuita oggi.`}
+        subtitle={`Porta la gestione della tua scuola a ${provincia.nome} nel digitale. Inizia la tua prova gratuita oggi.`}
       />
     </>
   );

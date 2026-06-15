@@ -26,15 +26,16 @@ import {
   IconChartBar,
   IconCheck,
   IconClipboardCheck,
+  IconClock,
   IconCreditCard,
+  IconDeviceLaptop,
   IconFileText,
-  IconHeadset,
-  IconSchool,
+  IconLayoutGrid,
+  IconRocket,
   IconShield,
   IconSparkles,
   IconStar,
   IconTable,
-  IconTrendingUp,
   IconUsers,
 } from '@tabler/icons-react';
 import Link from 'next/link';
@@ -84,11 +85,13 @@ const features = [
   },
 ];
 
+// Metriche di valore (tempo risparmiato, semplicità d'uso): niente dati di
+// adozione (scuole/studenti) finché non sono numeri reali e verificabili.
 const stats = [
-  { value: '500+', label: 'Scuole attive', icon: IconSchool },
-  { value: '50k+', label: 'Studenti gestiti', icon: IconUsers },
-  { value: '99.9%', label: 'Uptime garantito', icon: IconTrendingUp },
-  { value: '24/7', label: 'Supporto dedicato', icon: IconHeadset },
+  { value: '70%', label: 'Tempo risparmiato in segreteria', icon: IconClock },
+  { value: 'Tutto in 1', label: 'Una piattaforma per tutta la scuola', icon: IconLayoutGrid },
+  { value: '5 min', label: 'Per attivarti, zero installazioni', icon: IconRocket },
+  { value: '100% web', label: 'Accedi da PC, tablet e telefono', icon: IconDeviceLaptop },
 ];
 
 const toolsShowcase = [
@@ -510,7 +513,7 @@ export function HomepageContent({ locale }: { locale: string }) {
       <CtaBanner
         locale={locale}
         title="Pronto a iniziare?"
-        subtitle="Unisciti a centinaia di scuole che hanno già digitalizzato la loro gestione."
+        subtitle="Digitalizza la gestione della tua scuola e dedica più tempo a ciò che conta: insegnare."
       />
     </Box>
   );
