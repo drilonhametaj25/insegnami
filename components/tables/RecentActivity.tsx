@@ -29,7 +29,7 @@ import {
 } from '@tabler/icons-react';
 import moment from 'moment';
 
-interface Activity {
+export interface Activity {
   id: string;
   type: 'student_enrolled' | 'lesson_completed' | 'payment_received' | 'attendance_marked' | 'notice_published' | 'class_created';
   title: string;
@@ -130,96 +130,8 @@ export default function RecentActivity({
   onEdit,
   onDelete
 }: RecentActivityProps) {
-  // Sample data if none provided
-  const defaultActivities: Activity[] = [
-    {
-      id: '1',
-      type: 'student_enrolled',
-      title: 'Nuovo studente iscritto',
-      description: 'Marco Verdi si è iscritto al corso Inglese Base A',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      user: {
-        name: 'Admin Sistema',
-        role: 'Admin',
-      },
-      metadata: {
-        className: 'Inglese Base A',
-        studentName: 'Marco Verdi',
-      },
-    },
-    {
-      id: '2',
-      type: 'lesson_completed',
-      title: 'Lezione completata',
-      description: 'Inglese Avanzato B - Lezione del 16/09/2025',
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-      user: {
-        name: 'Anna Bianchi',
-        role: 'Docente',
-      },
-      metadata: {
-        status: 'completed',
-        className: 'Inglese Avanzato B',
-      },
-    },
-    {
-      id: '3',
-      type: 'payment_received',
-      title: 'Pagamento ricevuto',
-      description: 'Pagamento mensile per il corso di Conversazione',
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-      user: {
-        name: 'Luigi Rossi',
-        role: 'Studente',
-      },
-      metadata: {
-        amount: 150,
-        status: 'paid',
-      },
-    },
-    {
-      id: '4',
-      type: 'attendance_marked',
-      title: 'Presenze registrate',
-      description: '15 presenze confermate per la classe Inglese Base A',
-      timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 hours ago
-      user: {
-        name: 'Mario Rossi',
-        role: 'Docente',
-      },
-      metadata: {
-        status: 'present',
-        className: 'Inglese Base A',
-      },
-    },
-    {
-      id: '5',
-      type: 'notice_published',
-      title: 'Nuovo avviso pubblicato',
-      description: 'Comunicazione importante riguardo agli orari delle lezioni',
-      timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
-      user: {
-        name: 'Direzione Scuola',
-        role: 'Admin',
-      },
-    },
-    {
-      id: '6',
-      type: 'class_created',
-      title: 'Nuova classe creata',
-      description: 'Inglese Business - Corso per professionisti',
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-      user: {
-        name: 'Admin Sistema',
-        role: 'Admin',
-      },
-      metadata: {
-        className: 'Inglese Business',
-      },
-    },
-  ];
-
-  const displayActivities = (activities || defaultActivities).slice(0, maxItems);
+  const allActivities = activities ?? [];
+  const displayActivities = allActivities.slice(0, maxItems);
 
   const formatTimeAgo = (date: Date) => {
     const now = moment();
@@ -248,6 +160,16 @@ export default function RecentActivity({
         </Badge>
       </Group>
 
+      {displayActivities.length === 0 ? (
+        <Stack align="center" gap="xs" py="xl">
+          <ThemeIcon color="gray" size={48} radius="xl" variant="light">
+            <IconClock size={24} />
+          </ThemeIcon>
+          <Text c="dimmed" size="sm" ta="center">
+            Nessuna attività recente
+          </Text>
+        </Stack>
+      ) : (
       <Timeline active={displayActivities.length} bulletSize={24} lineWidth={2}>
         {displayActivities.map((activity, index) => (
           <Timeline.Item
@@ -340,13 +262,14 @@ export default function RecentActivity({
           </Timeline.Item>
         ))}
       </Timeline>
+      )}
 
-      {(activities || defaultActivities).length > maxItems && (
+      {allActivities.length > maxItems && (
         <>
           <Divider my="md" />
           <Group justify="center">
             <Text size="sm" c="dimmed">
-              +{(activities || defaultActivities).length - maxItems} altre attività
+              +{allActivities.length - maxItems} altre attività
             </Text>
           </Group>
         </>

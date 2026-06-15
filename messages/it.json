@@ -1222,7 +1222,9 @@
     "attendance": "Presenza",
     "attendanceStatuses": {
       "present": "Presente",
-      "absent": "Assente"
+      "absent": "Assente",
+      "late": "In ritardo",
+      "excused": "Giustificato"
     },
     "calendarLoadError": "Errore nel caricamento del calendario",
     "calendar": {

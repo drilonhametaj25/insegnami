@@ -1,12 +1,13 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { Container, Title, Grid, Group, Text, Badge, LoadingOverlay, Skeleton, Paper } from '@mantine/core';
 import { IconDashboard, IconSparkles } from '@tabler/icons-react';
 import { useTranslations } from 'next-intl';
 import DashboardStats from '@/components/cards/DashboardStats';
 import { LessonCalendar } from '@/components/calendar/LessonCalendar';
-import RecentActivity from '@/components/tables/RecentActivity';
+import RecentActivity, { type Activity } from '@/components/tables/RecentActivity';
 import { useStudents } from '@/lib/hooks/useStudents';
 import { useTeachers } from '@/lib/hooks/useTeachers';
 import { useClasses } from '@/lib/hooks/useClasses';
@@ -161,6 +162,71 @@ export default function DashboardPage() {
     statsData.classes === 0 &&
     statsData.lessons === 0;
 
+  // Build the "Recent Activity" feed entirely from real tenant data already
+  // loaded on this page (enrollments, paid payments, published notices,
+  // completed lessons). No mock/sample data — an empty feed renders the
+  // component's empty state.
+  const recentActivities = useMemo<Activity[]>(() => {
+    const items: Activity[] = [];
+
+    for (const s of studentsData?.students ?? []) {
+      const ts = new Date(s.enrollmentDate ?? s.createdAt);
+      if (isNaN(ts.getTime())) continue;
+      items.push({
+        id: `student-${s.id}`,
+        type: 'student_enrolled',
+        title: 'Nuovo studente iscritto',
+        description: `${s.firstName} ${s.lastName}`,
+        timestamp: ts,
+        metadata: { studentName: `${s.firstName} ${s.lastName}` },
+      });
+    }
+
+    for (const p of paymentsData?.payments ?? []) {
+      if (p.status !== 'PAID') continue;
+      const ts = new Date(p.paidDate ?? p.createdAt);
+      if (isNaN(ts.getTime())) continue;
+      items.push({
+        id: `payment-${p.id}`,
+        type: 'payment_received',
+        title: 'Pagamento ricevuto',
+        description: p.student
+          ? `${p.student.firstName} ${p.student.lastName}`
+          : (p.description ?? 'Pagamento ricevuto'),
+        timestamp: ts,
+        metadata: { amount: p.amount, status: 'paid' },
+      });
+    }
+
+    for (const n of noticesData?.notices ?? []) {
+      const ts = new Date(n.publishedAt ?? n.createdAt);
+      if (isNaN(ts.getTime())) continue;
+      items.push({
+        id: `notice-${n.id}`,
+        type: 'notice_published',
+        title: 'Nuovo avviso pubblicato',
+        description: n.title,
+        timestamp: ts,
+      });
+    }
+
+    for (const l of lessons ?? []) {
+      if (l.status !== 'COMPLETED') continue;
+      const ts = new Date(l.endTime ?? l.startTime);
+      if (isNaN(ts.getTime())) continue;
+      items.push({
+        id: `lesson-${l.id}`,
+        type: 'lesson_completed',
+        title: 'Lezione completata',
+        description: l.title || l.class?.name || 'Lezione',
+        timestamp: ts,
+        metadata: { status: 'completed', className: l.class?.name },
+      });
+    }
+
+    return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  }, [studentsData, paymentsData, noticesData, lessons]);
+
   return (
     <Container 
       size="xl" 
@@ -295,10 +361,11 @@ export default function DashboardPage() {
             <Title order={3} mb="md">
               Attività Recente
             </Title>
-            {noticesLoading ? (
+            {noticesLoading || studentsLoading || paymentsLoading || lessonsLoading ? (
               <Skeleton height={300} />
             ) : (
-              <RecentActivity 
+              <RecentActivity
+                activities={recentActivities}
                 maxItems={8}
                 showActions={false}
               />

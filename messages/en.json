@@ -956,7 +956,9 @@
     "attendance": "Attendance",
     "attendanceStatuses": {
       "present": "Present",
-      "absent": "Absent"
+      "absent": "Absent",
+      "late": "Late",
+      "excused": "Excused"
     },
     "calendarLoadError": "Error loading calendar",
     "calendar": {

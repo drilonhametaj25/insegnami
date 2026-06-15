@@ -996,7 +996,9 @@
     "attendance": "Presença",
     "attendanceStatuses": {
       "present": "Presente",
-      "absent": "Ausente"
+      "absent": "Ausente",
+      "late": "Atrasado",
+      "excused": "Justificado"
     },
     "calendarLoadError": "Erro ao carregar calendário",
     "calendar": {

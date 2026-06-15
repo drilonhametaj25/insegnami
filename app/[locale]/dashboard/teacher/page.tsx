@@ -45,14 +45,6 @@ import { useAttendance } from '@/lib/hooks/useAttendance';
 
 const localizer = momentLocalizer(moment);
 
-interface Student {
-  id: string;
-  name: string;
-  avatar?: string;
-  lastAttendance?: 'present' | 'absent';
-  attendanceRate: number;
-}
-
 export default function TeacherDashboard() {
   const { data: session } = useSession();
   const t = useTranslations('teacher');
@@ -113,27 +105,20 @@ export default function TeacherDashboard() {
     resource: lesson,
   }));
 
-  // Mock students data (in a real app, this would come from classes API)
-  const mockStudents: Student[] = [
-    {
-      id: '1',
-      name: 'Marco Rossi',
-      attendanceRate: 92,
-      lastAttendance: 'present',
-    },
-    {
-      id: '2',
-      name: 'Giulia Bianchi',
-      attendanceRate: 88,
-      lastAttendance: 'present',
-    },
-    {
-      id: '3',
-      name: 'Luca Verde',
-      attendanceRate: 75,
-      lastAttendance: 'absent',
-    },
-  ];
+  // Real total students across the teacher's classes
+  const totalStudents = classes.reduce(
+    (sum, c) => sum + (c._count?.students ?? c.students?.length ?? 0),
+    0
+  );
+
+  // Real recent attendance for this teacher's lessons (most recent first)
+  const recentAttendance = [...attendanceRecords]
+    .filter((r) => r.lesson?.teacher?.id === session?.user?.id)
+    .sort(
+      (a, b) =>
+        new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
+    )
+    .slice(0, 5);
 
   const stats = [
     {
@@ -152,10 +137,10 @@ export default function TeacherDashboard() {
     },
     {
       title: t('stats.totalStudents'),
-      value: mockStudents.length, // In real app: sum of students across classes
+      value: totalStudents,
       icon: <IconUsers size={24} />,
       color: 'violet',
-      loading: false,
+      loading: classesLoading,
     },
     {
       title: t('stats.attendanceToConfirm'),
@@ -280,30 +265,45 @@ export default function TeacherDashboard() {
               {/* Recent Activity */}
               <Paper p="md" withBorder>
                 <Title order={3} mb="md">{t('recentActivity')}</Title>
-                <Stack gap="sm">
-                  {mockStudents.slice(0, 5).map((student) => (
-                    <Group key={student.id} justify="space-between">
-                      <Group gap="sm">
-                        <Avatar size="sm" color="blue">
-                          {student.name.split(' ').map(n => n[0]).join('')}
-                        </Avatar>
-                        <div>
-                          <Text size="sm" fw={500}>{student.name}</Text>
-                          <Text size="xs" c="dimmed">
-                            {t('attendance')}: {student.attendanceRate}%
-                          </Text>
-                        </div>
-                      </Group>
-                      <Badge 
-                        color={student.lastAttendance === 'present' ? 'green' : 'red'}
-                        variant="light"
-                        size="sm"
-                      >
-                        {t(`attendanceStatuses.${student.lastAttendance}`)}
-                      </Badge>
-                    </Group>
-                  ))}
-                </Stack>
+                {attendanceLoading ? (
+                  <Skeleton height={120} />
+                ) : recentAttendance.length === 0 ? (
+                  <Text c="dimmed" ta="center" py="md" size="sm">
+                    {tc('noData')}
+                  </Text>
+                ) : (
+                  <Stack gap="sm">
+                    {recentAttendance.map((record) => {
+                      const studentName = `${record.student.firstName} ${record.student.lastName}`;
+                      const statusColor =
+                        record.status === 'PRESENT'
+                          ? 'green'
+                          : record.status === 'LATE'
+                          ? 'yellow'
+                          : record.status === 'EXCUSED'
+                          ? 'blue'
+                          : 'red';
+                      return (
+                        <Group key={record.id} justify="space-between">
+                          <Group gap="sm">
+                            <Avatar size="sm" color="blue">
+                              {studentName.split(' ').map((n) => n[0]).join('')}
+                            </Avatar>
+                            <div>
+                              <Text size="sm" fw={500}>{studentName}</Text>
+                              <Text size="xs" c="dimmed">
+                                {record.lesson?.class?.name || record.lesson?.title}
+                              </Text>
+                            </div>
+                          </Group>
+                          <Badge color={statusColor} variant="light" size="sm">
+                            {t(`attendanceStatuses.${record.status.toLowerCase()}`)}
+                          </Badge>
+                        </Group>
+                      );
+                    })}
+                  </Stack>
+                )}
               </Paper>
             </Stack>
           </Tabs.Panel>
@@ -384,7 +384,7 @@ export default function TeacherDashboard() {
                           
                           <Group justify="space-between">
                             <Text size="sm" c="dimmed">
-                              {t('students')}: {mockStudents.length} {/* In real app: classItem.students.length */}
+                              {t('students')}: {classItem._count?.students ?? classItem.students?.length ?? 0}
                             </Text>
                           </Group>
                           
