@@ -222,7 +222,7 @@ export class EmailService {
             <p>Se hai domande, non esitare a contattarci.</p>
           </div>
           <div class="footer">
-            <p>© 2024 ${tenantName}. Tutti i diritti riservati.</p>
+            <p>© ${new Date().getFullYear()} ${tenantName}. Tutti i diritti riservati.</p>
           </div>
         </div>
       </body>
@@ -261,7 +261,7 @@ export class EmailService {
             <p>Il link scadrà tra 1 ora.</p>
           </div>
           <div class="footer">
-            <p>© 2024 InsegnaMi.pro. Tutti i diritti riservati.</p>
+            <p>© ${new Date().getFullYear()} InsegnaMi.pro. Tutti i diritti riservati.</p>
           </div>
         </div>
       </body>
@@ -361,7 +361,7 @@ export class EmailService {
             ${content}
           </div>
           <div class="footer">
-            <p>© 2024 ${tenantName}. Tutti i diritti riservati.</p>
+            <p>© ${new Date().getFullYear()} ${tenantName}. Tutti i diritti riservati.</p>
           </div>
         </div>
       </body>

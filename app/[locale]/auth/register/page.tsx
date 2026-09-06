@@ -390,7 +390,7 @@ export default function RegisterPage() {
       </Paper>
 
       <Text ta="center" size="sm" c="dimmed" mt="xl">
-        © 2024 InsegnaMi.pro. Tutti i diritti riservati.
+        © {new Date().getFullYear()} InsegnaMi.pro. Tutti i diritti riservati.
       </Text>
     </Container>
   );

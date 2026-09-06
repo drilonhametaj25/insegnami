@@ -1,14 +1,11 @@
-<svg width="150" height="40" viewBox="0 0 150 40" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="InsegnaMi.pro">
+<svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="InsegnaMi.pro">
   <defs>
-    <linearGradient id="imNavySm" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="imMark" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#1e3a8a"/>
       <stop offset="1" stop-color="#172554"/>
     </linearGradient>
   </defs>
-  <rect x="4" y="4" width="32" height="32" rx="9" fill="url(#imNavySm)"/>
-  <text x="20" y="26" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800" letter-spacing="-0.4" fill="#ffffff">IM</text>
-  <circle cx="32" cy="9" r="2.4" fill="#f59e0b"/>
-  <text x="44" y="26" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="800" letter-spacing="-0.3">
-    <tspan fill="#1e3a8a">InsegnaMi</tspan><tspan fill="#f59e0b" font-weight="700">.pro</tspan>
-  </text>
+  <rect x="4" y="4" width="48" height="48" rx="13" fill="url(#imMark)"/>
+  <text x="28" y="35" text-anchor="middle" font-family="'Segoe UI', Inter, Arial, sans-serif" font-size="21" font-weight="800" letter-spacing="-0.5" fill="#ffffff">IM</text>
+  <circle cx="44" cy="12" r="3.8" fill="#f59e0b"/>
 </svg>

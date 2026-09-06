@@ -1,11 +1,9 @@
-<svg width="210" height="56" viewBox="0 0 210 56" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="InsegnaMi.pro">
-  <!-- Monogram tile (white, per sfondi navy) -->
-  <rect x="6" y="6" width="44" height="44" rx="13" fill="#ffffff"/>
-  <text x="28" y="35" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="19" font-weight="800" letter-spacing="-0.5" fill="#1e3a8a">IM</text>
-  <!-- amber accent dot -->
-  <circle cx="44" cy="13" r="3.2" fill="#f59e0b"/>
-  <!-- Wordmark -->
-  <text x="62" y="35" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800" letter-spacing="-0.4">
-    <tspan fill="#ffffff">InsegnaMi</tspan><tspan fill="#fbbf24" font-weight="700">.pro</tspan>
-  </text>
+<svg width="224" height="56" viewBox="0 0 224 56" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="InsegnaMi.pro">
+  <!-- Tessera monogramma (bianca, per sfondi navy) -->
+  <rect x="6" y="6" width="44" height="44" rx="12" fill="#ffffff"/>
+  <text x="28" y="34.5" text-anchor="middle" font-family="'Segoe UI', Inter, Arial, sans-serif" font-size="19" font-weight="800" letter-spacing="-0.5" fill="#1e3a8a">IM</text>
+  <circle cx="43" cy="13" r="3.4" fill="#f59e0b"/>
+  <!-- Wordmark: textLength blocca la larghezza → mai clipping di ".pro" -->
+  <text x="60" y="35" font-family="'Segoe UI', Inter, Arial, sans-serif" font-size="22" font-weight="800" letter-spacing="-0.3" fill="#ffffff" textLength="108" lengthAdjust="spacingAndGlyphs">InsegnaMi</text>
+  <text x="170" y="35" font-family="'Segoe UI', Inter, Arial, sans-serif" font-size="22" font-weight="700" fill="#fbbf24" textLength="42" lengthAdjust="spacingAndGlyphs">.pro</text>
 </svg>
