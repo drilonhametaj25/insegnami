@@ -146,8 +146,8 @@ describe('syncAllToStripe', () => {
     expect(results).toHaveLength(TOTAL_ITEMS);
     expect(results.every((r) => r.action === 'created')).toBe(true);
     expect(mockStripeState.products.size).toBe(TOTAL_ITEMS);
-    // i piani hanno DUE prezzi (mensile + annuale), gli add-on uno
-    expect(mockStripeState.prices.size).toBe(PLAN_CATALOG.length * 2 + Object.keys(ADDON_CATALOG).length);
+    // piani E add-on hanno DUE prezzi (mensile + annuale)
+    expect(mockStripeState.prices.size).toBe(TOTAL_ITEMS * 2);
 
     // annuale: 12 mesi al prezzo di 10, interval year, stesso prodotto del mensile
     for (const r of results.filter((x) => x.kind === 'plan')) {
@@ -159,9 +159,16 @@ describe('syncAllToStripe', () => {
       expect(yearly.unit_amount).toBe(Math.round(yearlyPriceOf(def.price) * 100));
       expect(yearly.product).toBe(monthly.product);
     }
-    // gli add-on restano solo mensili
+    // anche gli add-on hanno il prezzo annuale (mensile×10, stesso prodotto):
+    // Stripe rifiuta interval misti nella stessa subscription
     for (const r of results.filter((x) => x.kind === 'addon')) {
-      expect(r.yearlyPriceId).toBeUndefined();
+      const def = ADDON_CATALOG[r.key as keyof typeof ADDON_CATALOG];
+      const monthly = mockStripeState.prices.get(r.priceId);
+      const yearly = mockStripeState.prices.get(r.yearlyPriceId!);
+      expect(monthly.recurring.interval).toBe('month');
+      expect(yearly.recurring.interval).toBe('year');
+      expect(yearly.unit_amount).toBe(Math.round(yearlyPriceOf(def.unitPrice) * 100));
+      expect(yearly.product).toBe(monthly.product);
     }
   });
 
@@ -289,5 +296,25 @@ describe('syncAllToStripe', () => {
     expect(results.filter((r) => r.kind === 'addon')).toHaveLength(
       Object.keys(ADDON_CATALOG).length
     );
+    // AddonCatalog persiste ANCHE il prezzo annuale
+    for (const def of Object.values(ADDON_CATALOG)) {
+      const row = await prisma.addonCatalog.findUnique({ where: { type: def.type } });
+      expect(row.stripePriceId).toMatch(/^price_\d+$/);
+      expect(row.stripeYearlyPriceId).toMatch(/^price_\d+$/);
+      expect(row.stripeYearlyPriceId).not.toBe(row.stripePriceId);
+    }
+  });
+
+  it('seconda run add-on: il prezzo annuale esistente viene riusato (idempotenza)', async () => {
+    const prisma = createFakePrisma();
+    const first = await syncAllToStripe(prisma);
+    const second = await syncAllToStripe(prisma);
+
+    for (const def of Object.values(ADDON_CATALOG)) {
+      const firstRow = first.find((r) => r.kind === 'addon' && r.key === def.type)!;
+      const secondRow = second.find((r) => r.kind === 'addon' && r.key === def.type)!;
+      expect(secondRow.action).toBe('unchanged');
+      expect(secondRow.yearlyPriceId).toBe(firstRow.yearlyPriceId);
+    }
   });
 });

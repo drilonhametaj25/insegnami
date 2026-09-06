@@ -1,0 +1,91 @@
+# Suite e2e COMPLETA + integration-db, ogni notte: la pipeline di push esegue
+# solo lo smoke (@smoke); questa è la rete di sicurezza estesa. Un fallimento
+# apre l'artefatto playwright-report per il debug.
+name: E2E Tests (nightly)
+
+on:
+  schedule:
+    # 02:30 UTC = 03:30/04:30 Europe/Rome
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  e2e-full:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
+      REDIS_URL: redis://localhost:6379
+      NEXTAUTH_SECRET: 'e2e-ci-nextauth-key-32-chars-okay!!'
+      NEXTAUTH_URL: http://localhost:3000
+      MODE: saas
+      NODE_ENV: test
+      STRIPE_SECRET_KEY: sk_test_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_placeholder
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+
+      - name: Seed database
+        run: npm run db:seed
+
+      - name: Run DB integration tests
+        run: npm run test:integration-db
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run FULL e2e suite
+        run: npx playwright test --project=chromium
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-nightly-report
+          path: playwright-report/
+          retention-days: 14

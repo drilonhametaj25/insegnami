@@ -53,6 +53,7 @@ import {
 import { GradeForm } from '@/components/forms/GradeForm';
 import { GradeCell, GradeAverage } from '@/components/grades/GradeCell';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
+import { usePermissionAny } from '@/lib/hooks/usePermissions';
 
 export default function ClassGradesPage() {
   const { data: session } = useSession();
@@ -69,10 +70,8 @@ export default function ClassGradesPage() {
   const [selectedStudent, setSelectedStudent] = useState<{ id: string; name: string } | null>(null);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
 
-  const canManage =
-    session?.user?.role === 'ADMIN' ||
-    session?.user?.role === 'SUPERADMIN' ||
-    session?.user?.role === 'TEACHER';
+  // Matrice: griglia pensata per chi inserisce/modifica voti (ADMIN, DIRECTOR, TEACHER)
+  const canManage = usePermissionAny(['create', 'update'], 'grade');
 
   // Fetch current academic year for period selection
   const { data: currentYear } = useCurrentAcademicYear();

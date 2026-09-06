@@ -81,7 +81,6 @@
     "confirm": "Confirmer",
     "yes": "Oui",
     "no": "Non",
-    "ok": "OK",
     "back": "Retour",
     "next": "Suivant",
     "previous": "Précédent",
@@ -92,9 +91,154 @@
     "upload": "Téléverser",
     "refresh": "Actualiser",
     "notifications": "Notifications",
-    "noNotifications": "Aucune notification"
+    "noNotifications": "Aucune notification",
+    "enter": "Saisir",
+    "sender": "Expéditeur",
+    "status": "Statut",
+    "priority": "Priorité",
+    "dateCreated": "Date de création",
+    "actions": "Actions",
+    "type": "Type",
+    "urgent": "Urgent",
+    "all": "Tous",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "expired": "Expiré",
+    "noExpiry": "Sans expiration",
+    "noData": "Aucune donnée disponible",
+    "confirmDelete": "Confirmer la suppression"
   },
-  "students": "Étudiants",
+  "validation": {
+    "required": "Champ obligatoire",
+    "positiveNumber": "Saisissez un nombre positif",
+    "invalidEmail": "E-mail non valide"
+  },
+  "selectStudent": "Sélectionner un élève",
+  "selectCourse": "Sélectionner un cours",
+  "students": {
+    "title": "Gestion des Élèves",
+    "addStudent": "Ajouter un Élève",
+    "editStudent": "Modifier l'Élève",
+    "totalStudents": "Total des Élèves",
+    "activeStudents": "Élèves Actifs",
+    "inactiveStudents": "Élèves Inactifs",
+    "suspendedStudents": "Élèves Suspendus",
+    "statsError": "Erreur lors du chargement des statistiques",
+    "searchPlaceholder": "Rechercher des élèves...",
+    "filterByStatus": "Filtrer par statut",
+    "filterByClass": "Filtrer par classe",
+    "allStatuses": "Tous les statuts",
+    "allClasses": "Toutes les classes",
+    "viewDetails": "Voir les détails",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cet élève ?",
+    "deleteSuccess": "Élève supprimé avec succès",
+    "deleteError": "Erreur lors de la suppression de l'élève",
+    "saveSuccess": "Élève enregistré avec succès",
+    "saveError": "Erreur lors de l'enregistrement de l'élève",
+    "updateSuccess": "Élève mis à jour avec succès",
+    "updateError": "Erreur lors de la mise à jour de l'élève",
+    "required": "Champ obligatoire",
+    "invalidEmail": "E-mail non valide",
+    "notes": "Remarques",
+    "notesPlaceholder": "Saisissez d’éventuelles remarques supplémentaires...",
+    "updateStudent": "Mettre à Jour l'Élève",
+    "createStudent": "Créer un Élève",
+    "ascending": "Croissant",
+    "descending": "Décroissant",
+    "loadError": "Erreur lors du chargement des élèves",
+    "student": "Élève",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "statusLabel": "Statut",
+    "classes": "Classes",
+    "enrollmentDate": "Date d'Inscription",
+    "actions": "Actions",
+    "studentDetails": "Détails de l'Élève",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "dateOfBirth": "Date de Naissance",
+    "registrationNumber": "Numéro de Matricule",
+    "address": "Adresse",
+    "city": "Ville",
+    "postalCode": "Code Postal",
+    "country": "Pays",
+    "studentNotFound": "Élève non trouvé",
+    "confirmDelete": "Confirmer la suppression",
+    "confirmDeleteMessage": "Êtes-vous sûr de vouloir supprimer {name} ? Cette action est irréversible.",
+    "personalInfo": "Informations Personnelles",
+    "parentInfo": "Informations du Parent",
+    "studentCode": "Code Élève",
+    "overview": "Vue d'ensemble",
+    "enrolledClasses": "Classes Inscrites",
+    "noClassesEnrolled": "Aucune classe inscrite",
+    "classDetails": "Détails des Classes",
+    "course": "Cours",
+    "teacher": "Enseignant",
+    "schedule": "Horaire",
+    "status": "Statut",
+    "statusValues": {
+      "active": "Actif",
+      "inactive": "Inactif",
+      "suspended": "Suspendu",
+      "graduated": "Diplômé"
+    },
+    "validation": {
+      "firstNameTooShort": "Le prénom doit comporter au moins 2 caractères",
+      "firstNameTooLong": "Le prénom ne peut pas dépasser 50 caractères",
+      "firstNameInvalid": "Le prénom contient des caractères non valides",
+      "lastNameTooShort": "Le nom doit comporter au moins 2 caractères",
+      "lastNameTooLong": "Le nom ne peut pas dépasser 50 caractères",
+      "lastNameInvalid": "Le nom contient des caractères non valides",
+      "invalidEmail": "Format d'e-mail non valide",
+      "invalidParentEmail": "Format d'e-mail du parent non valide",
+      "invalidPhone": "Format de téléphone non valide",
+      "invalidParentPhone": "Format de téléphone du parent non valide",
+      "invalidEmergencyPhone": "Format de téléphone d'urgence non valide",
+      "invalidPostalCode": "Le code postal doit comporter 5 chiffres",
+      "invalidAge": "L'âge doit être compris entre 5 et 100 ans",
+      "fixErrors": "Corrigez les erreurs avant de continuer"
+    },
+    "bulkImport": "Importation en Masse",
+    "importInstructions": "Instructions d'importation",
+    "importInstructionsText": "Chargez un fichier CSV avec les données des élèves. Téléchargez le modèle pour voir le format correct.",
+    "downloadTemplate": "Télécharger le Modèle",
+    "selectFile": "Sélectionner un Fichier",
+    "selectCsvFile": "Sélectionner un fichier CSV...",
+    "previewStudents": "Aperçu des Élèves",
+    "importStudents": "Importer {count} Élèves",
+    "importSuccess": "Fichier importé avec succès : {count} élèves trouvés",
+    "importError": "Erreur lors de l'importation du fichier",
+    "bulkSaveSuccess": "{count} élèves enregistrés avec succès",
+    "personalInfoDesc": "Informations de base de l'élève",
+    "addressInfo": "Adresse",
+    "addressInfoDesc": "Adresse et informations géographiques",
+    "contactInfo": "Contacts",
+    "contactInfoDesc": "Coordonnées des parents et contacts d’urgence",
+    "additionalInfo": "Informations Supplémentaires",
+    "additionalInfoDesc": "Notes médicales et besoins particuliers",
+    "firstNamePlaceholder": "Prénom de l'élève",
+    "lastNamePlaceholder": "Nom de l'élève",
+    "selectDate": "Sélectionner une date",
+    "selectStatus": "Sélectionner un statut",
+    "fullAddress": "Rue, numéro, etc.",
+    "cityName": "Nom de la ville",
+    "selectCountry": "Sélectionner un pays",
+    "selectLanguage": "Sélectionner une langue",
+    "parentNamePlaceholder": "Nom complet du parent",
+    "emergencyContactName": "Nom du Contact d'Urgence",
+    "emergencyContactPlaceholder": "Nom et prénom pour les urgences",
+    "medicalNotesPlaceholder": "Allergies, problèmes médicaux, médicaments à éviter...",
+    "specialNeedsPlaceholder": "Besoins éducatifs particuliers, soutien nécessaire...",
+    "additionalNotesPlaceholder": "Remarques ou observations supplémentaires...",
+    "assignToClasses": "Assigner aux Classes",
+    "selectClasses": "Sélectionner les classes",
+    "reviewInformation": "Vérifier les Informations",
+    "preferredLanguage": "Langue Préférée",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "graduated": "Diplômé",
+    "suspended": "Suspendu"
+  },
   "subjects": {
     "title": "Gestion des Matières",
     "addSubject": "Nouvelle Matière",
@@ -515,30 +659,125 @@
   "teachers": {
     "title": "Gestion des Enseignants",
     "addTeacher": "Ajouter un Enseignant",
+    "editTeacher": "Modifier l'Enseignant",
+    "totalTeachers": "Total des Enseignants",
+    "activeTeachers": "Enseignants Actifs",
+    "inactiveTeachers": "Enseignants Inactifs",
+    "statsError": "Erreur lors du chargement des statistiques",
+    "createSuccess": "Enseignant créé avec succès",
+    "updateSuccess": "Enseignant mis à jour avec succès",
+    "deleteSuccess": "Enseignant supprimé avec succès",
+    "saveError": "Erreur lors de l'enregistrement de l'enseignant",
+    "deleteError": "Erreur lors de la suppression de l'enseignant",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer",
+    "updateTeacher": "Mettre à Jour l'Enseignant",
+    "createTeacher": "Créer un Enseignant",
+    "notes": "Remarques",
+    "notesPlaceholder": "Saisissez d’éventuelles remarques supplémentaires...",
+    "teacher": "Enseignant",
+    "classes": "Classes",
+    "actions": "Actions",
+    "loadError": "Erreur lors du chargement des enseignants",
+    "ascending": "Croissant",
+    "descending": "Décroissant",
     "teacherDetails": "Détails de l'Enseignant",
     "firstName": "Prénom",
     "lastName": "Nom",
+    "name": "Nom",
     "email": "Email",
     "phone": "Téléphone",
+    "qualifications": "Qualifications",
+    "specializations": "Spécialisations",
+    "qualificationsPlaceholder": "ex. Licence en Langues, Certification TEFL",
+    "specializationsPlaceholder": "ex. Anglais commercial, Conversation, Grammaire",
     "specialization": "Spécialisation",
     "hireDate": "Date d'Embauche",
     "status": "Statut",
     "active": "Actif",
-    "inactive": "Inactif"
+    "inactive": "Inactif",
+    "retired": "Retraité",
+    "suspended": "Suspendu",
+    "searchPlaceholder": "Rechercher des enseignants...",
+    "allStatuses": "Tous les statuts",
+    "edit": "Modifier",
+    "delete": "Supprimer"
+  },
+  "courses": {
+    "title": "Gestion des Cours",
+    "pageTitle": "Gestion des Cours",
+    "createCourse": "Nouveau Cours",
+    "editCourse": "Modifier le Cours",
+    "courseDetails": "Détails du Cours",
+    "totalCourses": "Total des Cours",
+    "activeCourses": "Cours Actifs",
+    "inactiveCourses": "Cours Inactifs",
+    "totalClasses": "Total des Classes",
+    "averagePrice": "Prix Moyen",
+    "name": "Nom du Cours",
+    "code": "Code",
+    "description": "Description",
+    "category": "Catégorie",
+    "level": "Niveau",
+    "duration": "Durée",
+    "hours": "heures",
+    "maxStudents": "Nombre max d'élèves",
+    "minStudents": "Nombre min d'élèves",
+    "price": "Prix",
+    "status": "Statut",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "classes": "Classes",
+    "actions": "Actions",
+    "details": "Détails",
+    "capacity": "Capacité",
+    "createSuccess": "Cours créé avec succès",
+    "updateSuccess": "Cours mis à jour avec succès",
+    "deleteSuccess": "Cours supprimé avec succès",
+    "updated": "Cours mis à jour avec succès",
+    "deleted": "Cours supprimé avec succès",
+    "statusUpdated": "Statut du cours mis à jour",
+    "saveError": "Erreur lors de l'enregistrement du cours",
+    "updateError": "Erreur lors de la mise à jour du cours",
+    "deleteError": "Erreur lors de la suppression du cours",
+    "loadError": "Erreur lors du chargement des cours",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer",
+    "deleteConfirm": "Confirmer la Suppression",
+    "deleteWarning": "Attention : cette opération est irréversible. Assurez-vous qu’aucune classe n’est associée à ce cours.",
+    "noClasses": "Aucune classe associée à ce cours",
+    "notFound": "Cours non trouvé",
+    "new": "Nouveau Cours",
+    "edit": "Modifier le Cours",
+    "stats": {
+      "totalClasses": "Total des Classes",
+      "activeClasses": "Classes Actives",
+      "totalStudents": "Total des Élèves"
+    }
   },
   "classes": {
     "title": "Gestion des Classes",
     "addClass": "Ajouter une Classe",
-    "classDetails": "Détails de la Classe",
-    "className": "Nom de la Classe",
-    "description": "Description",
+    "totalClasses": "Total des Classes",
+    "activeClasses": "Classes Actives",
+    "totalStudents": "Total des Élèves",
+    "avgStudentsPerClass": "Moyenne Élèves/Classe",
+    "statsError": "Erreur lors du chargement des statistiques",
+    "loadError": "Erreur lors du chargement des classes",
+    "class": "Classe",
+    "course": "Cours",
     "capacity": "Capacité",
+    "startDate": "Date de Début",
+    "actions": "Actions",
+    "classDetails": "Détails de la Classe",
+    "name": "Nom",
+    "description": "Description",
+    "level": "Niveau",
+    "maxStudents": "Nombre Maximum d'Élèves",
     "schedule": "Horaire",
-    "room": "Salle",
     "teacher": "Enseignant",
     "students": "Étudiants",
-    "startDate": "Date de Début",
-    "endDate": "Date de Fin"
+    "enrolledStudents": "Élèves Inscrits",
+    "status": "Statut",
+    "active": "Active"
   },
   "lessons": {
     "pageTitle": "Calendrier des Leçons",
@@ -549,6 +788,7 @@
     "noClassroom": "Aucune salle",
     "notSpecified": "Non spécifié",
     "noCourse": "Aucun cours",
+    "loadError": "Erreur lors du chargement du cours",
     "title": "Titre",
     "titlePlaceholder": "Leçon sur...",
     "course": "Cours",
@@ -575,6 +815,33 @@
     "cancel": "Annuler",
     "update": "Mettre à jour",
     "create": "Créer",
+    "overview": "Vue d'ensemble",
+    "content": "Contenu",
+    "homework": "Devoirs",
+    "lessonInfo": "Informations du Cours",
+    "minutes": "minutes",
+    "className": "Nom de la Classe",
+    "totalStudents": "Total des Élèves",
+    "attendanceTracking": "Registre des Présences",
+    "student": "Élève",
+    "email": "E-mail",
+    "hoursAttended": "Heures Suivies",
+    "present": "Présent",
+    "absent": "Absent",
+    "late": "En Retard",
+    "excused": "Justifié",
+    "notMarked": "Non Renseigné",
+    "lessonContent": "Contenu du Cours",
+    "saveNotes": "Enregistrer les Notes",
+    "lessonNotes": "Notes du Cours",
+    "addLessonNotes": "Ajouter des notes sur le cours...",
+    "materials": "Supports",
+    "saveHomework": "Enregistrer les Devoirs",
+    "homeworkAssignment": "Devoirs Donnés",
+    "addHomeworkDescription": "Ajouter une description des devoirs...",
+    "homeworkInstructions": "Consignes des Devoirs",
+    "homeworkInstructionsText": "Saisissez les devoirs à donner aux élèves pour le prochain cours.",
+    "deleteConfirmation": "Êtes-vous sûr de vouloir supprimer le cours {title} ? Cette action est irréversible.",
     "frequencies": {
       "weekly": "Hebdomadaire",
       "monthly": "Mensuelle"
@@ -602,129 +869,125 @@
       "lessonUpdatedSuccessfully": "Leçon mise à jour avec succès",
       "updateLessonError": "Erreur lors de la mise à jour de la leçon",
       "lessonDeletedSuccessfully": "Leçon supprimée avec succès",
-      "deleteLessonError": "Erreur lors de la suppression de la leçon"
+      "deleteLessonError": "Erreur lors de la suppression de la leçon",
+      "notesSaved": "Notes enregistrées avec succès",
+      "saveError": "Erreur lors de l'enregistrement",
+      "deleted": "Cours supprimé",
+      "deleteError": "Erreur lors de la suppression du cours",
+      "notFound": "Cours non trouvé"
+    },
+    "lesson": {
+      "deleteConfirmation": "Êtes-vous sûr de vouloir supprimer le cours {title} ? Cette action est irréversible."
+    },
+    "attendance": "Présences",
+    "classInfo": "Informations de la Classe",
+    "recurring": "Récurrent",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "save": "Enregistrer",
+    "duration": "Durée",
+    "actions": "Actions",
+    "lessonStatus": {
+      "scheduled": "Programmé",
+      "in_progress": "En cours",
+      "completed": "Terminé",
+      "cancelled": "Annulé"
     }
-  },
-  "selectDateTime": "Sélectionner date et heure",
-  "classroom": "Salle",
-  "classroomPlaceholder": "ex. Salle 101",
-  "description": "Description",
-  "descriptionPlaceholder": "Description de la leçon...",
-  "recurringLesson": "Leçon récurrente",
-  "recurringDescription": "La leçon se répétera selon la fréquence sélectionnée",
-  "frequency": "Fréquence",
-  "endRecurrenceDate": "Date de fin de récurrence",
-  "selectEndDate": "Sélectionner la date de fin",
-  "dateAndTime": "Date et Heure",
-  "status": "Statut",
-  "cancel": "Annuler",
-  "update": "Mettre à jour",
-  "create": "Créer",
-  "frequencies": {
-    "weekly": "Hebdomadaire",
-    "monthly": "Mensuel"
-  },
-  "calendar": {
-    "next": "Suivant",
-    "previous": "Précédent",
-    "today": "Aujourd'hui",
-    "month": "Mois",
-    "week": "Semaine",
-    "day": "Jour",
-    "agenda": "Agenda",
-    "date": "Date",
-    "time": "Heure",
-    "event": "Événement",
-    "allDay": "Toute la journée",
-    "noEventsInRange": "Aucune leçon dans cette période",
-    "showMore": "+ {total} de plus"
-  },
-  "notifications": {
-    "success": "Succès",
-    "error": "Erreur",
-    "lessonCreatedSuccessfully": "Leçon créée avec succès",
-    "createLessonError": "Erreur lors de la création de la leçon",
-    "lessonUpdatedSuccessfully": "Leçon mise à jour avec succès",
-    "updateLessonError": "Erreur lors de la mise à jour de la leçon",
-    "lessonDeletedSuccessfully": "Leçon supprimée avec succès",
-    "deleteLessonError": "Erreur lors de la suppression de la leçon"
   },
   "attendance": {
     "title": "Gestion des Présences",
     "markAttendance": "Marquer les Présences",
+    "recordAttendance": "Enregistrer les Présences",
+    "exportExcel": "Exporter Excel",
+    "totalRecords": "Total des Présences",
+    "attendanceRate": "Taux de Présence",
+    "rate": "Taux de Présence",
+    "presentCount": "Présents",
+    "absentCount": "Absents",
+    "attendanceRecord": "Registre des Présences",
+    "student": "Élève",
+    "lesson": "Cours",
+    "date": "Date",
+    "status": "Statut",
     "present": "Présent",
     "absent": "Absent",
     "late": "En Retard",
     "excused": "Excusé",
-    "attendanceRate": "Taux de Présence",
-    "totalClasses": "Classes Totales",
-    "attendedClasses": "Classes Suivies"
+    "notes": "Remarques",
+    "updated": "Présence mise à jour avec succès",
+    "updateError": "Erreur lors de la mise à jour de la présence",
+    "notMarked": "Non Renseignée",
+    "hoursAttended": "Heures Suivies",
+    "total": "Total"
   },
+  "hoursPackages": {
+    "title": "Forfaits d'Heures",
+    "subtitle": "Gestion des forfaits d'heures des élèves",
+    "addPackage": "Nouveau Forfait",
+    "editPackage": "Modifier le Forfait",
+    "totalPackages": "Total des Forfaits",
+    "hoursSold": "Heures Vendues",
+    "hoursRemaining": "Heures Restantes",
+    "totalRevenue": "Revenus Totaux",
+    "totalHoursSold": "Total des heures vendues",
+    "availableHours": "Heures disponibles",
+    "fromPackages": "Des forfaits d'heures",
+    "totalHours": "Heures Totales",
+    "hours": "Heures",
+    "progress": "Avancement",
+    "expiryDate": "Expiration",
+    "expiryDatePlaceholder": "Sélectionner la date d'expiration (facultatif)",
+    "notesPlaceholder": "Remarques supplémentaires sur le forfait...",
+    "used": "utilisées",
+    "lowHours": "Presque Épuisé",
+    "noPackages": "Aucun forfait d'heures trouvé",
+    "loadError": "Erreur lors du chargement des forfaits",
+    "created": "Forfait d'heures créé avec succès",
+    "createError": "Erreur lors de la création du forfait",
+    "deleted": "Forfait d'heures supprimé avec succès",
+    "deleteError": "Erreur lors de la suppression du forfait",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer le forfait d'heures de {student} pour le cours {course} ?",
+    "yourPackages": "Vos Forfaits d'Heures",
+    "activePackage": "forfait actif",
+    "activePackages": "forfaits actifs",
+    "noActivePackages": "Aucun forfait d'heures actif",
+    "remaining": "Restantes",
+    "expiresOn": "Expire le",
+    "lowHoursWarning": "Attention : heures presque épuisées ! Contactez le secrétariat pour renouveler."
+  },
+  "hours": "heures",
   "payments": {
-    "pageTitle": "Gestion des Paiements",
-    "createPayment": "Nouveau Paiement",
-    "editPayment": "Modifier le Paiement",
+    "title": "Gestion des Paiements",
+    "addPayment": "Nouveau Paiement",
     "exportReport": "Exporter le Rapport",
     "overview": "Aperçu",
     "payments": "Paiements",
     "overdue": "En Retard",
-    "pending": "En Attente",
-    "total": "Total",
     "totalRevenue": "Revenus Totaux",
-    "pendingPayments": "Paiements en Attente",
-    "overduePayments": "Paiements en Retard",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer ce paiement ?",
+    "deleteSuccess": "Paiement supprimé avec succès",
+    "deleteError": "Erreur lors de la suppression du paiement",
+    "exportError": "Erreur lors de l'exportation du rapport",
+    "cash": "Espèces",
+    "bankTransfer": "Virement",
+    "creditCard": "Carte de Crédit",
+    "check": "Chèque",
+    "other": "Autre",
+    "paymentDetails": "Détails du Paiement",
+    "student": "Étudiant",
     "amount": "Montant",
-    "paymentDate": "Date de Paiement",
+    "description": "Description",
     "dueDate": "Date d'Échéance",
-    "method": "Méthode",
+    "paymentDate": "Date de Paiement",
+    "paidDate": "Date de Paiement",
     "status": "Statut",
+    "pending": "En Attente",
     "paid": "Payé",
     "cancelled": "Annulé",
-    "student": "Étudiant",
-    "course": "Cours",
-    "description": "Description",
-    "amountPlaceholder": "0.00",
-    "descriptionPlaceholder": "Description du paiement...",
-    "selectStudent": "Sélectionner un étudiant",
-    "selectCourse": "Sélectionner un cours",
-    "selectMethod": "Sélectionner une méthode",
-    "selectDate": "Sélectionner la date",
-    "actions": "Actions",
-    "edit": "Modifier",
-    "delete": "Supprimer",
-    "view": "Voir",
-    "markAsPaid": "Marquer comme payé",
-    "cancel": "Annuler",
-    "save": "Sauvegarder",
-    "update": "Mettre à jour",
-    "create": "Créer",
-    "methods": {
-      "cash": "Espèces",
-      "card": "Carte",
-      "transfer": "Virement",
-      "check": "Chèque",
-      "other": "Autre"
-    },
-    "statuses": {
-      "pending": "En Attente",
-      "paid": "Payé",
-      "overdue": "En Retard",
-      "cancelled": "Annulé"
-    },
-    "notifications": {
-      "success": "Succès",
-      "error": "Erreur",
-      "paymentCreatedSuccessfully": "Paiement créé avec succès",
-      "createPaymentError": "Erreur lors de la création du paiement",
-      "paymentUpdatedSuccessfully": "Paiement mis à jour avec succès",
-      "updatePaymentError": "Erreur lors de la mise à jour du paiement",
-      "paymentDeletedSuccessfully": "Paiement supprimé avec succès",
-      "deletePaymentError": "Erreur lors de la suppression du paiement",
-      "paymentMarkedAsPaid": "Paiement marqué comme payé",
-      "markAsPaidError": "Erreur lors du marquage comme payé",
-      "exportError": "Erreur lors de l'exportation",
-      "loadError": "Erreur lors du chargement des paiements"
-    }
+    "searchPlaceholder": "Rechercher des paiements...",
+    "totalAmount": "Montant Total",
+    "pendingAmount": "Montant en Attente",
+    "paymentHistory": "Historique des Paiements"
   },
   "notices": {
     "pageTitle": "Gestion des Avis",
@@ -794,29 +1057,66 @@
   },
   "auth": {
     "login": "Connexion",
-    "register": "Inscription",
     "logout": "Déconnexion",
     "email": "Email",
     "password": "Mot de Passe",
-    "confirmPassword": "Confirmer le Mot de Passe",
+    "rememberMe": "Se souvenir de moi",
     "forgotPassword": "Mot de Passe Oublié",
     "resetPassword": "Réinitialiser le Mot de Passe",
-    "loginTitle": "Se Connecter à InsegnaMi.pro",
-    "loginSubtitle": "Accédez à votre système de gestion scolaire",
-    "registerTitle": "Créer un Compte",
-    "registerSubtitle": "Rejoignez notre plateforme de gestion scolaire"
+    "register": "Inscription",
+    "confirmPassword": "Confirmer le Mot de Passe",
+    "signIn": "Se connecter",
+    "signUp": "S'inscrire",
+    "signOut": "Se déconnecter",
+    "changePassword": "Changer le Mot de Passe",
+    "changePasswordDescription": "Saisissez votre mot de passe actuel et le nouveau mot de passe pour le modifier.",
+    "currentPassword": "Mot de Passe Actuel",
+    "currentPasswordRequired": "Mot de passe actuel requis",
+    "enterCurrentPassword": "Saisissez le mot de passe actuel",
+    "newPassword": "Nouveau Mot de Passe",
+    "newPasswordRequired": "Nouveau mot de passe requis",
+    "enterNewPassword": "Saisissez le nouveau mot de passe",
+    "confirmNewPassword": "Confirmer le Nouveau Mot de Passe",
+    "confirmPasswordRequired": "Confirmation du mot de passe requise",
+    "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
+    "passwordMinLength": "Le mot de passe doit contenir au moins 8 caractères",
+    "passwordComplexity": "Le mot de passe doit contenir au moins une minuscule, une majuscule et un chiffre",
+    "passwordRequirements": "Le mot de passe doit contenir au moins 8 caractères, une minuscule, une majuscule et un chiffre",
+    "passwordStrength": "Robustesse du Mot de Passe",
+    "passwordWeak": "Faible",
+    "passwordFair": "Moyenne",
+    "passwordGood": "Bonne",
+    "passwordStrong": "Forte",
+    "passwordChangedSuccess": "Mot de passe modifié avec succès",
+    "changePasswordError": "Erreur lors de la modification du mot de passe",
+    "resetPasswordTitle": "Réinitialiser le Mot de Passe",
+    "resetPasswordSuccess": "Mot de passe réinitialisé avec succès",
+    "resetError": "Erreur lors de la réinitialisation du mot de passe",
+    "validatingResetLink": "Validation du lien en cours...",
+    "invalidResetLink": "Lien de réinitialisation non valide ou expiré",
+    "invalidOrExpiredToken": "Jeton non valide ou expiré",
+    "validationError": "Erreur de validation",
+    "resetLinkInstructions": "Vous pouvez demander un nouveau lien de réinitialisation ou revenir à la page de connexion",
+    "requestNewLink": "Demander un Nouveau Lien",
+    "backToLogin": "Retour à la Connexion",
+    "networkError": "Erreur de connexion",
+    "success": "Succès",
+    "error": "Erreur"
   },
   "errors": {
-    "required": "Ce champ est requis",
-    "invalidEmail": "Adresse email invalide",
-    "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
-    "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
-    "loginFailed": "Échec de la connexion. Vérifiez vos identifiants.",
-    "networkError": "Erreur réseau. Veuillez réessayer.",
-    "serverError": "Erreur serveur. Veuillez réessayer plus tard.",
+    "general": "Une erreur s'est produite",
     "notFound": "Ressource non trouvée",
     "unauthorized": "Non autorisé",
-    "forbidden": "Interdit"
+    "forbidden": "Interdit",
+    "validation": "Erreur de validation",
+    "network": "Erreur réseau",
+    "serverError": "Erreur serveur. Veuillez réessayer plus tard."
+  },
+  "success": {
+    "created": "Créé avec succès",
+    "updated": "Mis à jour avec succès",
+    "deleted": "Supprimé avec succès",
+    "saved": "Enregistré avec succès"
   },
   "parent": {
     "title": "Tableau de Bord Parent",
@@ -964,6 +1264,9 @@
     "noAttendanceToRegister": "Aucune présence à enregistrer",
     "student": "Étudiant",
     "lesson": "Cours",
+    "arrivedAt": "Arrivée",
+    "leftAt": "Départ",
+    "notes": "Remarques",
     "date": "Date",
     "status": "Statut",
     "todayLessons": "Cours d'Aujourd'hui",
@@ -975,7 +1278,9 @@
     "scheduled": "Programmés",
     "reminders": "Rappels",
     "reminderAttendance": "N'oubliez pas de confirmer les présences pour les cours d'aujourd'hui",
-    "reminderMaterial": "Vérifiez le matériel pour le cours de 15h00"
+    "reminderMaterial": "Vérifiez le matériel pour le cours de 15h00",
+    "recentAttendance": "Présences Récentes",
+    "attendanceHistory": "Historique des Présences"
   },
   "student": {
     "title": "Tableau de Bord Étudiant",
@@ -1022,8 +1327,243 @@
       "paymentSaved": "Paiement enregistré avec succès"
     }
   },
-  "view": "Voir",
-  "recipients": "Destinataires",
+  "teacherDetail": {
+    "notFound": "Enseignant non trouvé",
+    "loadError": "Erreur lors du chargement de l'enseignant",
+    "deleted": "Enseignant supprimé avec succès",
+    "deleteError": "Erreur lors de la suppression de l'enseignant",
+    "deleteConfirmation": "Êtes-vous sûr de vouloir supprimer {name} ? Cette action est irréversible.",
+    "teacherInfo": "Informations de l'Enseignant",
+    "specializations": "Spécialisations",
+    "noSpecializations": "Aucune spécialisation",
+    "experience": "Expérience",
+    "years": "ans",
+    "joinedDate": "Date d'Embauche",
+    "quickStats": "Statistiques Rapides",
+    "activeClasses": "Classes Actives",
+    "thisWeekLessons": "Cours Cette Semaine",
+    "lastActivity": "Dernière Activité",
+    "noActivity": "Aucune activité",
+    "assignedClasses": "Classes Assignées",
+    "addClass": "Ajouter une Classe",
+    "addLesson": "Ajouter un Cours",
+    "recentLessons": "Cours Récents",
+    "performance": "Performance",
+    "performanceMetrics": "Indicateurs de Performance",
+    "completionRate": "Taux de Réalisation",
+    "averageStudentsPerClass": "Moyenne d'Élèves par Classe",
+    "lessonsThisMonth": "Cours ce Mois-ci",
+    "averageClassSize": "Taille Moyenne des Classes",
+    "contactInfo": "Coordonnées",
+    "address": "Adresse",
+    "noSchedule": "Aucun horaire",
+    "minutes": "minutes",
+    "lessonStatus": {
+      "scheduled": "Programmé",
+      "in_progress": "En cours",
+      "completed": "Terminé",
+      "cancelled": "Annulé"
+    }
+  },
+  "classDetail": {
+    "notFound": "Classe non trouvée",
+    "loadError": "Erreur lors du chargement de la classe",
+    "deleted": "Classe supprimée avec succès",
+    "deleteError": "Erreur lors de la suppression de la classe",
+    "deleteConfirmation": "Êtes-vous sûr de vouloir supprimer {name} ? Cette action est irréversible."
+  },
+  "classInfo": "Informations de la Classe",
+  "noCourse": "Aucun cours",
+  "noTeacher": "Aucun enseignant",
+  "startDate": "Date de Début",
+  "endDate": "Date de Fin",
+  "capacity": "Capacité",
+  "enrolled": "Inscrits",
+  "occupied": "occupé",
+  "availableSpots": "Places Disponibles",
+  "spots": "places",
+  "classStatus": "Statut de la Classe",
+  "lastLesson": "Dernier Cours",
+  "nextLesson": "Prochain Cours",
+  "noScheduledLessons": "Aucun cours programmé",
+  "createdDate": "Date de Création",
+  "enrolledStudents": "Élèves Inscrits",
+  "enrollStudent": "Inscrire un Élève",
+  "enrolledDate": "Date d'Inscription",
+  "classLessons": "Cours de la Classe",
+  "time": "Horaire",
+  "duration": "Durée",
+  "classPerformance": "Performance de la Classe",
+  "occupancyRate": "Taux d'Occupation",
+  "averageAttendance": "Présence Moyenne",
+  "occupancy": "Occupation",
+  "communication": {
+    "title": "Communication",
+    "messages": "Messages",
+    "newMessage": "Nouveau Message",
+    "sendMessage": "Envoyer le Message",
+    "messageTitle": "Titre du Message",
+    "messageContent": "Contenu du Message",
+    "recipients": "Destinataires",
+    "selectRecipients": "Sélectionner les Destinataires",
+    "messageType": {
+      "DIRECT": "Message Direct",
+      "GROUP": "Message de Groupe",
+      "BROADCAST": "Message Broadcast",
+      "AUTOMATED": "Message Automatique"
+    },
+    "messageStatus": {
+      "DRAFT": "Brouillon",
+      "SCHEDULED": "Programmé",
+      "SENT": "Envoyé",
+      "DELIVERED": "Remis",
+      "READ": "Lu",
+      "FAILED": "Échec"
+    },
+    "priority": {
+      "0": "Normale",
+      "1": "Haute",
+      "2": "Urgente"
+    },
+    "channels": {
+      "title": "Canaux de Communication",
+      "email": "E-mail",
+      "sms": "SMS",
+      "push": "Notification Push"
+    },
+    "templates": {
+      "title": "Modèles de Messages",
+      "newTemplate": "Nouveau Modèle",
+      "templateName": "Nom du Modèle",
+      "templateDescription": "Description du Modèle",
+      "subject": "Objet",
+      "content": "Contenu",
+      "variables": "Variables",
+      "useTemplate": "Utiliser le Modèle",
+      "usageCount": "Utilisations"
+    },
+    "groups": {
+      "title": "Groupes de Communication",
+      "newGroup": "Nouveau Groupe",
+      "groupName": "Nom du Groupe",
+      "groupDescription": "Description du Groupe",
+      "groupType": {
+        "CLASS": "Classe",
+        "COURSE": "Cours",
+        "TEACHERS": "Enseignants",
+        "STUDENTS": "Élèves",
+        "PARENTS": "Parents",
+        "ROLE": "Rôle",
+        "CUSTOM": "Personnalisé",
+        "PARENT_CLASS": "Parents de la Classe"
+      },
+      "members": "Membres",
+      "addMembers": "Ajouter des Membres",
+      "autoSync": "Synchronisation Automatique",
+      "syncRules": "Règles de Synchronisation"
+    },
+    "scheduling": {
+      "scheduleMessage": "Programmer le Message",
+      "scheduleAt": "Programmer pour",
+      "sendNow": "Envoyer Maintenant",
+      "sendLater": "Envoyer Plus Tard"
+    },
+    "statistics": {
+      "totalSent": "Total Envoyés",
+      "totalDelivered": "Total Remis",
+      "totalRead": "Total Lus",
+      "deliveryRate": "Taux de Remise",
+      "readRate": "Taux de Lecture",
+      "responseRate": "Taux de Réponse"
+    },
+    "filters": {
+      "all": "Tous",
+      "inbox": "Boîte de Réception",
+      "sent": "Envoyés",
+      "drafts": "Brouillons",
+      "scheduled": "Programmés",
+      "urgent": "Urgents"
+    },
+    "actions": {
+      "reply": "Répondre",
+      "forward": "Transférer",
+      "markAsRead": "Marquer comme Lu",
+      "markAsUnread": "Marquer comme Non Lu",
+      "archive": "Archiver",
+      "delete": "Supprimer",
+      "send": "Envoyer",
+      "schedule": "Programmer",
+      "saveDraft": "Enregistrer le Brouillon"
+    },
+    "notifications": {
+      "messageSent": "Message envoyé avec succès",
+      "messageScheduled": "Message programmé avec succès",
+      "messageDraft": "Brouillon enregistré",
+      "messageDeleted": "Message supprimé",
+      "templateCreated": "Modèle créé avec succès",
+      "groupCreated": "Groupe créé avec succès"
+    },
+    "requiresResponse": "Réponse Requise",
+    "errors": {
+      "sendFailed": "Échec de l'envoi",
+      "noRecipients": "Aucun destinataire sélectionné",
+      "invalidTemplate": "Modèle non valide",
+      "unauthorizedAction": "Action non autorisée"
+    }
+  },
+  "Analytics": {
+    "title": "Analytics et Rapports",
+    "subtitle": "Tableau de bord analytique complet",
+    "totalStudents": "Total des Élèves",
+    "totalTeachers": "Total des Enseignants",
+    "totalClasses": "Total des Classes",
+    "totalLessons": "Cours sur la Période",
+    "attendanceRate": "Taux de Présence",
+    "totalRevenue": "Revenus Totaux",
+    "overduePayments": "Paiements en Retard",
+    "activeStudents": "Élèves Actifs",
+    "7days": "7 Jours",
+    "30days": "30 Jours",
+    "90days": "90 Jours",
+    "1year": "1 An",
+    "refresh": "Actualiser les Données",
+    "attendanceOverview": "Aperçu des Présences",
+    "dailyRevenue": "Revenus Quotidiens",
+    "enrollmentTrends": "Tendances des Inscriptions",
+    "lessonTrends": "Tendances des Cours",
+    "exportData": "Exporter les Données",
+    "exportCSV": "Exporter CSV",
+    "exportExcel": "Exporter Excel",
+    "exportPDF": "Exporter PDF",
+    "noData": "Aucune donnée disponible",
+    "paymentStatus": "Statut des Paiements",
+    "financialOverview": "Aperçu Financier",
+    "recentActivities": "Activités Récentes",
+    "performanceMetrics": "Indicateurs de Performance"
+  },
+  "search": "Rechercher",
+  "sender": "Expéditeur",
+  "status": "Statut",
+  "priority": "Priorité",
+  "dateCreated": "Date de Création",
+  "actions": "Actions",
+  "type": "Type",
+  "urgent": "Urgent",
+  "cancel": "Annuler",
+  "edit": "Modifier",
+  "all": "Tous",
+  "active": "Actif",
+  "inactive": "Inactif",
+  "noData": "Aucune donnée disponible",
+  "confirmDelete": "Confirmer la suppression",
+  "delete": "Supprimer",
+  "course": "Cours",
+  "price": "Prix",
+  "expired": "Expiré",
+  "noExpiry": "Sans expiration",
+  "overview": "Vue d'ensemble",
+  "content": "Contenu",
+  "recurring": "Récurrent",
   "Blog": {
     "title": "Blog",
     "description": "Articles, guides et conseils pour la gestion de votre école. Découvrez les dernières nouveautés du monde de la formation.",
@@ -1038,5 +1578,1097 @@
     "noArticles": "Aucun article disponible pour le moment.",
     "tryFree": "Essayez InsegnaMi.pro gratuitement",
     "tryFreeDescription": "Découvrez comment InsegnaMi.pro peut simplifier la gestion de votre école. 14 jours d'essai gratuit."
+  },
+  "legal": {
+    "privacy": {
+      "title": "Politique de Confidentialité",
+      "description": "Informations sur la confidentialité et le traitement des données personnelles",
+      "lastUpdated": "Dernière mise à jour"
+    },
+    "terms": {
+      "title": "Conditions d'Utilisation",
+      "description": "Conditions générales d'utilisation de la plateforme",
+      "lastUpdated": "Dernière mise à jour"
+    },
+    "cookies": {
+      "title": "Politique de Cookies",
+      "description": "Informations sur les cookies utilisés par le site",
+      "lastUpdated": "Dernière mise à jour"
+    }
+  },
+  "contact": {
+    "title": "Contactez-nous",
+    "description": "Des questions ? Nous sommes là pour vous aider",
+    "form": {
+      "name": "Nom et Prénom",
+      "email": "E-mail",
+      "subject": "Objet",
+      "message": "Message",
+      "submit": "Envoyer le Message",
+      "success": "Message envoyé avec succès !",
+      "error": "Erreur lors de l'envoi du message"
+    },
+    "info": {
+      "email": "E-mail",
+      "support": "Support",
+      "location": "Siège"
+    }
+  },
+  "checkout": {
+    "success": {
+      "title": "Paiement Terminé !",
+      "description": "Merci d'avoir choisi InsegnaMi.pro",
+      "activated": "Abonnement activé",
+      "fullAccess": "Accès complet à toutes les fonctionnalités",
+      "emailConfirmation": "Vous recevrez un e-mail de confirmation",
+      "goToDashboard": "Aller au Tableau de Bord",
+      "viewBilling": "Voir la Facturation"
+    },
+    "cancel": {
+      "title": "Paiement Annulé",
+      "description": "Le processus de paiement a été annulé",
+      "noCharge": "Rien ne vous a été facturé",
+      "tryAgain": "Vous pouvez réessayer à tout moment",
+      "backToPlans": "Retour aux Forfaits",
+      "backToHome": "Retour à l'Accueil"
+    }
+  },
+  "view": "Voir",
+  "recipients": "Destinataires",
+  "public": {
+    "header": {
+      "features": "Fonctionnalités",
+      "allFeatures": "Toutes les fonctionnalités",
+      "pricing": "Tarifs",
+      "tools": "Outils",
+      "blog": "Blog",
+      "contact": "Contact",
+      "login": "Se connecter",
+      "signup": "Essai gratuit",
+      "openMenu": "Ouvrir le menu",
+      "openFeaturesMenu": "Ouvrir le menu des fonctionnalités"
+    },
+    "footer": {
+      "description": "Le logiciel de gestion tout-en-un pour écoles privées, académies et centres de formation. Registre électronique, présences, paiements et communications.",
+      "productTitle": "Produit",
+      "featuresTitle": "Fonctionnalités",
+      "toolsTitle": "Outils gratuits",
+      "legalTitle": "Entreprise et mentions légales",
+      "links": {
+        "features": "Fonctionnalités",
+        "pricing": "Tarifs",
+        "blog": "Blog",
+        "cities": "Écoles par ville",
+        "allTools": "Tous les outils",
+        "gradeCalculator": "Calculateur de moyenne",
+        "attendanceCalculator": "Calculateur de présences",
+        "scheduleGenerator": "Générateur d'emploi du temps",
+        "contact": "Contact",
+        "privacy": "Politique de confidentialité",
+        "terms": "Conditions d'utilisation",
+        "cookies": "Politique de cookies"
+      },
+      "rights": "Tous droits réservés."
+    },
+    "ui": {
+      "ctaTitle": "Prêt à simplifier la gestion de votre école ?",
+      "ctaSubtitle": "Essayez InsegnaMi.pro gratuitement pendant 14 jours. Aucune carte bancaire requise.",
+      "ctaPrimary": "Commencer gratuitement",
+      "ctaSecondary": "Parlez-nous",
+      "trust": [
+        "14 jours gratuits",
+        "Aucune carte requise",
+        "Support en italien"
+      ]
+    },
+    "planFeatures": {
+      "paymentReminders": "Relances de paiement automatiques",
+      "einvoicing": "Facturation électronique (export XML SDI)",
+      "payroll": "Bulletins et rémunérations des enseignants",
+      "accounting": "Comptabilité et compte de résultat",
+      "hoursPackages": "Forfaits d'heures prépayés",
+      "analytics": "Analytics et rapports avancés",
+      "scheduleGenerator": "Générateur automatique d'emplois du temps",
+      "bulkImport": "Import d'élèves et enseignants depuis CSV/Excel",
+      "absenceJustifications": "Justification des absences en ligne",
+      "automationsConfig": "Automatisations personnalisables",
+      "whiteLabel": "Logo de l'école sur PDF et e-mails",
+      "auditTrail": "Journal d'audit étendu et export DPO"
+    },
+    "home": {
+      "meta": {
+        "title": "InsegnaMi.pro — Registre Électronique et Gestion Scolaire",
+        "description": "Plateforme tout-en-un pour écoles privées, académies et centres de formation. Registre électronique, présences, paiements et communications."
+      },
+      "hero": {
+        "badge": "Gestion scolaire tout-en-un",
+        "titleStart": "Le logiciel de gestion complet",
+        "titleHighlight": "pour votre école",
+        "subtitle": "Registre, présences, notes, paiements et communications en un seul endroit. Conçu pour les écoles de cours et académies comme pour les écoles à programme scolaire.",
+        "ctaPrimary": "Essai gratuit 14 jours",
+        "ctaSecondary": "Voir la démo",
+        "microTrust": [
+          "Conforme RGPD",
+          "Données dans l'UE",
+          "Aucune carte requise"
+        ],
+        "loginPrompt": "Déjà inscrit ?",
+        "loginLink": "Se connecter",
+        "screenshotAlt": "Tableau de bord administrateur d'InsegnaMi.pro avec les statistiques de l'école"
+      },
+      "paths": {
+        "badge": "Deux mondes, une plateforme",
+        "title": "Fait pour votre école,",
+        "highlight": "quelle qu'elle soit",
+        "subtitle": "Chaque type d'école travaille différemment : InsegnaMi.pro s'adapte à la vôtre, sans modules inutiles.",
+        "cards": [
+          {
+            "title": "Écoles de cours et académies",
+            "description": "Langues, musique, danse, formation professionnelle : gérez cours et inscriptions sans feuilles Excel.",
+            "bullets": [
+              "Cours, classes et forfaits d'heures prépayés",
+              "Échéances, versements et relances automatiques",
+              "Calendrier des cours et présences par cours"
+            ],
+            "linkLabel": "Découvrir le logiciel pour écoles de cours"
+          },
+          {
+            "title": "Écoles à programme scolaire",
+            "description": "Un registre électronique complet pour l'enseignement quotidien, de la première sonnerie aux bulletins.",
+            "bullets": [
+              "Registre électronique, notes et bulletins",
+              "Entretiens, remarques et justifications",
+              "Communications officielles école-famille"
+            ],
+            "linkLabel": "Découvrir le registre électronique"
+          }
+        ]
+      },
+      "how": {
+        "badge": "Comment ça marche",
+        "title": "Opérationnel en une journée,",
+        "highlight": "sans installation",
+        "subtitle": "Pas de projets de migration interminables : vous vous activez seul, quand vous voulez.",
+        "steps": [
+          {
+            "title": "Inscrivez-vous en 5 minutes",
+            "description": "Créez le compte de l'école depuis le navigateur : aucun serveur à configurer, aucun technicien requis."
+          },
+          {
+            "title": "Importez les élèves depuis Excel",
+            "description": "Importez élèves et enseignants avec l'import guidé CSV/Excel, avec contrôle des erreurs."
+          },
+          {
+            "title": "Vous êtes opérationnel",
+            "description": "Faites l'appel, enregistrez notes et paiements, communiquez avec les familles : tout dès le premier jour."
+          }
+        ]
+      },
+      "blocks": {
+        "badge": "Le produit, en vrai",
+        "title": "Tout ce qu'il vous faut,",
+        "highlight": "vu de près",
+        "subtitle": "De vraies captures d'écran de la plateforme : ce que vous voyez ici est ce que vous utilisez chaque jour.",
+        "linkLabel": "En savoir plus",
+        "items": [
+          {
+            "title": "Registre et présences",
+            "description": "Appel numérique pour chaque cours : présences, retards et absences en quelques gestes, avec des statistiques par élève et par classe toujours à jour.",
+            "alt": "Registre des présences d'un cours avec appel complété"
+          },
+          {
+            "title": "Notes et bulletins",
+            "description": "Registre de notes par classe et par matière avec moyennes calculées automatiquement, jusqu'au bulletin : plus de calculs à la main en fin de trimestre.",
+            "alt": "Registre de notes avec statistiques et accès rapide aux classes"
+          },
+          {
+            "title": "Paiements et relances",
+            "description": "Échéances, versements et encaissements sous contrôle : voyez tout de suite qui a payé et qui est en retard, les relances partent automatiquement.",
+            "alt": "Gestion des paiements avec le statut de chaque versement et les échéances"
+          },
+          {
+            "title": "Communications école-famille",
+            "description": "Messages ciblés aux classes, cours ou familles, modèles réutilisables et notifications par e-mail : les communications arrivent, et il en reste une trace.",
+            "alt": "Centre de communications avec messages, modèles et groupes"
+          },
+          {
+            "title": "Facturation électronique",
+            "description": "Prêt pour le SDI avec export XML des factures : encaissements et chiffre d'affaires liés aux paiements, sans double saisie dans un autre logiciel.",
+            "alt": "Tableau de bord avec chiffre d'affaires et statistiques financières de l'école"
+          },
+          {
+            "title": "Portail parents et élèves",
+            "description": "Chaque famille a son propre accès : présences, prochains cours, paiements et communications de ses enfants, sans appels au secrétariat.",
+            "alt": "Portail parents avec vue d'ensemble des enfants et communications"
+          }
+        ]
+      },
+      "tools": {
+        "badge": "100 % gratuits",
+        "title": "Outils gratuits",
+        "highlight": "pour votre école",
+        "subtitle": "Calculateurs et générateurs utiles pour la gestion quotidienne. Aucune inscription requise.",
+        "allToolsLabel": "Voir tous les outils",
+        "items": [
+          {
+            "title": "Calculateur de Moyenne",
+            "description": "Calculez la moyenne des notes avec des coefficients personnalisés."
+          },
+          {
+            "title": "Calculateur de Présences",
+            "description": "Calculez le taux de présence et vérifiez le volume d'heures."
+          },
+          {
+            "title": "Générateur de Calendrier",
+            "description": "Générez un calendrier scolaire avec jours fériés et vacances."
+          },
+          {
+            "title": "Générateur d'Emploi du Temps",
+            "description": "Créez un emploi du temps hebdomadaire à imprimer."
+          }
+        ]
+      },
+      "pricing": {
+        "badge": "Tarifs transparents",
+        "title": "Choisissez le forfait",
+        "highlight": "qui vous convient",
+        "subtitle": "Toutes les fonctions de base dans chaque forfait : registre, présences, notes, paiements et portail familles. Changez ou résiliez quand vous voulez.",
+        "perMonth": "/mois",
+        "popular": "Le plus populaire",
+        "coreIncluded": "Registre, présences, notes et paiements inclus",
+        "ctaDefault": "Commencer",
+        "ctaEnterprise": "Contactez-nous",
+        "vatNote": "Prix hors TVA.",
+        "compareLabel": "Comparer tous les forfaits en détail",
+        "unlimitedStudents": "Élèves illimités",
+        "studentsUpTo": "Jusqu'à {count} élèves"
+      },
+      "faq": {
+        "badge": "FAQ",
+        "title": "Questions",
+        "highlight": "fréquentes",
+        "items": [
+          {
+            "question": "Les prix indiqués incluent-ils la TVA ?",
+            "answer": "Non, les prix des forfaits sont hors TVA. Au moment du paiement, vous recevez une facture en bonne et due forme au nom de l'école."
+          },
+          {
+            "question": "Puis-je migrer les données que j'ai déjà dans Excel ?",
+            "answer": "Oui. Vous pouvez importer élèves et enseignants depuis des fichiers CSV/Excel avec la procédure guidée, qui signale les erreurs éventuelles avant l'enregistrement. Pour les situations particulières, notre support vous accompagne dans la migration."
+          },
+          {
+            "question": "Comment sont traitées les données des élèves, y compris mineurs ?",
+            "answer": "InsegnaMi.pro est conforme au RGPD et les données sont hébergées sur des serveurs dans l'Union européenne. L'école reste responsable du traitement et nous agissons comme sous-traitant : les données ne sont ni vendues ni utilisées à d'autres fins."
+          },
+          {
+            "question": "Puis-je résilier quand je veux ?",
+            "answer": "Oui, la résiliation se fait en autonomie depuis le tableau de bord de facturation, sans engagement ni pénalités. Après la résiliation, les données restent exportables pendant 30 jours."
+          },
+          {
+            "question": "Quel support est inclus ?",
+            "answer": "Tous les forfaits incluent un support par e-mail en italien. Nous vous aidons pour la configuration initiale et les questions du quotidien."
+          },
+          {
+            "question": "Gérez-vous la facturation électronique ?",
+            "answer": "La plateforme est prête pour la facturation électronique vers le SDI italien avec export XML des factures, disponible à partir du forfait Professional."
+          },
+          {
+            "question": "Puis-je voir une démo avant de m'inscrire ?",
+            "answer": "Oui, vous pouvez accéder à la démo en ligne avec des données d'exemple, sans inscription. Vous pouvez aussi activer l'essai gratuit de 14 jours sur votre école, sans carte bancaire."
+          },
+          {
+            "question": "Quelle est la différence entre les forfaits ?",
+            "answer": "Toutes les fonctions de base (registre, présences, notes, paiements, communications et portail familles) sont incluses dans chaque forfait. Les forfaits diffèrent par les limites d'élèves, d'enseignants et de classes et par les fonctions avancées comme la facturation électronique, la comptabilité, les analytics et les automatisations."
+          }
+        ]
+      },
+      "selfHosted": {
+        "badge": "Installation auto-hébergée",
+        "title": "Vous préférez vos serveurs ? C'est possible.",
+        "description": "Pour les écoles qui veulent la plateforme dans leur propre infrastructure : installation, formation et mises à jour incluses, avec un contrôle total des données.",
+        "bullets": [
+          "Données sur votre infrastructure",
+          "Installation et formation incluses",
+          "Mises à jour et maintenance",
+          "Personnalisations sur demande"
+        ],
+        "setupLabel": "paiement unique — configuration, installation et formation",
+        "yearlyLabel": "/an — maintenance et mises à jour",
+        "cta": "Demander un devis"
+      },
+      "cta": {
+        "title": "Prêt à commencer ?",
+        "subtitle": "Numérisez la gestion de votre école et consacrez plus de temps à l'essentiel : enseigner."
+      }
+    },
+    "pricing": {
+      "meta": {
+        "title": "Tarifs du logiciel de gestion scolaire — InsegnaMi.pro",
+        "description": "Forfaits et tarifs du logiciel de gestion scolaire InsegnaMi.pro : à partir de 29 €/mois avec 14 jours d'essai gratuit. Facturation mensuelle ou annuelle, aucune carte requise."
+      },
+      "hero": {
+        "badge": "Tarifs transparents",
+        "title": "Choisissez le forfait parfait",
+        "highlight": "pour votre école",
+        "subtitle": "Aucun coût caché. 14 jours d'essai gratuit. Résiliez quand vous voulez."
+      },
+      "monthly": "Mensuel",
+      "yearly": "Annuel",
+      "perMonth": "/mois",
+      "perYear": "/an",
+      "popular": "Le plus populaire",
+      "ctaAuth": "Commencer",
+      "ctaGuest": "Essai Gratuit",
+      "vatNote": "Prix hors TVA.",
+      "checkoutError": "Erreur lors de la création du paiement",
+      "unexpectedError": "Erreur inattendue",
+      "limits": {
+        "studentsUpTo": "Jusqu'à {count} élèves",
+        "studentsUnlimited": "Élèves illimités",
+        "teachersUpTo": "Jusqu'à {count} enseignants",
+        "teachersUnlimited": "Enseignants illimités",
+        "classesUpTo": "Jusqu'à {count} classes",
+        "classesUnlimited": "Classes illimitées"
+      },
+      "selfHosted": {
+        "badge": "Installation Full",
+        "title": "Votre école, vos serveurs, votre contrôle total",
+        "description": "Configuration, installation et formation incluses. Code source, vos données, aucune limite.",
+        "bullets": [
+          "Serveurs dédiés",
+          "Code source",
+          "Aucune limite",
+          "Support prioritaire"
+        ],
+        "oneTime": "paiement unique",
+        "setupLabel": "Configuration + installation + formation",
+        "maintenanceLabel": "Maintenance + mises à jour",
+        "cta": "Demander un devis"
+      },
+      "faqBadge": "FAQ",
+      "faqTitle": "Questions",
+      "faqHighlight": "fréquentes",
+      "faqs": [
+        {
+          "question": "Puis-je essayer avant de payer ?",
+          "answer": "Tous les forfaits incluent 14 jours d'essai gratuit. Aucune carte bancaire n'est requise pour commencer."
+        },
+        {
+          "question": "Puis-je changer de forfait à tout moment ?",
+          "answer": "Vous pouvez passer à un forfait supérieur ou inférieur à tout moment depuis le tableau de bord de facturation."
+        },
+        {
+          "question": "Qu'advient-il de mes données si je résilie ?",
+          "answer": "Vos données restent disponibles pendant 30 jours après la résiliation. Vous pouvez les exporter à tout moment."
+        },
+        {
+          "question": "Quels moyens de paiement acceptez-vous ?",
+          "answer": "Nous acceptons toutes les principales cartes de crédit/débit (Visa, Mastercard, American Express) via Stripe."
+        }
+      ],
+      "ctaTitle": "Prêt à commencer ?"
+    },
+    "contact": {
+      "meta": {
+        "title": "Contact — InsegnaMi.pro",
+        "description": "Contactez l'équipe d'InsegnaMi.pro : questions sur le logiciel de gestion scolaire, demandes de démo, devis pour installations auto-hébergées et support en italien."
+      },
+      "hero": {
+        "badge": "Contact",
+        "title": "Nous sommes là pour",
+        "highlight": "vous aider",
+        "subtitle": "Des questions sur InsegnaMi.pro ? Remplissez le formulaire et nous vous répondrons au plus vite."
+      },
+      "subjects": {
+        "enterprise": "Demande d'informations Forfait Enterprise",
+        "fullInstallation": "Demande de devis Installation Full",
+        "demo": "Demande de démo personnalisée",
+        "support": "Demande de support"
+      },
+      "form": {
+        "title": "Envoyez-nous un message",
+        "name": "Nom et Prénom",
+        "namePlaceholder": "Votre nom",
+        "email": "E-mail",
+        "emailPlaceholder": "votre@email.com",
+        "subject": "Objet",
+        "subjectPlaceholder": "De quoi voulez-vous nous parler ?",
+        "message": "Message",
+        "messagePlaceholder": "Écrivez votre message...",
+        "nameError": "Le nom doit comporter au moins 2 caractères",
+        "emailError": "E-mail non valide",
+        "subjectError": "Saisissez un objet",
+        "messageError": "Le message doit comporter au moins 10 caractères",
+        "privacyPrefix": "En envoyant ce formulaire, vous acceptez notre",
+        "privacyLink": "Politique de confidentialité",
+        "privacySuffix": ". Nous ne partagerons pas vos informations avec des tiers.",
+        "submit": "Envoyer le Message",
+        "successTitle": "Message envoyé !",
+        "successText": "Merci de nous avoir contactés ! Nous avons bien reçu votre message et vous répondrons sous 24 à 48 heures ouvrées.",
+        "successButton": "Envoyer un autre message",
+        "notifySuccessTitle": "Message envoyé",
+        "notifySuccessMessage": "Nous vous répondrons au plus vite !",
+        "notifyErrorTitle": "Erreur",
+        "notifyErrorMessage": "Une erreur s'est produite. Veuillez réessayer plus tard."
+      },
+      "info": {
+        "title": "Informations de Contact",
+        "emailLabel": "E-mail",
+        "supportLabel": "Support",
+        "supportHours": "Lun-Ven 9h00-18h00",
+        "locationLabel": "Siège",
+        "locationValue": "Italie"
+      },
+      "support": {
+        "title": "Support Technique",
+        "text": "Pour les problèmes techniques ou l'assistance à l'utilisation de la plateforme, les clients actifs peuvent contacter le support dédié."
+      },
+      "demo": {
+        "title": "Demande de Démo",
+        "text": "Vous voulez voir InsegnaMi.pro en action ? Demandez une démo personnalisée et nous vous montrerons toutes les fonctionnalités."
+      },
+      "faqTitle": "Questions",
+      "faqHighlight": "Fréquentes",
+      "faqs": [
+        {
+          "question": "Combien de temps faut-il pour activer le service ?",
+          "answer": "Vous pouvez commencer tout de suite avec l'essai gratuit de 14 jours. L'activation est immédiate."
+        },
+        {
+          "question": "Puis-je importer des données depuis un autre système ?",
+          "answer": "Oui, nous offrons un support pour l'import de données depuis des fichiers CSV et d'autres formats courants."
+        },
+        {
+          "question": "Un support en italien est-il disponible ?",
+          "answer": "Absolument ! Toute notre équipe parle italien et le support est entièrement en italien."
+        },
+        {
+          "question": "Puis-je demander des fonctionnalités personnalisées ?",
+          "answer": "Contactez-nous pour discuter de vos besoins. Nous évaluons chaque demande pour les forfaits Enterprise."
+        }
+      ],
+      "legal": {
+        "privacy": "Politique de confidentialité",
+        "terms": "Conditions d'utilisation",
+        "cookies": "Politique de cookies"
+      }
+    },
+    "features": {
+      "index": {
+        "metaTitle": "Fonctionnalités du Logiciel de Gestion pour Écoles Privées",
+        "metaDescription": "Toutes les fonctionnalités d'InsegnaMi.pro : registre électronique, présences, paiements et frais de scolarité, communications école-famille, plus les verticales pour écoles de langues, musique et danse.",
+        "badge": "Fonctionnalités",
+        "h1": "Tout ce qu'il faut à votre",
+        "h1Highlight": "école",
+        "sub": "Un seul logiciel pour registre, présences, paiements et communications, avec des verticales dédiées aux écoles de langues, musique et danse.",
+        "ctaTrial": "Essai gratuit 14 jours",
+        "discoverMore": "En savoir plus"
+      },
+      "detail": {
+        "breadcrumbHome": "Accueil",
+        "breadcrumbFeatures": "Fonctionnalités",
+        "notFound": "Page non trouvée",
+        "ctaTrial": "Essai gratuit 14 jours",
+        "ctaPricing": "Voir les tarifs",
+        "capTitle": "Ce que vous pouvez faire avec",
+        "capHighlight": "InsegnaMi.pro",
+        "uiTitle": "L'interface, en",
+        "uiHighlight": "direct",
+        "uiSubtitle": "Simple pour le secrétariat, claire pour les enseignants et les familles : aucune formation technique nécessaire.",
+        "faqTitle": "Questions",
+        "faqHighlight": "fréquentes",
+        "screenshotFallback": "Aperçu de l'interface en cours de chargement"
+      },
+      "pages": {
+        "registro-elettronico": {
+          "navLabel": "Registre électronique",
+          "metaTitle": "Registre Électronique pour Écoles Privées",
+          "metaDescription": "Registre électronique pour écoles privées, académies et centres de formation : appel numérique, notes, remarques, bulletins PDF et justifications en ligne. Essai gratuit 14 jours.",
+          "badge": "Registre électronique",
+          "h1": "Registre électronique pour",
+          "h1Highlight": "écoles privées",
+          "sub": "Appel, notes, remarques et bulletins en un seul endroit. Le registre numérique pensé pour les écoles privées, académies et centres de formation : pas de papier, pas de feuilles Excel.",
+          "cardText": "Appel numérique, notes, remarques disciplinaires, bulletins PDF et justifications en ligne pour chaque classe.",
+          "screenshotAlt": "Écran du registre électronique d'InsegnaMi.pro avec notes et évaluations",
+          "capabilities": [
+            {
+              "title": "Appel numérique",
+              "text": "L'enseignant fait l'appel en quelques secondes depuis n'importe quel appareil : présents, absents et retards enregistrés avec date et heure."
+            },
+            {
+              "title": "Notes et évaluations",
+              "text": "Enregistrez notes chiffrées et appréciations par matière, avec moyenne calculée automatiquement et historique complet par élève."
+            },
+            {
+              "title": "Remarques et observations",
+              "text": "Notez remarques disciplinaires et observations pédagogiques visibles par le secrétariat et, si vous le souhaitez, par les familles."
+            },
+            {
+              "title": "Bulletins en PDF",
+              "text": "Générez bulletins et fiches d'évaluation en PDF, prêts à imprimer ou à envoyer par e-mail aux familles."
+            },
+            {
+              "title": "Justifications en ligne",
+              "text": "Les parents justifient les absences directement depuis le portail familles : le secrétariat approuve en un clic."
+            },
+            {
+              "title": "Contenus de cours",
+              "text": "Chaque cours garde la trace des sujets traités et des devoirs donnés : le programme est toujours documenté."
+            }
+          ],
+          "faqs": [
+            {
+              "question": "Le registre électronique convient-il aussi à une petite école ?",
+              "answer": "Oui. InsegnaMi.pro est conçu pour les écoles privées de toute taille : de la petite académie avec une classe aux instituts avec des dizaines de cours. Le forfait se choisit selon le nombre d'élèves."
+            },
+            {
+              "question": "Les parents peuvent-ils voir les notes et les absences ?",
+              "answer": "Oui, via le portail familles inclus : chaque parent se connecte avec ses identifiants et voit les notes, présences, remarques et communications de ses enfants. L'école décide de ce qui est visible."
+            },
+            {
+              "question": "Faut-il installer quelque chose ?",
+              "answer": "Non. InsegnaMi.pro est une application web : elle fonctionne depuis le navigateur sur ordinateur, tablette et smartphone, sans installation ni serveur à gérer."
+            }
+          ]
+        },
+        "gestione-presenze": {
+          "navLabel": "Gestion des présences",
+          "metaTitle": "Logiciel de Gestion des Présences pour Écoles et Cours",
+          "metaDescription": "Présences numériques pour écoles et cours : appel rapide, statistiques de fréquentation, export des données et notifications d'absence aux parents. Essai gratuit 14 jours.",
+          "badge": "Présences",
+          "h1": "Gestion numérique des présences pour",
+          "h1Highlight": "écoles et cours",
+          "sub": "Relevez les présences en quelques secondes, suivez la fréquentation avec des statistiques claires et prévenez automatiquement les parents en cas d'absence.",
+          "cardText": "Appel rapide, statistiques de fréquentation, export des données et notifications d'absence aux parents.",
+          "screenshotAlt": "Écran de gestion des présences et d'appel d'un cours dans InsegnaMi.pro",
+          "capabilities": [
+            {
+              "title": "Appel en quelques secondes",
+              "text": "Présences, absences et retards enregistrés par cours, avec la liste des élèves déjà prête pour chaque cours."
+            },
+            {
+              "title": "Statistiques de fréquentation",
+              "text": "Taux de présence par élève, classe et période : repérez tout de suite qui s'absente trop."
+            },
+            {
+              "title": "Notifications d'absence aux parents",
+              "text": "Quand un élève est absent, la famille peut recevoir une notification automatique : moins d'appels pour le secrétariat."
+            },
+            {
+              "title": "Export des données",
+              "text": "Exportez les registres de présences quand vous en avez besoin : pour les bilans, les organismes financeurs ou les archives internes."
+            },
+            {
+              "title": "Retards et départs anticipés",
+              "text": "Pas seulement présent/absent : vous enregistrez aussi retards et départs anticipés, avec une image fidèle de la fréquentation réelle."
+            },
+            {
+              "title": "Justifications intégrées",
+              "text": "Les absences justifiées depuis le portail familles se reflètent immédiatement dans le registre et les statistiques."
+            }
+          ],
+          "faqs": [
+            {
+              "question": "Les présences fonctionnent-elles aussi pour des cours à fréquentation libre ?",
+              "answer": "Oui. Vous pouvez enregistrer les présences par séance sur des cours hebdomadaires, intensifs ou à forfait d'heures : les statistiques s'adaptent au type de cours."
+            },
+            {
+              "question": "Puis-je exporter les données de fréquentation ?",
+              "answer": "Oui, les registres de présences sont exportables : utile pour les bilans destinés aux organismes, les certificats de fréquentation ou simplement les archives de l'école."
+            },
+            {
+              "question": "Les parents sont-ils prévenus des absences ?",
+              "answer": "Oui, l'école peut activer les notifications d'absence : quand l'élève n'est pas marqué présent à l'appel, la famille reçoit une alerte automatique."
+            }
+          ]
+        },
+        "gestione-pagamenti-scuola": {
+          "navLabel": "Paiements et frais de scolarité",
+          "metaTitle": "Logiciel de Gestion des Paiements et Frais de Scolarité",
+          "metaDescription": "Gérez frais de scolarité et paiements de votre école : plans de versements, relances automatiques, reçus PDF, forfaits d'heures et préparation à la facturation électronique. Essai gratuit.",
+          "badge": "Paiements",
+          "h1": "Gestion des paiements et frais pour",
+          "h1Highlight": "votre école",
+          "sub": "Versements, relances, reçus et forfaits d'heures sous contrôle. Vous savez toujours qui a payé, qui doit payer et combien l'école encaisse.",
+          "cardText": "Versements, relances automatiques, reçus PDF, forfaits d'heures et préparation à la facturation électronique.",
+          "screenshotAlt": "Écran de gestion des paiements et frais de scolarité dans InsegnaMi.pro",
+          "capabilities": [
+            {
+              "title": "Plans de paiement échelonnés",
+              "text": "Divisez les frais en versements avec des échéances personnalisées : mensuelles, trimestrielles ou sur mesure pour chaque famille."
+            },
+            {
+              "title": "Relances automatiques",
+              "text": "Les versements à échéance ou en retard génèrent des rappels automatiques par e-mail : moins d'impayés sans courir après personne au téléphone."
+            },
+            {
+              "title": "Reçus en PDF",
+              "text": "Chaque paiement enregistré produit un reçu PDF numéroté, prêt à envoyer ou imprimer pour la famille."
+            },
+            {
+              "title": "Forfaits d'heures",
+              "text": "Vendez des carnets de cours : le système décompte automatiquement les heures utilisées et vous alerte quand le forfait s'épuise."
+            },
+            {
+              "title": "Prêt pour la facturation électronique",
+              "text": "Les données de paiements et de contacts sont structurées pour alimenter la facturation électronique de votre comptable ou logiciel fiscal."
+            },
+            {
+              "title": "Encaissements sous contrôle",
+              "text": "Récapitulatifs des encaissements, impayés et prévisions : la situation financière de l'école en un coup d'œil."
+            }
+          ],
+          "faqs": [
+            {
+              "question": "Puis-je gérer des frais différents pour des cours différents ?",
+              "answer": "Oui. Chaque cours ou inscription peut avoir son propre montant et son propre plan de versements : mensuel, trimestriel, annuel ou personnalisé."
+            },
+            {
+              "question": "InsegnaMi.pro émet-il des factures électroniques ?",
+              "answer": "InsegnaMi.pro enregistre les paiements et génère des reçus PDF ; les données sont organisées pour être transmises au comptable ou au logiciel de facturation électronique, sans ressaisie manuelle."
+            },
+            {
+              "question": "Comment fonctionnent les relances ?",
+              "answer": "Vous définissez les échéances des versements et le système envoie des rappels automatiques par e-mail aux familles ayant des paiements à échéance ou en retard. Vous pouvez toujours voir le statut de chaque versement."
+            }
+          ]
+        },
+        "comunicazioni-scuola-famiglia": {
+          "navLabel": "Communications école-famille",
+          "metaTitle": "Communications École-Famille : Circulaires et Portail Parents",
+          "metaDescription": "Circulaires, messages et e-mails aux familles dans un seul outil, avec portail parents inclus. Communications école-famille tracées et organisées. Essai gratuit.",
+          "badge": "Communications",
+          "h1": "Communications",
+          "h1Highlight": "école-famille",
+          "sub": "Circulaires, avis et messages qui arrivent vraiment à destination. Un canal unique et tracé entre secrétariat, enseignants et parents.",
+          "cardText": "Circulaires, messages, e-mails aux familles et portail parents : un canal unique et tracé.",
+          "screenshotAlt": "Écran des communications école-famille dans InsegnaMi.pro",
+          "capabilities": [
+            {
+              "title": "Circulaires et avis",
+              "text": "Publiez des circulaires pour toute l'école, des classes ou des groupes : chaque famille ne voit que ce qui la concerne."
+            },
+            {
+              "title": "E-mails aux familles",
+              "text": "Envoyez des e-mails aux classes ou à des destinataires individuels directement depuis le logiciel, avec l'historique des envois."
+            },
+            {
+              "title": "Portail parents",
+              "text": "Les parents accèdent à un portail dédié avec communications, présences, notes et paiements de leurs enfants."
+            },
+            {
+              "title": "Notifications automatiques",
+              "text": "Absences, nouvelles communications et échéances génèrent des alertes automatiques : fini le « je ne savais pas »."
+            },
+            {
+              "title": "Pièces jointes et documents",
+              "text": "Joignez formulaires, autorisations et documents aux communications : tout est archivé et retrouvable."
+            },
+            {
+              "title": "Tout est tracé",
+              "text": "Chaque communication reste consignée avec date et destinataires : vous savez ce qui a été envoyé, à qui et quand."
+            }
+          ],
+          "faqs": [
+            {
+              "question": "Les parents doivent-ils installer une application ?",
+              "answer": "Non. Le portail parents est une application web accessible depuis n'importe quel navigateur, même sur smartphone : il suffit du lien et des identifiants de connexion."
+            },
+            {
+              "question": "Puis-je envoyer une circulaire à certaines classes seulement ?",
+              "answer": "Oui. Les communications peuvent être adressées à toute l'école, à une ou plusieurs classes, ou à des destinataires sélectionnés individuellement."
+            },
+            {
+              "question": "Les familles sans e-mail sont-elles exclues ?",
+              "answer": "Les communications restent toujours disponibles dans le portail parents : l'e-mail est un canal supplémentaire, pas le seul. Le secrétariat voit dans tous les cas qui a reçu quoi."
+            }
+          ]
+        },
+        "gestionale-scuole-di-lingue": {
+          "navLabel": "Écoles de langues",
+          "metaTitle": "Logiciel de Gestion pour Écoles de Langues",
+          "metaDescription": "Logiciel de gestion pour écoles de langues : cours par niveau, forfaits d'heures, attestations, enseignants payés à l'heure et communications avec les élèves. Essai gratuit 14 jours.",
+          "badge": "Verticale · Langues",
+          "h1": "Le logiciel de gestion pour",
+          "h1Highlight": "écoles de langues",
+          "sub": "Cours organisés par langue et niveau, forfaits d'heures, attestations et enseignants payés à l'heure : InsegnaMi.pro parle la langue de votre école.",
+          "cardText": "Cours par langue et niveau, forfaits d'heures, attestations de présence et enseignants payés à l'heure.",
+          "screenshotAlt": "Tableau de bord administratif d'InsegnaMi.pro pour une école de langues",
+          "capabilities": [
+            {
+              "title": "Cours par langue et niveau",
+              "text": "Organisez l'offre par langue et niveau (A1–C2) : groupes, cours individuels, entreprises et conversation, tout dans un catalogue ordonné."
+            },
+            {
+              "title": "Forfaits d'heures",
+              "text": "Carnets de cours individuels avec décompte automatique des heures : l'élève et le secrétariat voient toujours le solde restant."
+            },
+            {
+              "title": "Attestations de présence",
+              "text": "Générez des attestations de présence et de fin de cours en PDF à partir des données réelles de présence et de cours."
+            },
+            {
+              "title": "Enseignants payés à l'heure",
+              "text": "Enregistrez les heures réellement effectuées par chaque enseignant et calculez les rémunérations horaires sans tableurs parallèles."
+            },
+            {
+              "title": "Horaires et salles",
+              "text": "Planifiez cours collectifs et individuels en évitant les chevauchements d'enseignants et de salles."
+            },
+            {
+              "title": "Inscriptions et paiements",
+              "text": "Inscriptions, frais échelonnés et reçus PDF : la partie administrative des cours de langue est déjà couverte."
+            }
+          ],
+          "faqs": [
+            {
+              "question": "Gère-t-il à la fois les cours collectifs et les cours individuels ?",
+              "answer": "Oui. Vous pouvez avoir dans le même catalogue des cours collectifs par niveau et des cours individuels à forfait d'heures, chacun avec ses horaires, enseignants et tarifs."
+            },
+            {
+              "question": "Comment sont payés les enseignants à l'heure ?",
+              "answer": "Les cours effectués par chaque enseignant restent enregistrés dans le système : vous en tirez le décompte des heures pour le calcul des rémunérations horaires, sans registres parallèles."
+            },
+            {
+              "question": "Puis-je délivrer des attestations aux élèves ?",
+              "answer": "Oui, vous pouvez générer des attestations de présence en PDF basées sur les données réelles du cours et des présences de l'élève."
+            }
+          ]
+        },
+        "gestionale-scuole-musica-danza": {
+          "navLabel": "Écoles de musique et danse",
+          "metaTitle": "Logiciel de Gestion pour Écoles de Musique et Danse",
+          "metaDescription": "Logiciel de gestion pour écoles de musique et danse : cours individuels et collectifs, gestion des salles, spectacles, inscriptions et paiements. Essai gratuit 14 jours.",
+          "badge": "Verticale · Musique et danse",
+          "h1": "Le logiciel de gestion pour écoles de",
+          "h1Highlight": "musique et danse",
+          "sub": "Cours individuels d'instrument, cours collectifs, salles de répétition et spectacles de fin d'année : une seule plateforme pour académies de musique et écoles de danse.",
+          "cardText": "Cours individuels et collectifs, gestion des salles, spectacles de fin d'année et inscriptions.",
+          "screenshotAlt": "Portail parents d'InsegnaMi.pro pour une école de musique ou de danse",
+          "capabilities": [
+            {
+              "title": "Cours individuels et collectifs",
+              "text": "Les cours d'instrument en tête-à-tête et les cours collectifs de danse ou de musique d'ensemble cohabitent dans le même calendrier."
+            },
+            {
+              "title": "Salles et studios",
+              "text": "Attribuez salles de classe, salles de répétition et studios de danse aux cours et évitez les chevauchements d'espaces et d'enseignants."
+            },
+            {
+              "title": "Spectacles et événements",
+              "text": "Planifiez spectacles de fin d'année, représentations et portes ouvertes, et communiquez dates et détails à toutes les familles concernées."
+            },
+            {
+              "title": "Inscriptions et dossiers",
+              "text": "Inscriptions aux cours avec dossiers complets des élèves et des familles : documents, contacts et historique en un seul endroit."
+            },
+            {
+              "title": "Enseignants et disponibilités",
+              "text": "Horaires et heures effectuées pour chaque enseignant, même payé à l'heure : la planification hebdomadaire est sous contrôle."
+            },
+            {
+              "title": "Frais et forfaits",
+              "text": "Frais mensuels, trimestriels ou forfaits de cours, avec reçus PDF et relances automatiques pour les versements en retard."
+            }
+          ],
+          "faqs": [
+            {
+              "question": "Puis-je gérer ensemble des cours de musique et de danse ?",
+              "answer": "Oui. Les cours sont entièrement configurables : instrument individuel, éveil musical, danse classique ou moderne peuvent cohabiter dans la même école avec leurs horaires, salles et enseignants."
+            },
+            {
+              "question": "Comment gérer les salles et les studios ?",
+              "answer": "Chaque cours peut avoir une salle ou un studio attribué : le calendrier vous aide à éviter les chevauchements entre cours, répétitions et spectacles."
+            },
+            {
+              "question": "Les familles voient-elles les horaires et les communications ?",
+              "answer": "Oui, depuis le portail parents : horaires des cours, présences, communications sur les spectacles et situation des paiements sont toujours consultables en ligne."
+            }
+          ]
+        }
+      }
+    },
+    "tools": {
+      "meta": {
+        "title": "Outils Gratuits pour Écoles",
+        "description": "Outils gratuits pour la gestion scolaire : calculateurs, générateurs et validateurs. Calculez moyennes, présences, coûts et bien plus."
+      },
+      "index": {
+        "badge": "100 % gratuits",
+        "title": "Outils gratuits",
+        "highlight": "pour votre école",
+        "subtitle": "Calculateurs, générateurs et validateurs pensés pour simplifier la gestion quotidienne de votre école. Aucune inscription requise.",
+        "toolCount": "{count, plural, one {# outil} other {# outils}}",
+        "categories": {
+          "calculators": "Calculateurs",
+          "generators": "Générateurs",
+          "validators": "Validateurs"
+        },
+        "ctaTitle": "Envie de Tout Automatiser ?",
+        "ctaSubtitle": "Avec InsegnaMi.pro, gérez automatiquement notes, présences, paiements et communications. Tous ces outils intégrés dans une seule plateforme."
+      },
+      "items": {
+        "calcolatore-media-voti": {
+          "title": "Calculateur de Moyenne",
+          "description": "Calculez la moyenne des notes avec des coefficients personnalisés par matière ou type d'évaluation."
+        },
+        "calcolatore-presenze": {
+          "title": "Calculateur de Présences",
+          "description": "Calculez le taux de présence et vérifiez l'atteinte du volume d'heures minimal."
+        },
+        "calcolatore-costo-studente": {
+          "title": "Calculateur de Coût par Élève",
+          "description": "Calculez le coût réel par élève en tenant compte de toutes les dépenses de l'école."
+        },
+        "validatore-codice-fiscale": {
+          "title": "Validateur de Code Fiscal Italien",
+          "description": "Vérifiez la validité d'un code fiscal italien et extrayez les informations personnelles."
+        },
+        "generatore-calendario-scolastico": {
+          "title": "Générateur de Calendrier Scolaire",
+          "description": "Générez un calendrier scolaire personnalisé avec jours fériés et périodes de vacances."
+        },
+        "generatore-orario-settimanale": {
+          "title": "Générateur d'Emploi du Temps Hebdomadaire",
+          "description": "Créez un emploi du temps hebdomadaire des cours à imprimer ou exporter."
+        },
+        "calcolatore-ore-corso": {
+          "title": "Calculateur d'Heures de Cours",
+          "description": "Calculez le total des heures d'un cours et planifiez les séances nécessaires."
+        },
+        "generatore-comunicazioni": {
+          "title": "Générateur de Communications",
+          "description": "Générez des modèles de communications aux parents, circulaires et avis."
+        }
+      },
+      "shell": {
+        "allTools": "Tous les outils",
+        "ctaTitle": "Gérez tout avec InsegnaMi.pro",
+        "ctaText": "Registre électronique, présences, paiements et communications dans une seule plateforme.",
+        "ctaBullets": [
+          "Essai gratuit 14 jours",
+          "Aucune carte requise",
+          "Support en italien"
+        ],
+        "ctaButton": "Essai gratuit",
+        "related": "Outils associés",
+        "faqTitle": "Questions fréquentes"
+      }
+    },
+    "cities": {
+      "index": {
+        "metaTitle": "Logiciel de Gestion Scolaire par Ville",
+        "metaDescription": "Trouvez le meilleur logiciel de gestion pour écoles dans votre ville. InsegnaMi.pro est disponible dans toutes les régions italiennes avec un support local.",
+        "breadcrumbHome": "Accueil",
+        "breadcrumbCities": "Villes",
+        "badge": "Couverture nationale",
+        "title": "Logiciel de Gestion Scolaire dans Votre Ville",
+        "subtitle": "InsegnaMi.pro est le logiciel cloud pour les écoles italiennes : il fonctionne depuis n'importe quelle ville, sans installation, avec un support par e-mail en italien.",
+        "stats": [
+          "Pour écoles privées et académies",
+          "Cloud : fonctionne partout",
+          "Support par e-mail en italien"
+        ],
+        "regionsTitle": "Choisissez",
+        "regionsHighlight": "Votre Région",
+        "regionsSubtitle": "Sélectionnez votre région pour explorer provinces et communes et découvrir comment InsegnaMi.pro peut aider les écoles de votre zone.",
+        "provinceCount": "{count, plural, one {# province} other {# provinces}}",
+        "regionCardText": "Logiciel de gestion pour écoles en {region}",
+        "whyTitle": "Pourquoi Choisir InsegnaMi.pro",
+        "whyHighlight": "pour Votre École ?",
+        "why": [
+          {
+            "title": "Support en Italien",
+            "text": "Assistance par e-mail en italien pour secrétariat, enseignants et administrateurs : nous vous aidons de la configuration initiale à l'usage quotidien."
+          },
+          {
+            "title": "Conformité RGPD",
+            "text": "InsegnaMi.pro traite les données des élèves et des familles dans le respect du RGPD et des réglementations italiennes sur la vie privée."
+          },
+          {
+            "title": "Cloud, Sans Installation",
+            "text": "Le logiciel fonctionne entièrement via le navigateur : aucun serveur à gérer, aucune installation, accessible depuis n'importe quelle ville italienne."
+          },
+          {
+            "title": "Prix Compétitifs",
+            "text": "Nous proposons des forfaits flexibles adaptés aux écoles de toute taille, des petites académies aux grands instituts."
+          }
+        ],
+        "ctaTitle": "Essayez InsegnaMi.pro Gratuitement",
+        "ctaSubtitle": "Commencez aujourd'hui votre essai gratuit de 14 jours. Aucune carte bancaire requise, support inclus."
+      },
+      "region": {
+        "metaTitle": "Logiciel de Gestion Scolaire en {region}",
+        "metaDescription": "InsegnaMi.pro est le logiciel de gestion scolaire pour les écoles de {region}. Gérez élèves, enseignants, paiements et bien plus. Essayez-le gratuitement !",
+        "notFound": "Région non trouvée",
+        "badge": "Région",
+        "title": "Logiciel de Gestion Scolaire en {region}",
+        "subtitleProvinces": "{count, plural, one {# province avec pages dédiées} other {# provinces avec pages dédiées}}",
+        "subtitleNoProvinces": "Le logiciel cloud pour les écoles de {region}",
+        "backLink": "Toutes les régions",
+        "provincesTitle": "Provinces en {region}",
+        "noProvincesTitle": "Un logiciel de gestion pour les écoles de {region}",
+        "provincesIntro": "InsegnaMi.pro fonctionne dans toutes les provinces de la région {region}. Sélectionnez votre province pour des informations sur votre zone.",
+        "noProvincesIntro": "InsegnaMi.pro est un logiciel cloud : il fonctionne dans n'importe quelle commune de la région {region}, sans installation. Découvrez les fonctionnalités ou commencez tout de suite l'essai gratuit.",
+        "provinceCardText": "Logiciel de gestion pour écoles dans la province de {province}",
+        "comuniCount": "{count, plural, one {# commune} other {# communes}}",
+        "everywhereTitle": "InsegnaMi.pro fonctionne partout en {region}",
+        "everywhereText": "En tant que logiciel cloud, InsegnaMi.pro ne nécessite aucune installation : registre électronique, présences, paiements et communications avec les familles sont accessibles depuis n'importe quelle commune de la région. Pour toute question sur votre zone, écrivez-nous depuis la page contact.",
+        "contactCta": "Contactez-nous par e-mail",
+        "seoTitle": "InsegnaMi.pro en {region}",
+        "seoText": "InsegnaMi.pro est le logiciel de gestion scolaire pensé pour les écoles de {region}. Nous offrons une solution complète pour la gestion d'écoles privées, académies de musique, écoles de danse, centres de formation et établissements éducatifs de tout type.",
+        "featuresTitle": "Fonctionnalités Principales",
+        "featuresList": [
+          "Gestion des élèves et inscriptions",
+          "Registre des présences numérique",
+          "Gestion des enseignants et horaires",
+          "Facturation et paiements",
+          "Communications avec les familles"
+        ],
+        "advantagesTitle": "Avantages pour les Écoles en {region}",
+        "advantagesList": [
+          "Support dédié en italien",
+          "Conformité RGPD et réglementations italiennes",
+          "Interface simple et intuitive",
+          "Prix accessibles pour toute taille",
+          "Essai gratuit de 14 jours"
+        ],
+        "ctaTitle": "Essayez InsegnaMi.pro dans Votre École",
+        "ctaSubtitle": "Faites passer la gestion de votre école en {region} au numérique. Essai gratuit de 14 jours, sans engagement."
+      },
+      "province": {
+        "metaTitle": "Logiciel de Gestion Scolaire à {province} ({sigla})",
+        "metaDescription": "Vous cherchez un logiciel de gestion pour votre école à {province} ? InsegnaMi.pro est la solution pour les écoles de la province de {province}, {region}. Essayez-le gratuitement !",
+        "notFound": "Province non trouvée",
+        "badge": "Province · {sigla}",
+        "title": "Logiciel de Gestion Scolaire à {province}",
+        "subtitle": "Province de {province}, {region}",
+        "backLink": "Retour à {region}",
+        "comuniTitle": "Communes de la Province de {province}",
+        "noComuniTitle": "Un logiciel de gestion pour les écoles de la province de {province}",
+        "comuniIntro": "InsegnaMi.pro fonctionne dans toutes les communes de la province de {province}. Trouvez votre ville pour découvrir comment notre logiciel peut aider votre école.",
+        "noComuniIntro": "InsegnaMi.pro est un logiciel cloud : il fonctionne dans n'importe quelle commune de la province de {province}, sans installation ni matériel dédié.",
+        "capBadge": "CP {cap}",
+        "populationBadge": "{population} hab.",
+        "everywhereTitle": "InsegnaMi.pro fonctionne partout dans la province de {province}",
+        "everywhereText": "Registre électronique, présences, paiements et communications avec les familles : tout est accessible via navigateur depuis n'importe quelle commune de la province de {province} ({sigla}). Pour toute question sur votre école, écrivez-nous par e-mail depuis la page contact.",
+        "contactCta": "Contactez-nous par e-mail",
+        "seoTitle": "Un Logiciel sur Mesure pour les Écoles de",
+        "seoSubtitle": "InsegnaMi.pro est conçu pour écoles privées, académies et centres de formation. Voici ce qu'il offre aux établissements de la province de {province} :",
+        "cards": [
+          {
+            "title": "Facile à Utiliser",
+            "text": "Une interface intuitive qui ne nécessite aucune formation technique. Vos enseignants et votre personnel seront opérationnels en quelques minutes."
+          },
+          {
+            "title": "Tout en Un",
+            "text": "Élèves, enseignants, classes, paiements, communications. Un seul logiciel pour gérer chaque aspect de votre école."
+          },
+          {
+            "title": "Support en Italien",
+            "text": "Une équipe de support italienne disponible pour vous aider. Assistance par e-mail incluse dans tous les forfaits."
+          }
+        ],
+        "ctaTitle": "Votre École à {province} Mérite le Meilleur",
+        "ctaSubtitle": "Faites passer la gestion de votre école à {province} au numérique. Commencez votre essai gratuit aujourd'hui."
+      },
+      "city": {
+        "metaTitle": "Logiciel de Gestion Scolaire à {city}",
+        "metaDescription": "Vous cherchez un logiciel de gestion pour votre école à {city} ? InsegnaMi.pro est la solution pour écoles privées, académies et centres de formation à {city}, {province}. Essai gratuit !",
+        "notFound": "Commune non trouvée",
+        "badge": "Commune",
+        "title": "Logiciel de Gestion Scolaire à {city}",
+        "subtitle": "Le logiciel de gestion pour écoles privées et académies",
+        "populationBadge": "{population} habitants",
+        "capBadge": "CP {cap}",
+        "backLink": "Province de {province}",
+        "introTitle": "InsegnaMi.pro pour les Écoles de {city}",
+        "introText1": "Vous cherchez un logiciel de gestion pour votre école privée, académie de musique, école de danse ou centre de formation à {city} ? InsegnaMi.pro est la solution complète et professionnelle qui vous permet de gérer chaque aspect de votre activité éducative.",
+        "introText2": "Avec InsegnaMi.pro, les écoles de {city} et de la province de {province} ({sigla}) peuvent enfin dire adieu aux feuilles Excel, registres papier et logiciels compliqués. Notre plateforme a été conçue autour des besoins spécifiques des écoles italiennes, avec conformité RGPD et support en italien.",
+        "whyTitle": "Pourquoi les écoles de {city} choisissent un logiciel de gestion",
+        "bulletPopulation": "Un bassin d'environ {population} habitants : gérer inscriptions, présences et versements sur papier ou feuilles Excel devient vite ingérable pour une école qui grandit.",
+        "bulletNoPopulation": "Les écoles du territoire de {city} gèrent chaque année des inscriptions, présences et versements qui deviennent vite ingérables sur papier ou feuilles Excel.",
+        "bulletFamilies": "Les familles de {city} et de la province de {province} ({sigla}) attendent des canaux numériques : circulaires, absences et situation des paiements consultables en ligne depuis le portail parents.",
+        "bulletCloud": "Avec un logiciel cloud, reçus et documents portent toujours les données correctes du site ({city}, CP {cap}) et sont accessibles depuis l'école comme depuis la maison.",
+        "toolsPrompt": "Vous voulez commencer petit ? Essayez nos outils gratuits :",
+        "toolGradeCalculator": "Calculateur de moyenne",
+        "toolAttendanceCalculator": "Calculateur de présences",
+        "toolScheduleGenerator": "Générateur d'emploi du temps hebdomadaire",
+        "featuresTitle": "Ce que Vous Pouvez Faire avec InsegnaMi.pro à {city}",
+        "features": {
+          "students": {
+            "title": "Gestion des Élèves",
+            "text": "Gérez facilement tous les élèves de votre école à {city}. Inscriptions, dossiers, documents et historique en un seul endroit."
+          },
+          "teachers": {
+            "title": "Gestion des Enseignants",
+            "text": "Organisez enseignants, horaires, disponibilités et rémunérations. Attribuez les classes et suivez les heures de cours."
+          },
+          "billing": {
+            "title": "Facturation et Paiements",
+            "text": "Générez des factures, gérez les paiements et suivez les encaissements. Intégration avec les principaux moyens de paiement."
+          },
+          "calendar": {
+            "title": "Calendrier et Présences",
+            "text": "Calendrier partagé, gestion des présences et registre électronique. Notifications automatiques pour parents et élèves."
+          },
+          "communications": {
+            "title": "Communications",
+            "text": "Communiquez avec les familles et les élèves de {city} par e-mail, SMS et notifications push. Newsletters et avis automatiques."
+          }
+        },
+        "reasonsTitle": "Pourquoi Choisir InsegnaMi.pro pour Votre École",
+        "reasons": [
+          {
+            "title": "Essai gratuit 14 jours",
+            "desc": "Testez toutes les fonctionnalités sans engagement"
+          },
+          {
+            "title": "Aucune carte bancaire",
+            "desc": "Commencez tout de suite, payez seulement si ça vous plaît"
+          },
+          {
+            "title": "Support en italien",
+            "desc": "Assistance dédiée par e-mail en italien"
+          },
+          {
+            "title": "Conforme RGPD",
+            "desc": "Données protégées et conformité aux réglementations sur la vie privée"
+          },
+          {
+            "title": "Mises à jour incluses",
+            "desc": "Nouvelles fonctionnalités et améliorations constantes"
+          },
+          {
+            "title": "Import de données",
+            "desc": "Migrez facilement depuis Excel ou d'autres logiciels"
+          }
+        ],
+        "faqTitle": "Questions Fréquentes des Écoles de {city}",
+        "faq1Question": "InsegnaMi.pro fonctionne-t-il pour les écoles de {city} ?",
+        "faq1Answer": "Oui. InsegnaMi.pro est un logiciel cloud : il s'utilise depuis le navigateur, à {city} comme dans n'importe quelle autre ville, sans installation ni serveur à gérer.",
+        "faq2Question": "Combien coûte un logiciel de gestion pour une école de {city} ?",
+        "faq2Answer": "Le prix dépend du nombre d'élèves de l'école : les forfaits sont publiés sur la page des tarifs et incluent 14 jours d'essai gratuit, sans carte bancaire.",
+        "faq3Question": "Comment démarrer avec mon école de {city} ?",
+        "faq3Answer": "Créez un compte avec l'essai gratuit, importez élèves et cours (même depuis Excel) et invitez enseignants et familles. Pour toute question, notre équipe répond par e-mail.",
+        "sidebar": {
+          "trialTitle": "Essai Gratuit",
+          "trialText": "14 jours d'essai gratuit pour votre école à {city}",
+          "trialCta": "Commencer l'Essai Gratuit",
+          "noCard": "Aucune carte bancaire requise",
+          "infoTitle": "Informations sur {city}",
+          "provinceLabel": "Province",
+          "regionLabel": "Région",
+          "capLabel": "Code postal",
+          "populationLabel": "Population",
+          "questionsTitle": "Des Questions ?",
+          "questionsText": "Notre équipe est disponible pour vous aider à choisir le bon forfait pour votre école à {city}.",
+          "contactCta": "Contactez-nous"
+        },
+        "nearbyTitle": "InsegnaMi.pro dans d'Autres Communes de {province}",
+        "ctaTitle": "Commencez Aujourd'hui avec InsegnaMi.pro à {city}",
+        "ctaSubtitle": "Simplifiez la gestion quotidienne de votre école à {city} ({province}). Essai gratuit de 14 jours, aucune carte bancaire requise."
+      }
+    }
   }
 }

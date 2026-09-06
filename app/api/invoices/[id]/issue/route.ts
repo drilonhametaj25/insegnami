@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAuth, authError, tenantScope } from '@/lib/api-auth';
 import { assignInvoiceNumber } from '@/lib/billing/invoice-numbering';
+import { validateInvoiceFiscalData } from '@/lib/billing/sdi/fiscal-validation';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -20,7 +21,7 @@ interface RouteParams {
  */
 export async function POST(_request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'update', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'update', resource: 'invoice' }, feature: 'einvoicing' });
     const { id } = await params;
 
     const existing = await prisma.invoice.findFirst({
@@ -32,6 +33,13 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
         year: true,
         customerProfileId: true,
         _count: { select: { lines: true } },
+        lines: { select: { lineNumber: true, vatRate: true, vatNature: true } },
+        customerProfile: {
+          select: {
+            codiceFiscale: true, partitaIva: true, cap: true,
+            nazione: true, codiceDestinatario: true, pec: true,
+          },
+        },
       },
     });
     if (!existing) return NextResponse.json({ error: 'Fattura non trovata' }, { status: 404 });
@@ -45,6 +53,19 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { error: 'Impossibile emettere una fattura senza righe' },
         { status: 400 },
+      );
+    }
+
+    // Validazione fiscale PRIMA di consumare un numero: un XML che SDI
+    // scarterebbe non deve bruciare la numerazione progressiva.
+    const problems = validateInvoiceFiscalData({
+      lines: existing.lines,
+      customer: existing.customerProfile,
+    });
+    if (problems.length > 0) {
+      return NextResponse.json(
+        { error: 'Dati fiscali incompleti: correggi prima di emettere', fields: problems },
+        { status: 422 },
       );
     }
 

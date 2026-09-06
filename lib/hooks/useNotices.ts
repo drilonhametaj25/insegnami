@@ -6,20 +6,28 @@ export interface Notice {
   id: string;
   title: string;
   content: string;
-  type: 'GENERAL' | 'URGENT' | 'EVENT' | 'ANNOUNCEMENT';
+  type: 'GENERAL' | 'URGENT' | 'EVENT' | 'ANNOUNCEMENT' | 'REMINDER';
   status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED';
-  priority: 'LOW' | 'MEDIUM' | 'HIGH';
-  publishedAt?: Date;
-  expiresAt?: Date;
+  // Campi reali del model Notice (API Prisma)
+  targetRoles?: string[]; // ['ADMIN','TEACHER','STUDENT','PARENT']
+  isPublic?: boolean;
+  isPinned?: boolean;
+  isUrgent?: boolean;
+  publishAt?: string;
+  publishedAt?: Date | string | null;
+  expiresAt?: Date | string | null;
   createdAt: Date;
   updatedAt: Date;
-  author: {
+  author?: {
     id: string;
     firstName: string;
     lastName: string;
     email: string;
   };
-  targetAudience: string[]; // ['STUDENTS', 'TEACHERS', 'PARENTS', 'ALL']
+  /** Legacy UI: derivato da isUrgent lato client */
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+  /** Legacy UI: derivato da targetRoles lato client */
+  targetAudience?: string[];
   attachments?: {
     id: string;
     filename: string;
@@ -49,12 +57,17 @@ export interface NoticeStats {
 export interface CreateNoticeData {
   title: string;
   content: string;
-  type?: 'GENERAL' | 'URGENT' | 'EVENT' | 'ANNOUNCEMENT';
+  type?: 'GENERAL' | 'URGENT' | 'EVENT' | 'ANNOUNCEMENT' | 'REMINDER';
   status?: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED';
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+  targetRoles?: string[];
+  isPublic?: boolean;
+  isPinned?: boolean;
+  isUrgent?: boolean;
+  publishAt?: string;
   publishedAt?: string;
   expiresAt?: string;
-  targetAudience: string[];
+  /** Legacy: usato solo dal form, mappato su targetRoles prima dell'invio */
+  targetAudience?: string[];
 }
 
 // Query Keys

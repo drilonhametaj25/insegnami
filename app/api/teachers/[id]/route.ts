@@ -258,6 +258,34 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           { status: 400 }
         );
       }
+
+      // Anti-bypass limiti piano: la riattivazione di un docente non attivo
+      // conta come nuovo posto occupato (stesso guard di POST e bulk-activate).
+      if (
+        status === 'ACTIVE' &&
+        existingTeacher.status !== 'ACTIVE' &&
+        session.user.role !== 'SUPERADMIN'
+      ) {
+        const { getEffectiveLimits } = await import('@/lib/billing/limits');
+        const limits = await getEffectiveLimits(existingTeacher.tenantId);
+        if (limits.maxTeachers != null) {
+          const currentActive = await prisma.teacher.count({
+            where: { tenantId: existingTeacher.tenantId, status: 'ACTIVE' },
+          });
+          if (currentActive + 1 > limits.maxTeachers) {
+            return NextResponse.json(
+              {
+                error: `Limite docenti del piano raggiunto (${limits.maxTeachers}): impossibile riattivare il docente. Effettua l'upgrade del piano o acquista un add-on.`,
+                code: 'plan-limit',
+                limit: limits.maxTeachers,
+                current: currentActive,
+              },
+              { status: 403 }
+            );
+          }
+        }
+      }
+
       updateData.status = status;
     }
 

@@ -1,30 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { requireAuth, authError } from '@/lib/api-auth';
 
-// GET /api/dashboard/student - Get student dashboard data
+// GET /api/dashboard/student - Dashboard dello studente autenticato
 export async function GET(request: NextRequest) {
   try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const ctx = await requireAuth({ roles: ['STUDENT'] });
 
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
-
-    // Only STUDENT role can access student dashboard
-    if (session.user.role !== 'STUDENT') {
-      return NextResponse.json({ error: 'Forbidden - Student access only' }, { status: 403 });
-    }
-
-    // Get student record
+    // Risoluzione studente via FK Student.userId, sempre scoped per tenant
     const student = await prisma.student.findFirst({
       where: {
-        userId: session.user.id,
-        tenantId: session.user.tenantId,
-      } as any,
+        userId: ctx.userId,
+        tenantId: ctx.tenantId,
+      },
       include: {
         user: {
           select: {
@@ -44,159 +32,125 @@ export async function GET(request: NextRequest) {
             phone: true,
           },
         },
-        // Include student classes and lessons
-        StudentClass: {
+        classes: {
           include: {
             class: {
               include: {
                 course: true,
                 teacher: {
-                  include: {
-                    user: true,
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
                   },
                 },
               },
             },
           },
         },
-      } as any,
+      },
     });
 
     if (!student) {
-      return NextResponse.json({ error: 'Student profile not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Profilo studente non trovato per questo account' },
+        { status: 404 }
+      );
     }
 
-    // Get upcoming lessons for this student (next 7 days)
     const now = new Date();
     const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const classIds = student.classes.map((sc) => sc.classId);
+
+    // Prossime lezioni (7 giorni)
     const upcomingLessons = await prisma.lesson.findMany({
       where: {
-        tenantId: session.user.tenantId,
-        startTime: {
-          gte: now,
-          lte: weekFromNow,
-        },
+        tenantId: ctx.tenantId,
+        startTime: { gte: now, lte: weekFromNow },
         class: {
-          StudentClass: {
-            some: {
-              studentId: student.id,
-            },
-          },
+          students: { some: { studentId: student.id } },
         },
       },
       include: {
         teacher: {
-          include: {
-            user: true,
-          },
+          select: { id: true, firstName: true, lastName: true, email: true },
         },
-        class: {
-          include: {
-            course: true,
-          },
-        },
+        class: { include: { course: true } },
       },
-      orderBy: {
-        startTime: 'asc',
-      },
+      orderBy: { startTime: 'asc' },
       take: 10,
-    } as any);
+    });
 
-    // Get attendance records for this student (last 30 days)
-    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    
+    // Presenze ultimi 30 giorni: Attendance non ha tenantId, si scopa via lesson
     const attendanceRecords = await prisma.attendance.findMany({
       where: {
-        tenantId: session.user.tenantId,
         studentId: student.id,
-        recordedAt: {
-          gte: monthAgo,
+        lesson: {
+          tenantId: ctx.tenantId,
+          startTime: { gte: monthAgo },
         },
       },
       include: {
         lesson: {
           include: {
             teacher: {
-              include: {
-                user: true,
-              },
+              select: { id: true, firstName: true, lastName: true },
             },
-            class: {
-              include: {
-                course: true,
-              },
-            },
+            class: { include: { course: true } },
           },
         },
       },
-      orderBy: {
-        recordedAt: 'desc',
-      },
-    } as any);
+      orderBy: { lesson: { startTime: 'desc' } },
+    });
 
-    // Calculate attendance rate
     const totalAttendanceRecords = attendanceRecords.length;
-    const presentRecords = attendanceRecords.filter(record => record.status === 'PRESENT').length;
-    const attendanceRate = totalAttendanceRecords > 0 ? Math.round((presentRecords / totalAttendanceRecords) * 100) : 0;
+    const presentRecords = attendanceRecords.filter((r) => r.status === 'PRESENT').length;
+    const attendanceRate =
+      totalAttendanceRecords > 0
+        ? Math.round((presentRecords / totalAttendanceRecords) * 100)
+        : 0;
 
-    // Get student payments
     const payments = await prisma.payment.findMany({
       where: {
-        tenantId: session.user.tenantId,
+        tenantId: ctx.tenantId,
         studentId: student.id,
       },
-      orderBy: {
-        dueDate: 'desc',
-      },
+      orderBy: { dueDate: 'desc' },
       take: 20,
-    } as any);
+    });
 
-    // Get notices for students
+    // Avvisi pubblicati e non scaduti destinati agli studenti
     const notices = await prisma.notice.findMany({
       where: {
-        tenantId: session.user.tenantId,
+        tenantId: ctx.tenantId,
         isPublic: true,
-        targetRoles: {
-          has: 'STUDENT',
-        },
+        targetRoles: { has: 'STUDENT' },
+        publishAt: { lte: now },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
-      orderBy: {
-        publishAt: 'desc',
-      },
+      orderBy: [{ isPinned: 'desc' }, { isUrgent: 'desc' }, { publishAt: 'desc' }],
       take: 10,
     });
 
-    // Get homework/assignments for this student
-    const classIds = (student as any).StudentClass?.map((sc: any) => sc.class.id) || [];
     const homework = await prisma.homework.findMany({
       where: {
-        tenantId: session.user.tenantId,
+        tenantId: ctx.tenantId,
         classId: { in: classIds },
         isPublished: true,
       },
       include: {
-        subject: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+        subject: { select: { id: true, name: true } },
         class: {
           select: {
             id: true,
             name: true,
-            course: {
-              select: {
-                name: true,
-              },
-            },
+            course: { select: { name: true } },
           },
         },
         submissions: {
-          where: {
-            studentId: student.id,
-          },
+          where: { studentId: student.id },
           select: {
             id: true,
             submittedAt: true,
@@ -205,62 +159,42 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: {
-        dueDate: 'asc',
-      },
+      orderBy: { dueDate: 'asc' },
       take: 20,
     });
 
-    // Get student's hours packages
+    // Pacchetti ore attivi (campi reali: totalHours/remainingHours/expiryDate)
     const hoursPackages = await prisma.hoursPackage.findMany({
       where: {
-        tenantId: session.user.tenantId,
+        tenantId: ctx.tenantId,
         studentId: student.id,
         isActive: true,
       },
       include: {
-        course: {
-          select: {
-            id: true,
-            name: true,
-            level: true,
-          },
-        },
+        course: { select: { id: true, name: true, level: true } },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
 
-    // Get total lesson counts per class for progress calculation
+    // Conteggio lezioni per classe (per la barra progresso)
     const lessonCounts = await prisma.lesson.groupBy({
       by: ['classId'],
       where: {
-        tenantId: session.user.tenantId,
+        tenantId: ctx.tenantId,
         classId: { in: classIds },
       },
-      _count: {
-        id: true,
-      },
+      _count: { id: true },
     });
+    const lessonCountMap = new Map(lessonCounts.map((lc) => [lc.classId, lc._count.id]));
 
-    const lessonCountMap = new Map(lessonCounts.map(lc => [lc.classId, lc._count.id]));
-
-    // Get class-wise attendance from actual attendance records
     const classAttendance = await prisma.attendance.findMany({
       where: {
         studentId: student.id,
         status: 'PRESENT',
-        lesson: {
-          tenantId: session.user.tenantId,
-        },
+        lesson: { tenantId: ctx.tenantId },
       },
       include: {
-        lesson: {
-          select: {
-            classId: true,
-          },
-        },
+        lesson: { select: { classId: true } },
       },
     });
 
@@ -272,7 +206,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Build dashboard data
     const dashboardData = {
       student: {
         id: student.id,
@@ -288,41 +221,37 @@ export async function GET(request: NextRequest) {
         parentUser: student.parentUser,
       },
 
-      // Statistics
       stats: {
-        activeCourses: (student as any).StudentClass?.length || 0,
+        activeCourses: student.classes.length,
         attendanceRate,
         upcomingLessons: upcomingLessons.length,
-        totalLessons: attendanceRecords.length,
-        pendingPayments: payments.filter(p => p.status === 'PENDING').length,
+        totalLessons: totalAttendanceRecords,
+        pendingPayments: payments.filter((p) => p.status === 'PENDING').length,
       },
 
-      // Classes and courses with progress
-      classes: (student as any).StudentClass?.map((sc: any) => {
-        const totalLessons = lessonCountMap.get(sc.class.id) || 0;
-        const attendedLessons = attendedByClass.get(sc.class.id) || 0;
-        const progress = totalLessons > 0 ? Math.round((attendedLessons / totalLessons) * 100) : 0;
+      classes: student.classes.map((sc) => {
+        const totalLessons = lessonCountMap.get(sc.classId) || 0;
+        const attendedLessons = attendedByClass.get(sc.classId) || 0;
+        const progress =
+          totalLessons > 0 ? Math.round((attendedLessons / totalLessons) * 100) : 0;
 
         return {
           id: sc.class.id,
           name: sc.class.name,
-          description: sc.class.description,
-          schedule: sc.class.schedule,
           course: sc.class.course,
           teacher: {
             id: sc.class.teacher.id,
-            name: `${sc.class.teacher.user.firstName} ${sc.class.teacher.user.lastName}`,
-            email: sc.class.teacher.user.email,
+            name: `${sc.class.teacher.firstName} ${sc.class.teacher.lastName}`,
+            email: sc.class.teacher.email,
           },
           enrolledAt: sc.enrolledAt,
           progress,
           totalLessons,
           attendedLessons,
         };
-      }) || [],
+      }),
 
-      // Upcoming lessons
-      upcomingLessons: upcomingLessons.map((lesson: any) => ({
+      upcomingLessons: upcomingLessons.map((lesson) => ({
         id: lesson.id,
         title: lesson.title,
         description: lesson.description,
@@ -330,8 +259,8 @@ export async function GET(request: NextRequest) {
         endTime: lesson.endTime,
         status: lesson.status,
         teacher: {
-          name: `${lesson.teacher.user.firstName} ${lesson.teacher.user.lastName}`,
-          email: lesson.teacher.user.email,
+          name: `${lesson.teacher.firstName} ${lesson.teacher.lastName}`,
+          email: lesson.teacher.email,
         },
         class: {
           name: lesson.class.name,
@@ -341,34 +270,30 @@ export async function GET(request: NextRequest) {
         materials: lesson.materials,
       })),
 
-      // Recent attendance
-      recentAttendance: attendanceRecords.slice(0, 10).map((record: any) => ({
+      recentAttendance: attendanceRecords.slice(0, 10).map((record) => ({
         id: record.id,
         status: record.status,
-        recordedAt: record.recordedAt,
+        recordedAt: record.createdAt,
         notes: record.notes,
         lesson: {
           id: record.lesson.id,
           title: record.lesson.title,
           date: record.lesson.startTime,
-          teacher: `${record.lesson.teacher.user.firstName} ${record.lesson.teacher.user.lastName}`,
+          teacher: `${record.lesson.teacher.firstName} ${record.lesson.teacher.lastName}`,
           course: record.lesson.class.course?.name,
         },
       })),
 
-      // Payments
-      payments: payments.map((payment: any) => ({
+      payments: payments.map((payment) => ({
         id: payment.id,
         amount: payment.amount,
         description: payment.description,
         dueDate: payment.dueDate,
         status: payment.status,
-        paidAt: payment.paidAt,
-        type: payment.type,
+        paidDate: payment.paidDate,
       })),
 
-      // Notices
-      notices: notices.map(notice => ({
+      notices: notices.map((notice) => ({
         id: notice.id,
         title: notice.title,
         content: notice.content,
@@ -378,8 +303,7 @@ export async function GET(request: NextRequest) {
         targetRoles: notice.targetRoles,
       })),
 
-      // Homework/Assignments
-      homework: homework.map((hw: any) => {
+      homework: homework.map((hw) => {
         const submission = hw.submissions[0];
         let status: 'pending' | 'submitted' | 'graded' = 'pending';
         if (submission) {
@@ -395,39 +319,39 @@ export async function GET(request: NextRequest) {
           dueDate: hw.dueDate,
           assignedDate: hw.assignedDate,
           status,
-          grade: submission?.grade,
+          grade: submission?.grade != null ? Number(submission.grade) : undefined,
           feedback: submission?.feedback,
           submittedAt: submission?.submittedAt,
         };
       }),
 
-      // Hours Packages
-      hoursPackages: hoursPackages.map((pkg: any) => {
-        const usedPercentage = pkg.totalHours > 0
-          ? Math.round((pkg.usedHours / pkg.totalHours) * 100)
-          : 0;
-        const remainingHours = pkg.totalHours - pkg.usedHours;
-        const isLow = remainingHours <= pkg.totalHours * 0.2; // 20% threshold
+      hoursPackages: hoursPackages.map((pkg) => {
+        const totalHours = Number(pkg.totalHours);
+        const remainingHours = Number(pkg.remainingHours);
+        const usedHours = Math.max(0, totalHours - remainingHours);
+        const usedPercentage =
+          totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0;
+        const isLow = remainingHours <= totalHours * 0.2; // soglia 20%
 
         return {
           id: pkg.id,
-          name: pkg.name,
           course: pkg.course,
-          totalHours: pkg.totalHours,
-          usedHours: pkg.usedHours,
+          totalHours,
+          usedHours,
           remainingHours,
           usedPercentage,
           isLow,
-          expiresAt: pkg.expiresAt,
-          status: pkg.status,
-          purchaseDate: pkg.createdAt,
+          expiryDate: pkg.expiryDate,
+          isActive: pkg.isActive,
+          purchaseDate: pkg.purchaseDate,
         };
       }),
     };
 
     return NextResponse.json({ success: true, data: dashboardData });
-
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     console.error('Error fetching student dashboard:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

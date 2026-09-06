@@ -18,7 +18,8 @@ import {
 } from '@mantine/core';
 import { IconCalendar, IconClock, IconUser } from '@tabler/icons-react';
 import Link from 'next/link';
-import { getBlogPost, getBlogSlugs, getRelatedPosts } from '@/lib/blog';
+import { getBlogPost, getBlogSlugs, getPostLocales, getRelatedPosts, slugifyTaxonomy } from '@/lib/blog';
+import { buildPublicMetadata, SITE_URL } from '@/lib/seo';
 import { CtaBanner } from '@/components/public/PublicUI';
 import { blogMarkdownComponents } from '@/components/public/BlogMarkdown';
 
@@ -50,23 +51,43 @@ export async function generateMetadata({
     };
   }
 
-  return {
+  // Canonical/hreflang via buildPublicMetadata, ma con hreflang limitato ai
+  // SOLI locali in cui il post esiste davvero: un post senza traduzione non
+  // deve dichiarare alternate verso 404.
+  const metadata = buildPublicMetadata({
+    locale,
+    path: `/blog/${slug}`,
     title: post.title,
     description: post.description,
+    ogImage: post.image ? `${SITE_URL}${post.image}` : undefined,
+  });
+
+  const availableLocales = await getPostLocales(slug);
+  if (metadata.alternates) {
+    if (availableLocales.length > 1) {
+      const languages: Record<string, string> = Object.fromEntries(
+        availableLocales.map((l) => [l, `${SITE_URL}/${l}/blog/${slug}`])
+      );
+      // x-default solo se esiste la versione italiana (default del sito)
+      if (availableLocales.includes('it')) {
+        languages['x-default'] = `${SITE_URL}/it/blog/${slug}`;
+      }
+      metadata.alternates.languages = languages;
+    } else {
+      // Post in un solo locale: canonical self, nessun hreflang
+      delete metadata.alternates.languages;
+    }
+  }
+
+  return {
+    ...metadata,
     authors: [{ name: post.author }],
     openGraph: {
-      title: post.title,
-      description: post.description,
+      ...metadata.openGraph,
       type: 'article',
       publishedTime: post.date,
+      ...(post.updated ? { modifiedTime: post.updated } : {}),
       authors: [post.author],
-      images: post.image ? [post.image] : [],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: post.title,
-      description: post.description,
-      images: post.image ? [post.image] : [],
     },
   };
 }
@@ -105,7 +126,8 @@ export default async function BlogPostPage({
       },
     },
     datePublished: post.date,
-    dateModified: post.date,
+    // dateModified dal frontmatter 'updated' quando presente
+    dateModified: post.updated ?? post.date,
   };
 
   return (
@@ -138,7 +160,15 @@ export default async function BlogPostPage({
           </Breadcrumbs>
 
           <header>
-            <Badge variant="light" color="indigo" radius="xl" mb="sm">
+            <Badge
+              component={Link}
+              href={`/${locale}/blog/categoria/${slugifyTaxonomy(post.category)}`}
+              variant="light"
+              color="indigo"
+              radius="xl"
+              mb="sm"
+              style={{ cursor: 'pointer' }}
+            >
               {post.category}
             </Badge>
 
@@ -201,7 +231,16 @@ export default async function BlogPostPage({
                 Tag:
               </Text>
               {post.tags.map((tag) => (
-                <Badge key={tag} variant="outline" color="indigo" size="sm" radius="xl">
+                <Badge
+                  key={tag}
+                  component={Link}
+                  href={`/${locale}/blog/tag/${slugifyTaxonomy(tag)}`}
+                  variant="outline"
+                  color="indigo"
+                  size="sm"
+                  radius="xl"
+                  style={{ cursor: 'pointer' }}
+                >
                   {tag}
                 </Badge>
               ))}

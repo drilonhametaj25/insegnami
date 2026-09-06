@@ -1,5 +1,7 @@
 import { Anchor, Box, Container, Divider, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
+import { FEATURE_SLUGS } from '@/app/[locale]/(public)/funzionalita/_content';
 import { PUB_GRADIENT } from './PublicUI';
 
 const linkStyle = { color: 'var(--mantine-color-gray-5)' };
@@ -14,33 +16,45 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
 
 export async function PublicFooter({ locale }: { locale: string }) {
   const currentYear = new Date().getFullYear();
+  const t = await getTranslations({ locale, namespace: 'public.footer' });
+  const tf = await getTranslations({ locale, namespace: 'public.features' });
 
   const columns: { title: string; links: { label: string; href: string }[] }[] = [
     {
-      title: 'Prodotto',
+      title: t('productTitle'),
       links: [
-        { label: 'Funzionalità', href: `/${locale}/#features` },
-        { label: 'Prezzi', href: `/${locale}/pricing` },
-        { label: 'Blog', href: `/${locale}/blog` },
-        { label: 'Scuole per città', href: `/${locale}/citta` },
+        { label: t('links.features'), href: `/${locale}/funzionalita` },
+        { label: t('links.pricing'), href: `/${locale}/pricing` },
+        { label: t('links.blog'), href: `/${locale}/blog` },
+        { label: t('links.cities'), href: `/${locale}/citta` },
       ],
     },
     {
-      title: 'Strumenti gratuiti',
+      title: t('featuresTitle'),
+      links: FEATURE_SLUGS.map((slug) => ({
+        label: tf(`pages.${slug}.navLabel`),
+        href: `/${locale}/funzionalita/${slug}`,
+      })),
+    },
+    {
+      title: t('toolsTitle'),
       links: [
-        { label: 'Tutti gli strumenti', href: `/${locale}/tools` },
-        { label: 'Calcolatore media voti', href: `/${locale}/tools/calcolatore-media-voti` },
-        { label: 'Calcolatore presenze', href: `/${locale}/tools/calcolatore-presenze` },
-        { label: 'Generatore orario', href: `/${locale}/tools/generatore-orario-settimanale` },
+        { label: t('links.allTools'), href: `/${locale}/tools` },
+        { label: t('links.gradeCalculator'), href: `/${locale}/tools/calcolatore-media-voti` },
+        { label: t('links.attendanceCalculator'), href: `/${locale}/tools/calcolatore-presenze` },
+        {
+          label: t('links.scheduleGenerator'),
+          href: `/${locale}/tools/generatore-orario-settimanale`,
+        },
       ],
     },
     {
-      title: 'Azienda e legale',
+      title: t('legalTitle'),
       links: [
-        { label: 'Contatti', href: `/${locale}/contact` },
-        { label: 'Privacy Policy', href: `/${locale}/privacy` },
-        { label: 'Termini di servizio', href: `/${locale}/terms` },
-        { label: 'Cookie Policy', href: `/${locale}/cookies` },
+        { label: t('links.contact'), href: `/${locale}/contact` },
+        { label: t('links.privacy'), href: `/${locale}/privacy` },
+        { label: t('links.terms'), href: `/${locale}/terms` },
+        { label: t('links.cookies'), href: `/${locale}/cookies` },
       ],
     },
   ];
@@ -48,14 +62,13 @@ export async function PublicFooter({ locale }: { locale: string }) {
   return (
     <Box component="footer" style={{ backgroundColor: 'var(--pub-ink)', marginTop: 'auto' }}>
       <Container size="xl" py={56}>
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="xl">
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 5 }} spacing="xl">
           <Stack gap="sm">
             <Text size="xl" fw={800} variant="gradient" gradient={PUB_GRADIENT}>
               InsegnaMi.pro
             </Text>
             <Text size="sm" c="gray.5" maw={260}>
-              Il gestionale all-in-one per scuole private, accademie e centri di formazione.
-              Registro elettronico, presenze, pagamenti e comunicazioni.
+              {t('description')}
             </Text>
           </Stack>
 
@@ -77,7 +90,7 @@ export async function PublicFooter({ locale }: { locale: string }) {
 
         <Group justify="space-between" gap="md">
           <Text size="sm" c="gray.6">
-            &copy; {currentYear} InsegnaMi.pro. Tutti i diritti riservati. | P.IVA: 07327360488
+            &copy; {currentYear} InsegnaMi.pro. {t('rights')} | P.IVA: 07327360488
           </Text>
           <Group gap={4}>
             {(['it', 'en', 'fr', 'pt'] as const).map((lang, i) => (

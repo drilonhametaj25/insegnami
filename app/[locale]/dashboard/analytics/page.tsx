@@ -129,7 +129,8 @@ export default function AnalyticsPage() {
   const isLoading = overviewLoading || attendanceLoading || financialLoading || trendsLoading;
   const pnlReport = pnlData?.report;
 
-  const handleExport = async (type: string, format: 'csv' | 'xlsx' | 'pdf') => {
+  // Solo CSV: /api/analytics/export rifiuta gli altri formati
+  const handleExport = async (type: string, format: 'csv') => {
     try {
       await exportAnalyticsData(type, format, period);
     } catch (error) {
@@ -350,7 +351,7 @@ export default function AnalyticsPage() {
               <Button 
                 variant="subtle" 
                 size="xs"
-                onClick={() => handleExport('attendance', 'xlsx')}
+                onClick={() => handleExport('attendance', 'csv')}
               >
                 <IconDownload size={14} />
               </Button>
@@ -391,7 +392,7 @@ export default function AnalyticsPage() {
               <Button 
                 variant="subtle" 
                 size="xs"
-                onClick={() => handleExport('financial', 'xlsx')}
+                onClick={() => handleExport('financial', 'csv')}
               >
                 <IconDownload size={14} />
               </Button>
@@ -434,7 +435,7 @@ export default function AnalyticsPage() {
               <Button 
                 variant="subtle" 
                 size="xs"
-                onClick={() => handleExport('trends', 'xlsx')}
+                onClick={() => handleExport('trends', 'csv')}
               >
                 <IconDownload size={14} />
               </Button>
@@ -486,26 +487,13 @@ export default function AnalyticsPage() {
             </Text>
           </div>
           <Group>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => handleExport('overview', 'csv')}
+              data-testid="analytics-export-csv"
             >
               Export CSV
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => handleExport('overview', 'xlsx')}
-            >
-              Export Excel
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => handleExport('overview', 'pdf')}
-            >
-              Export PDF
             </Button>
           </Group>
         </Group>

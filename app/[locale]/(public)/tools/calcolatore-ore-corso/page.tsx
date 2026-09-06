@@ -1,18 +1,21 @@
 import { Metadata } from 'next';
-import { faqJsonLd, type FaqItem } from '@/components/public/ToolPageShell';
+import { faqJsonLd, toolPageMetadata, type FaqItem } from '@/components/public/ToolPageShell';
 import { CalcolatoreOreCorsoClient } from './CalcolatoreOreCorsoClient';
 
-export const metadata: Metadata = {
-  title: 'Calcolatore Ore Corso | Strumenti Gratuiti',
-  description:
-    'Calcola gratis il totale delle ore di un corso, il numero di lezioni necessarie e la data di fine: pianificazione settimanale automatica per scuole e centri di formazione.',
-  openGraph: {
-    title: 'Calcolatore Ore Corso | Strumenti Gratuiti | InsegnaMi.pro',
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return toolPageMetadata({
+    locale,
+    slug: 'calcolatore-ore-corso',
+    title: 'Calcolatore Ore Corso | Strumenti Gratuiti',
     description:
-      'Calcola il totale delle ore di un corso, il numero di lezioni necessarie e la data di fine con la pianificazione settimanale automatica.',
-    type: 'website',
-  },
-};
+      'Calcola gratis il totale delle ore di un corso, il numero di lezioni necessarie e la data di fine: pianificazione settimanale automatica per scuole e centri di formazione.',
+  });
+}
 
 const faqs: FaqItem[] = [
   {

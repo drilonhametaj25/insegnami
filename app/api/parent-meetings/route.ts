@@ -48,10 +48,14 @@ export async function GET(request: NextRequest) {
     // Role-based filtering
     if (session.user.role === 'PARENT') {
       // Parents see meetings for their children
+      // Guardian-aware: StudentGuardian + fallback legacy su parentUserId
       const children = await prisma.student.findMany({
         where: {
-          parentUserId: session.user.id,
           tenantId: session.user.tenantId,
+          OR: [
+            { parentUserId: session.user.id },
+            { guardians: { some: { userId: session.user.id } } },
+          ],
         },
         select: { id: true },
       });
@@ -244,9 +248,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For PARENT, verify they are the parent of this student
+    // For PARENT, verify they are a guardian of this student
+    // Guardian-aware: StudentGuardian + fallback legacy su parentUserId
     if (session.user.role === 'PARENT') {
-      if (student.parentUserId !== session.user.id) {
+      const isGuardian =
+        student.parentUserId === session.user.id ||
+        !!(await prisma.studentGuardian.findFirst({
+          where: {
+            studentId: student.id,
+            userId: session.user.id,
+            tenantId: session.user.tenantId,
+          },
+          select: { id: true },
+        }));
+      if (!isGuardian) {
         return NextResponse.json(
           { error: 'Non autorizzato per questo studente' },
           { status: 403 }

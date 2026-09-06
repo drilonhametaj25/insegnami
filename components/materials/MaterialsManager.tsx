@@ -169,14 +169,14 @@ export function MaterialsManager({
     } finally {
       setUploading(false);
     }
-  }, [classId, canEdit, onMaterialsUpdate]);
+  }, [actualId, entityType, apiPath, canEdit, onMaterialsUpdate]);
 
   // Delete material
   const deleteMaterial = async (materialId: string) => {
     if (!canEdit) return;
 
     try {
-      const response = await fetch(`/api/classes/${classId}/materials/${materialId}`, {
+      const response = await fetch(`/api/${apiPath}/materials/${materialId}`, {
         method: 'DELETE',
       });
 
@@ -219,7 +219,7 @@ export function MaterialsManager({
     if (!selectedMaterial || !canEdit) return;
 
     try {
-      const response = await fetch(`/api/classes/${classId}/materials/${selectedMaterial.id}`, {
+      const response = await fetch(`/api/${apiPath}/materials/${selectedMaterial.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -233,8 +233,17 @@ export function MaterialsManager({
 
       if (response.ok) {
         const updatedMaterial = await response.json();
-        setLocalMaterials(prev => 
-          prev.map(m => m.id === selectedMaterial.id ? updatedMaterial : m)
+        // Merge: l'API restituisce il record raw, la lista usa la forma client
+        setLocalMaterials(prev =>
+          prev.map(m =>
+            m.id === selectedMaterial.id
+              ? {
+                  ...m,
+                  name: updatedMaterial.name ?? editForm.name,
+                  description: updatedMaterial.description ?? editForm.description,
+                }
+              : m
+          )
         );
         
         notifications.show({
@@ -260,24 +269,18 @@ export function MaterialsManager({
     }
   };
 
-  // Download file
-  const downloadFile = async (material: Material) => {
+  // Download file: l'endpoint REST restituisce il file (o redirect per URL esterni)
+  const downloadFile = (material: Material) => {
     try {
-      // Track download
-      await fetch(`/api/classes/${classId}/materials/${material.id}/download`, {
-        method: 'POST',
-      });
-      
-      // Trigger download
       const link = document.createElement('a');
-      link.href = material.fileUrl;
+      link.href = `/api/${apiPath}/materials/${material.id}?download=1`;
       link.download = material.fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       // Update download count locally
-      setLocalMaterials(prev => 
+      setLocalMaterials(prev =>
         prev.map(m => m.id === material.id ? { ...m, downloads: m.downloads + 1 } : m)
       );
     } catch (error) {

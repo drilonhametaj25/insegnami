@@ -1,7 +1,7 @@
 import { Page, APIRequestContext, expect } from '@playwright/test';
 import path from 'path';
 
-export type Role = 'admin' | 'teacher' | 'student' | 'parent' | 'admin2';
+export type Role = 'admin' | 'director' | 'secretary' | 'teacher' | 'student' | 'parent' | 'admin2';
 
 /** Cartella e path degli storage state salvati dal progetto di setup. */
 export const AUTH_DIR = path.join(__dirname, '..', '.auth');
@@ -13,6 +13,8 @@ const E2E_PASSWORD = process.env.E2E_PASSWORD ?? 'password';
 
 export const ACCOUNTS: Record<Role, { email: string; password: string }> = {
   admin: { email: process.env.E2E_ADMIN_EMAIL ?? 'admin@englishplus.it', password: E2E_PASSWORD },
+  director: { email: process.env.E2E_DIRECTOR_EMAIL ?? 'director@englishplus.it', password: E2E_PASSWORD },
+  secretary: { email: process.env.E2E_SECRETARY_EMAIL ?? 'secretary@englishplus.it', password: E2E_PASSWORD },
   teacher: { email: process.env.E2E_TEACHER_EMAIL ?? 'teacher@englishplus.it', password: E2E_PASSWORD },
   student: { email: process.env.E2E_STUDENT_EMAIL ?? 'student@englishplus.it', password: E2E_PASSWORD },
   parent: { email: process.env.E2E_PARENT_EMAIL ?? 'parent@englishplus.it', password: E2E_PASSWORD },

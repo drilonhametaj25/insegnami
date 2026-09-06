@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations, useLocale } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Container,
   Title,
@@ -54,11 +54,16 @@ import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { ModernModal } from '@/components/modals/ModernModal';
 import { ClassForm } from '@/components/forms/ClassForm';
 import { EmptyState, emptyStateConfigs } from '@/components/ui/EmptyState';
+import { usePermission, usePermissionAny } from '@/lib/hooks/usePermissions';
 
 interface Class {
   id: string;
   code: string;
   name: string;
+  description?: string;
+  level?: string;
+  room?: string;
+  monthlyPrice?: number | string;
   maxStudents: number;
   startDate: string;
   endDate?: string;
@@ -142,7 +147,14 @@ export default function ClassesPage() {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations('classes');
-  
+  const searchParams = useSearchParams();
+
+  // Deep-link (pattern lessons): ?action=create[&courseId=] apre il modal di
+  // creazione, ?action=edit&id= apre la modifica della classe indicata.
+  const actionParam = searchParams.get('action');
+  const editIdParam = searchParams.get('id');
+  const courseIdParam = searchParams.get('courseId') || '';
+
   const [classes, setClasses] = useState<Class[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -162,9 +174,10 @@ export default function ClassesPage() {
   const [opened, { open, close }] = useDisclosure(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
 
-  // Check permissions
-  const canManageClasses = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN';
-  const canViewClasses = canManageClasses || session?.user?.role === 'TEACHER';
+  // Check permissions (matrice: risorsa 'class')
+  const canManageClasses = usePermissionAny(['create', 'update'], 'class');
+  const canDeleteClasses = usePermission('delete', 'class');
+  const canViewClasses = usePermission('read', 'class');
 
   // Fetch classes data
   const fetchClasses = async (
@@ -261,6 +274,39 @@ export default function ClassesPage() {
     }
   }, [canViewClasses]);
 
+  // Apertura automatica del modal da query string (?action=create/edit),
+  // es. dal dettaglio corso o dal bottone Modifica del dettaglio classe.
+  useEffect(() => {
+    if (!canManageClasses || !actionParam) return;
+
+    if (actionParam === 'create') {
+      setEditingClass(null);
+      open();
+      return;
+    }
+
+    if (actionParam === 'edit' && editIdParam) {
+      // La classe potrebbe non essere nella pagina corrente: fetch del dettaglio
+      (async () => {
+        try {
+          const response = await fetch(`/api/classes/${editIdParam}`);
+          if (!response.ok) throw new Error('Classe non trovata');
+          const data = await response.json();
+          const cls = data.class || data;
+          setEditingClass(cls);
+          open();
+        } catch {
+          notifications.show({
+            title: 'Errore',
+            message: 'Classe da modificare non trovata',
+            color: 'red',
+            icon: <IconX size={18} />,
+          });
+        }
+      })();
+    }
+  }, [actionParam, editIdParam, canManageClasses]);
+
   // Handlers
   const handleSearch = (value: string) => {
     setSearchTerm(value);
@@ -312,13 +358,11 @@ export default function ClassesPage() {
         maxStudents: formData.maxStudents,
         startDate: formData.startDate,
         endDate: formData.endDate || undefined,
-        // Optional fields
+        // Dettagli operativi persistiti sul modello Class
+        description: formData.description,
+        level: formData.level,
         room: formData.room,
-        schedule: formData.schedule,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
-        duration: formData.duration,
-        price: formData.price,
+        monthlyPrice: formData.monthlyPrice,
         isActive: formData.isActive,
       };
       
@@ -710,28 +754,28 @@ export default function ClassesPage() {
                         </ActionIcon>
                       </Tooltip>
                       {canManageClasses && (
-                        <>
-                          <Tooltip label="Modifica classe">
-                            <ActionIcon
-                              size="sm"
-                              variant="light"
-                              color="yellow"
-                              onClick={() => handleEdit(classItem)}
-                            >
-                              <IconEdit size={14} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Elimina classe">
-                            <ActionIcon
-                              size="sm"
-                              variant="light"
-                              color="red"
-                              onClick={() => handleDelete(classItem)}
-                            >
-                              <IconTrash size={14} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </>
+                        <Tooltip label="Modifica classe">
+                          <ActionIcon
+                            size="sm"
+                            variant="light"
+                            color="yellow"
+                            onClick={() => handleEdit(classItem)}
+                          >
+                            <IconEdit size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                      {canDeleteClasses && (
+                        <Tooltip label="Elimina classe">
+                          <ActionIcon
+                            size="sm"
+                            variant="light"
+                            color="red"
+                            onClick={() => handleDelete(classItem)}
+                          >
+                            <IconTrash size={14} />
+                          </ActionIcon>
+                        </Tooltip>
                       )}
                     </Group>
                   </Table.Td>
@@ -773,16 +817,18 @@ export default function ClassesPage() {
           classData={editingClass ? {
             id: editingClass.id,
             name: editingClass.name,
-            description: '',
-            level: editingClass.course?.level as any,
+            description: editingClass.description || '',
+            level: (editingClass.level || editingClass.course?.level) as any,
+            room: editingClass.room || '',
+            monthlyPrice: editingClass.monthlyPrice != null ? Number(editingClass.monthlyPrice) : undefined,
             maxStudents: editingClass.maxStudents,
-            duration: 90,
             isActive: editingClass.isActive,
             teacherIds: [editingClass.teacher?.id].filter(Boolean),
             courseId: editingClass.course?.id,
             startDate: editingClass.startDate,
             endDate: editingClass.endDate,
           } : undefined}
+          prefilledCourseId={courseIdParam || undefined}
           onSave={handleFormSubmit}
           loading={submitting}
           teachers={Array.isArray(teachers) ? teachers.map(t => ({ 

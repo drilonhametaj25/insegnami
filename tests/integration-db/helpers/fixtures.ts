@@ -71,12 +71,21 @@ export async function createTenantFixture(prisma: PrismaClient): Promise<TenantF
   const periodMonth = now.getUTCMonth() + 1 // 1-12
 
   // Tenant in trial attivo: il tenant-guard (getTenantAccessCached) passa.
+  // featureFlags: le route contabilità sono feature-gated (einvoicing/
+  // accounting/payroll/hoursPackages) — l'override per-tenant vince sempre
+  // sul piano, quindi la fixture abilita esplicitamente ciò che testiamo.
   const tenant = await prisma.tenant.create({
     data: {
       name: `Test School ${uid}`,
       slug: `test-school-${uid}`,
       trialUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       isActive: true,
+      featureFlags: {
+        einvoicing: true,
+        accounting: true,
+        payroll: true,
+        hoursPackages: true,
+      },
     },
   })
 

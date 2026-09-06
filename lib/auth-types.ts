@@ -23,6 +23,7 @@ declare module "next-auth" {
     role: Role;
     tenantId: string;
     tenantName: string;
+    tenantCount?: number;
     permissions: any;
     avatar: string | null;
   }
@@ -36,6 +37,7 @@ declare module "next-auth/jwt" {
     role: Role;
     tenantId: string;
     tenantName: string;
+    tenantCount?: number;
     permissions: any;
     avatar: string | null;
   }

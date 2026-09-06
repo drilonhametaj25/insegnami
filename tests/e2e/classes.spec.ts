@@ -36,7 +36,7 @@ test.describe('Classi — CRUD', () => {
 });
 
 test.describe('Classi — Nuova Lezione dal dettaglio', () => {
-  test('il bottone Nuova Lezione apre il modal lezione con classe preimpostata', async ({ page }) => {
+  test('il bottone Nuova Lezione apre il modal lezione con classe preimpostata @smoke', async ({ page }) => {
     await page.goto('/it/dashboard/classes');
 
     // Apri il dettaglio della prima classe in lista

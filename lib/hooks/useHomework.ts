@@ -84,20 +84,22 @@ export interface HomeworkResponse {
   };
 }
 
+// NB: per STUDENT/PARENT la route ritorna solo { submissions };
+// homework/missingSubmissions/statistics arrivano solo per TEACHER/ADMIN.
 export interface SubmissionsResponse {
-  homework: {
+  homework?: {
     id: string;
     title: string;
     dueDate: string;
   };
   submissions: HomeworkSubmission[];
-  missingSubmissions: Array<{
+  missingSubmissions?: Array<{
     id: string;
     firstName: string;
     lastName: string;
     studentCode: string;
   }>;
-  statistics: {
+  statistics?: {
     totalStudents: number;
     submitted: number;
     missing: number;

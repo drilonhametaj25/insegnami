@@ -46,9 +46,9 @@ export type FatturaPAInput = {
 export function buildFatturaPA(input: FatturaPAInput): string {
   const { invoice, lines, customer, settings, progressivoInvio } = input;
 
-  const formato = customer.codiceDestinatario === 'XXXXXXX'
-    ? 'FPR12'   // committente estero
-    : 'FPR12';  // privati italiani — la PA usa FPA12
+  // FPA12 per la Pubblica Amministrazione: il codice univoco ufficio PA è
+  // di 6 caratteri (i privati ne hanno 7, '0000000' incluso).
+  const formato = customer.codiceDestinatario?.length === 6 ? 'FPA12' : 'FPR12';
 
   const idTrasmittente = pickIdFiscaleIVA(settings.partitaIva, settings.codiceFiscale);
   const idCedente = idTrasmittente; // typically the same — la scuola è cedente E trasmittente
@@ -59,9 +59,18 @@ export function buildFatturaPA(input: FatturaPAInput): string {
   const sortedLines = [...lines].sort((a, b) => a.lineNumber - b.lineNumber);
 
   // Build DatiRiepilogo: one block per (vatRate, vatNature) combination.
-  const riepilogo = computeRiepilogo(sortedLines);
+  // Coerenza fiscale: la somma delle Imposta dei riepiloghi deve quadrare
+  // con Invoice.vatTotal (l'ultimo bucket assorbe l'eventuale scostamento).
+  const riepilogo = computeRiepilogo(sortedLines, Number(invoice.vatTotal));
 
   const datiPagamento = buildDatiPagamento(invoice);
+
+  // Bollo virtuale (2,00€): dovuto quando la scuola l'ha abilitato e la
+  // fattura è esente IVA (aliquota 0 con Natura) per un imponibile > 77,47€.
+  const esenteTotal = sortedLines
+    .filter((l) => Number(l.vatRate) === 0 && l.vatNature)
+    .reduce((s, l) => s + Number(l.total), 0);
+  const includeBollo = Boolean((settings as any).bolloVirtuale) && esenteTotal > 77.47;
 
   // Header
   const header = `
@@ -128,6 +137,7 @@ export function buildFatturaPA(input: FatturaPAInput): string {
       <Divisa>${xmlEscape(invoice.currency)}</Divisa>
       <Data>${isoIssue}</Data>
       <Numero>${xmlEscape(numeroFattura)}</Numero>
+      ${includeBollo ? `<DatiBollo><BolloVirtuale>SI</BolloVirtuale><ImportoBollo>2.00</ImportoBollo></DatiBollo>` : ''}
       <ImportoTotaleDocumento>${fmt2(invoice.total)}</ImportoTotaleDocumento>
     </DatiGeneraliDocumento>
   </DatiGenerali>
@@ -175,7 +185,7 @@ type RiepilogoBucket = {
   imposta: number;      // imponibile × aliquota / 100
 };
 
-function computeRiepilogo(lines: InvoiceLine[]): RiepilogoBucket[] {
+function computeRiepilogo(lines: InvoiceLine[], vatTotal?: number): RiepilogoBucket[] {
   const buckets = new Map<string, RiepilogoBucket>();
   for (const line of lines) {
     const aliquota = Number(line.vatRate);
@@ -195,7 +205,21 @@ function computeRiepilogo(lines: InvoiceLine[]): RiepilogoBucket[] {
       });
     }
   }
-  return Array.from(buckets.values());
+  const result = Array.from(buckets.values());
+
+  // Quadratura: se Σ Imposta dei bucket diverge da Invoice.vatTotal oltre
+  // il centesimo (arrotondamenti per-bucket vs per-fattura), l'ultimo
+  // bucket assorbe lo scostamento — SDI scarta i riepiloghi incoerenti.
+  if (vatTotal !== undefined && result.length > 0) {
+    const sum = round2(result.reduce((s, b) => s + b.imposta, 0));
+    const diff = round2(vatTotal - sum);
+    if (Math.abs(diff) > 0.01) {
+      const last = result[result.length - 1];
+      last.imposta = round2(last.imposta + diff);
+    }
+  }
+
+  return result;
 }
 
 function buildDatiRiepilogo(b: RiepilogoBucket): string {
@@ -265,13 +289,18 @@ function fmt2(value: any): string {
   return Number(value).toFixed(2);
 }
 
-/** Format with 8 decimals — used for Quantita and PrezzoUnitario per spec. */
+/**
+ * Format with MINIMUM 2 decimals, up to 8 when significative — used for
+ * Quantita and PrezzoUnitario per spec (es. 12.5 → '12.50', 2.5 → '2.50',
+ * 1.23456789 → '1.23456789').
+ */
 function fmt8(value: any): string {
-  // Specifica AdE: max 8 decimali, ma non c'è obbligo di tutti gli zero.
-  // Tagliamo trailing zeros mantenendo almeno 2 decimali per leggibilità.
   const n = Number(value);
   const fixed = n.toFixed(8);
-  return fixed.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '.00');
+  // Taglia gli zeri finali ma non sotto le 2 cifre decimali.
+  const trimmed = fixed.replace(/0+$/, '');
+  const [intPart, decPart = ''] = trimmed.split('.');
+  return `${intPart}.${decPart.padEnd(2, '0')}`;
 }
 
 function round2(n: number): number {

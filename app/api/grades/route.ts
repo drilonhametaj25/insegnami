@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { z } from 'zod';
@@ -57,25 +57,49 @@ export async function GET(request: NextRequest) {
     if (session.user.role === 'STUDENT') {
       // Students can only see their own grades
       const student = await prisma.student.findFirst({
-        where: { userId: session.user.id },
+        where: { userId: session.user.id, tenantId: session.user.tenantId },
       });
-      if (student) {
-        where.studentId = student.id;
-        where.isVisible = true;
-      }
+      // Sentinella: senza profilo Student la lista è vuota, mai tenant-wide
+      where.studentId = student?.id ?? '__no_student__';
+      where.isVisible = true;
     } else if (session.user.role === 'PARENT') {
       // Parents can see grades of their children
-      // Use relational filter instead of separate query (BUG-027 fix)
-      where.student = { parentUserId: session.user.id };
+      // Guardian-aware: StudentGuardian + fallback legacy parentUserId (BUG-027 fix)
+      where.student = {
+        OR: [
+          { parentUserId: session.user.id },
+          { guardians: { some: { userId: session.user.id } } },
+        ],
+      };
       where.isVisible = true;
+    } else if (session.user.role === 'TEACHER') {
+      // Deny-by-default: senza profilo Teacher risolvibile niente accesso
+      const teacher = session.user.email
+        ? await prisma.teacher.findFirst({
+            where: {
+              email: session.user.email,
+              tenantId: session.user.tenantId,
+            },
+          })
+        : null;
+      if (!teacher) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      // Forzato sempre: il docente vede solo i propri voti
+      where.teacherId = teacher.id;
     }
 
     // Apply filters
-    if (studentId) where.studentId = studentId;
+    // STUDENT non può scavalcare il proprio scope; per PARENT il filtro si
+    // combina in AND col vincolo where.student.parentUserId (safe)
+    if (studentId && session.user.role !== 'STUDENT') {
+      where.studentId = studentId;
+    }
     if (subjectId) where.subjectId = subjectId;
     if (classId) where.classId = classId;
     if (periodId) where.periodId = periodId;
-    if (teacherId) where.teacherId = teacherId;
+    // ?teacherId= riservato agli admin: i non-admin restano sul proprio scope
+    if (teacherId && isAdminRole(session.user.role)) where.teacherId = teacherId;
     if (type) where.type = type;
 
     if (dateFrom || dateTo) {

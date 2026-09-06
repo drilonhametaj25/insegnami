@@ -22,7 +22,7 @@ import { prisma } from '@/lib/db'
 import { getAuth } from '@/lib/auth'
 import { computeInvoiceTotals } from '@/lib/billing/invoice-totals'
 import { GET as listInvoices, POST as createInvoice } from '@/app/api/invoices/route'
-import { DELETE as deleteInvoice } from '@/app/api/invoices/[id]/route'
+import { DELETE as deleteInvoice, PATCH as patchInvoice } from '@/app/api/invoices/[id]/route'
 import { POST as issueInvoice } from '@/app/api/invoices/[id]/issue/route'
 import {
   createTenantFixture,
@@ -162,6 +162,63 @@ describe('API invoices (integration-DB)', () => {
     } finally {
       await fixtureB.destroy()
     }
+  })
+
+  it('due bozze nello stesso sezionale/anno coesistono (POST non fallisce più: number=0 non è unico)', async () => {
+    // In produzione il partial unique WHERE number > 0 lascia coesistere le
+    // bozze; qui verifichiamo che la seconda POST non fallisca.
+    const res1 = await createDraft()
+    const res2 = await createDraft()
+    expect(res1.status).toBe(201)
+    expect(res2.status).toBe(201)
+
+    const inv1 = (await res1.json()).invoice
+    const inv2 = (await res2.json()).invoice
+    expect(inv1.number).toBe(0)
+    expect(inv2.number).toBe(0)
+    expect(inv1.seriesId).toBe(inv2.seriesId)
+    expect(inv1.year).toBe(inv2.year)
+  })
+
+  it('PATCH lines[] su bozza: replace righe + ricalcolo totali server-side', async () => {
+    const created = await (await createDraft()).json()
+    const draftId = created.invoice.id
+
+    const NEW_LINES = [
+      { description: 'Pacchetto 10 ore', quantity: 1, unitPrice: 250, vatRate: 22 },
+      { description: 'Materiale didattico', quantity: 3, unitPrice: 15, vatRate: 4 },
+      { description: 'Quota esente', quantity: 1, unitPrice: 80, vatRate: 0, vatNature: 'N4' },
+    ]
+
+    const res = await patchInvoice(
+      jsonRequest(`${BASE}/${draftId}`, 'PATCH', { lines: NEW_LINES }),
+      routeParams(draftId),
+    )
+    expect(res.status).toBe(200)
+    const { invoice } = await res.json()
+
+    const expected = computeInvoiceTotals(NEW_LINES)
+    expect(invoice.lines).toHaveLength(3)
+    expect(Number(invoice.subtotal)).toBe(expected.subtotal)
+    expect(Number(invoice.vatTotal)).toBe(expected.vatTotal)
+    expect(Number(invoice.total)).toBe(expected.total)
+    expect(invoice.lines.map((l: { total: string }) => Number(l.total))).toEqual(
+      expected.lineTotals,
+    )
+
+    // Sul DB: le vecchie righe sono state rimpiazzate, non accumulate.
+    const dbLines = await prisma.invoiceLine.findMany({ where: { invoiceId: draftId } })
+    expect(dbLines).toHaveLength(3)
+  })
+
+  it('PATCH lines[] su fattura ISSUED risponde 409 (immutabilità)', async () => {
+    const res = await patchInvoice(
+      jsonRequest(`${BASE}/${issuedInvoiceId}`, 'PATCH', {
+        lines: [{ description: 'Tentativo', quantity: 1, unitPrice: 1, vatRate: 22 }],
+      }),
+      routeParams(issuedInvoiceId),
+    )
+    expect(res.status).toBe(409)
   })
 
   it('DELETE su fattura ISSUED risponde 409 (immutabilità fiscale)', async () => {

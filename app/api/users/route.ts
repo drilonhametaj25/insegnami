@@ -192,8 +192,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate role
-    const validRoles = ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'];
+    // Validate role (allineata alla PUT: include DIRECTOR e SECRETARY)
+    const validRoles = ['ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER', 'STUDENT', 'PARENT'];
     if (session.user.role === 'SUPERADMIN') {
       validRoles.push('SUPERADMIN');
     }

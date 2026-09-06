@@ -30,6 +30,7 @@ import {
 import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
+import { can } from '@/lib/permissions/matrix';
 import {
   IconArrowLeft,
   IconEdit,
@@ -145,7 +146,9 @@ export default function PayrollDetailPage() {
   const payrollId = params.id as string;
   const { data: session } = useSession();
   const role = session?.user?.role as string | undefined;
-  const canManage = role !== 'TEACHER';
+  // Matrice: solo chi ha update su payroll (ADMIN/SUPERADMIN); DIRECTOR è
+  // read-only e TEACHER vede solo i propri cedolini
+  const canManage = can(role, 'update', 'payroll');
 
   const [editOpened, { open: openEdit, close: closeEdit }] = useDisclosure(false);
   const [paidOpened, { open: openPaid, close: closePaid }] = useDisclosure(false);

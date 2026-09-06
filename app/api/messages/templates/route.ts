@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
-import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { requireAuth, authError } from '@/lib/api-auth';
 
 // Schema for template validation
 const templateSchema = z.object({
@@ -16,17 +15,12 @@ const templateSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
-    }
-
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
+    // Roles espliciti: message:read in matrice include STUDENT/PARENT, ma i template sono strumenti interni
+    const ctx = await requireAuth({ roles: ['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER'] });
 
     const templates = await prisma.messageTemplate.findMany({
       where: {
-        tenantId: session.user.tenantId,
+        tenantId: ctx.tenantId,
         isActive: true,
       },
       include: {
@@ -43,6 +37,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(templates);
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     console.error('Error fetching templates:', error);
     return NextResponse.json(
       { error: 'Errore interno del server' },
@@ -53,18 +49,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getAuth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
-    }
-
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
-
-    // Only admins and teachers can create templates
-    if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
-    }
+    // Permesso message:create via matrice (sblocca DIRECTOR/SECRETARY); i ruoli
+    // espliciti restano perché i template sono strumenti interni (come la GET).
+    const ctx = await requireAuth({
+      roles: ['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER'],
+      permission: { action: 'create', resource: 'message' },
+    });
 
     const body = await request.json();
     const validatedData = templateSchema.parse(body);
@@ -77,8 +67,8 @@ export async function POST(request: NextRequest) {
         content: validatedData.content,
         type: validatedData.type,
         variables: validatedData.variables ? JSON.stringify(validatedData.variables) : null,
-        tenantId: session.user.tenantId,
-        creatorId: session.user.id,
+        tenantId: ctx.tenantId,
+        creatorId: ctx.userId,
       },
       include: {
         creator: {
@@ -93,6 +83,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(template, { status: 201 });
   } catch (error) {
+    const authRes = authError(error);
+    if (authRes) return authRes;
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Dati non validi', details: error.errors },

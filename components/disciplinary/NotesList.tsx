@@ -20,6 +20,8 @@ import {
   IconBan,
   IconStar,
   IconFileText,
+  IconMail,
+  IconMailCheck,
 } from '@tabler/icons-react';
 import { useTranslations } from 'next-intl';
 import { DisciplinaryType, Severity } from '@prisma/client';
@@ -34,10 +36,12 @@ interface NotesListProps {
   loading?: boolean;
   onEdit?: (note: DisciplinaryNote) => void;
   onDelete?: (note: DisciplinaryNote) => void;
+  onNotifyParent?: (note: DisciplinaryNote) => void;
   showStudent?: boolean;
   showClass?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
+  canNotify?: boolean;
 }
 
 export function NotesList({
@@ -45,10 +49,12 @@ export function NotesList({
   loading,
   onEdit,
   onDelete,
+  onNotifyParent,
   showStudent = true,
   showClass = true,
   canEdit = false,
   canDelete = false,
+  canNotify = false,
 }: NotesListProps) {
   const t = useTranslations('disciplinary');
 
@@ -110,7 +116,7 @@ export function NotesList({
             <Table.Th>{t('title')}</Table.Th>
             <Table.Th style={{ width: 100 }}>{t('severity')}</Table.Th>
             <Table.Th style={{ width: 100 }}>{t('status')}</Table.Th>
-            {(canEdit || canDelete) && (
+            {(canEdit || canDelete || canNotify) && (
               <Table.Th style={{ width: 100, textAlign: 'center' }}>
                 {t('actions')}
               </Table.Th>
@@ -172,9 +178,29 @@ export function NotesList({
                   {note.resolved ? t('resolved') : t('open')}
                 </Badge>
               </Table.Td>
-              {(canEdit || canDelete) && (
+              {(canEdit || canDelete || canNotify) && (
                 <Table.Td>
                   <Group gap="xs" justify="center">
+                    {canNotify && onNotifyParent && (
+                      note.parentNotified ? (
+                        <Tooltip label="Genitore già notificato">
+                          <ActionIcon variant="light" color="green" disabled>
+                            <IconMailCheck size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip label="Notifica genitore">
+                          <ActionIcon
+                            variant="light"
+                            color="orange"
+                            onClick={() => onNotifyParent(note)}
+                            data-testid="disciplinary-notifica-genitore"
+                          >
+                            <IconMail size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )
+                    )}
                     {canEdit && onEdit && (
                       <Tooltip label={t('editNote')}>
                         <ActionIcon

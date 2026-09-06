@@ -30,6 +30,7 @@ jest.mock('@/lib/db', () => ({
     },
     tenant: { update: jest.fn(), findUnique: jest.fn() },
     payment: { update: jest.fn(), updateMany: jest.fn(), findUnique: jest.fn() },
+    platformSettings: { findUnique: jest.fn() },
     $transaction: jest.fn((fn: any) => fn({
       subscription: {
         upsert: jest.fn(),
@@ -39,6 +40,17 @@ jest.mock('@/lib/db', () => ({
       tenantAddon: { updateMany: jest.fn() },
     })),
   },
+}))
+
+// Mock movimenti contabili (esercitati dai test dedicati in accounting)
+jest.mock('@/lib/accounting/movements', () => ({
+  syncPaymentMovement: jest.fn(),
+  reversePaymentMovement: jest.fn(),
+}))
+
+// Mock ricevuta C6 (esercitata dai test dedicati in payment-receipt)
+jest.mock('@/lib/payments/receipts', () => ({
+  sendPaymentReceipt: jest.fn(),
 }))
 
 // Mock add-on reconciliation (esercitata dai test dedicati in stripe-addons)
@@ -60,6 +72,8 @@ const { constructWebhookEvent, retrieveSubscription } = require('@/lib/stripe')
 const { redis } = require('@/lib/redis')
 const { prisma } = require('@/lib/db')
 const { notifyTenantAdmins } = require('@/lib/notifications/billing-notifications')
+const { syncPaymentMovement, reversePaymentMovement } = require('@/lib/accounting/movements')
+const { sendPaymentReceipt } = require('@/lib/payments/receipts')
 
 function createRequest(body: string, signature: string | null = 'valid-sig') {
   const headers = new Map<string, string>()
@@ -85,9 +99,15 @@ describe('/api/webhooks/stripe', () => {
     // mockResolvedValue (non solo clear) per annullare eventuali mockRejectedValue dei test precedenti
     notifyTenantAdmins.mockResolvedValue(1)
     prisma.payment.updateMany.mockResolvedValue({ count: 1 })
+    prisma.payment.update.mockResolvedValue({})
     prisma.subscription.update.mockResolvedValue({})
     prisma.subscription.updateMany.mockResolvedValue({ count: 1 })
     prisma.tenant.update.mockResolvedValue({})
+    // Nessun singleton PlatformSettings di default → fallback graceDays 7
+    prisma.platformSettings.findUnique.mockResolvedValue(null)
+    syncPaymentMovement.mockResolvedValue({ movementId: 'mov-1', reason: 'created' })
+    reversePaymentMovement.mockResolvedValue({ deleted: true })
+    sendPaymentReceipt.mockResolvedValue(undefined)
   })
 
   it('returns 400 when Stripe signature is missing', async () => {
@@ -745,6 +765,264 @@ describe('/api/webhooks/stripe', () => {
         'processed',
         86400
       )
+
+      // Nessun payment marcato PAID → niente movimento né ricevuta
+      expect(syncPaymentMovement).not.toHaveBeenCalled()
+      expect(sendPaymentReceipt).not.toHaveBeenCalled()
+    })
+
+    it('payment marcato PAID → movimento REVENUE + ricevuta C6', async () => {
+      constructWebhookEvent.mockReturnValue(
+        oneTimeCheckoutEvent({ paymentId: 'payment-1', tenantId: 'tenant-1' })
+      )
+      prisma.payment.updateMany.mockResolvedValue({ count: 1 })
+      // Payment riletto per la ricevuta (post updateMany)
+      prisma.payment.findUnique.mockResolvedValue({
+        id: 'payment-1',
+        tenantId: 'tenant-1',
+        studentId: 'student-1',
+        amount: 100,
+        description: 'Retta ottobre',
+        paidDate: new Date(),
+      })
+
+      const req = createRequest('{}')
+      const response = await POST(req)
+
+      expect(response.status).toBe(200)
+      expect(syncPaymentMovement).toHaveBeenCalledWith(prisma, 'payment-1')
+      expect(sendPaymentReceipt).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'payment-1', tenantId: 'tenant-1', studentId: 'student-1' })
+      )
+    })
+  })
+
+  // ========================================
+  // Subscription.interval (mensile/annuale) scritto dal webhook
+  // ========================================
+  describe('subscription interval', () => {
+    function updatedEventWithInterval(interval: 'month' | 'year') {
+      return {
+        id: `evt_interval_${interval}`,
+        type: 'customer.subscription.updated',
+        data: {
+          object: {
+            id: 'sub_123',
+            customer: 'cus_123',
+            status: 'active',
+            metadata: { platform: 'InsegnaMi', tenantId: 'tenant-1' },
+            items: { data: [{ price: { id: 'price_abc', recurring: { interval } } }] },
+            current_period_start: 1700000000,
+            current_period_end: 1702592000,
+            cancel_at_period_end: false,
+            canceled_at: null,
+            trial_end: null,
+          },
+        },
+      }
+    }
+
+    it.each([
+      ['year', 'YEARLY'],
+      ['month', 'MONTHLY'],
+    ] as const)('price recurring %s → interval %s scritto sulla subscription', async (stripeInterval, expected) => {
+      constructWebhookEvent.mockReturnValue(updatedEventWithInterval(stripeInterval))
+      prisma.subscription.findUnique.mockResolvedValue({
+        id: 'sub-db-1',
+        tenantId: 'tenant-1',
+        planId: 'plan-1',
+      })
+      prisma.plan.findFirst.mockResolvedValue({ id: 'plan-1', slug: 'professional' })
+
+      const req = createRequest('{}')
+      const response = await POST(req)
+
+      expect(response.status).toBe(200)
+      expect(prisma.subscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { stripeSubscriptionId: 'sub_123' },
+          data: expect.objectContaining({ interval: expected }),
+        })
+      )
+    })
+
+    it("l'item add-on non pilota l'intervallo: conta l'item del piano", async () => {
+      const event = updatedEventWithInterval('year')
+      // primo item = add-on mensile, secondo = piano annuale
+      event.data.object.items.data = [
+        {
+          price: {
+            id: 'price_addon',
+            recurring: { interval: 'month' },
+            metadata: { addonType: 'EXTRA_STUDENTS' },
+          },
+        },
+        { price: { id: 'price_abc', recurring: { interval: 'year' } } },
+      ] as any
+      constructWebhookEvent.mockReturnValue(event)
+      prisma.subscription.findUnique.mockResolvedValue({
+        id: 'sub-db-1',
+        tenantId: 'tenant-1',
+        planId: 'plan-1',
+      })
+      prisma.plan.findFirst.mockResolvedValue({ id: 'plan-1', slug: 'professional' })
+
+      const req = createRequest('{}')
+      const response = await POST(req)
+
+      expect(response.status).toBe(200)
+      expect(prisma.subscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ interval: 'YEARLY' }),
+        })
+      )
+    })
+
+    it('tenant.plan viene scritto lowercase al cambio piano', async () => {
+      constructWebhookEvent.mockReturnValue(updatedEventWithInterval('month'))
+      prisma.subscription.findUnique.mockResolvedValue({
+        id: 'sub-db-1',
+        tenantId: 'tenant-1',
+        planId: 'plan-old',
+      })
+      prisma.plan.findFirst.mockResolvedValue({ id: 'plan-1', slug: 'Professional', name: 'Professional' })
+
+      const req = createRequest('{}')
+      await POST(req)
+
+      expect(prisma.tenant.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'tenant-1' },
+          data: { plan: 'professional' },
+        })
+      )
+    })
+  })
+
+  // ========================================
+  // Grace period (dunning) su invoice.payment_failed / payment_succeeded
+  // ========================================
+  describe('grace period', () => {
+    function invoiceEvent(type: string) {
+      return {
+        id: `evt_${type.replace(/\./g, '_')}`,
+        type,
+        data: {
+          object: {
+            id: 'in_123',
+            subscription: 'sub_123',
+            customer: 'cus_123',
+          },
+        },
+      }
+    }
+
+    it('invoice.payment_failed → PAST_DUE con gracePeriodEnd = now + graceDays (PlatformSettings)', async () => {
+      constructWebhookEvent.mockReturnValue(invoiceEvent('invoice.payment_failed'))
+      prisma.subscription.findUnique.mockResolvedValue({ id: 'sub-db-1', tenantId: 'tenant-1' })
+      prisma.platformSettings.findUnique.mockResolvedValue({ graceDays: 10 })
+
+      const before = Date.now()
+      const req = createRequest('{}')
+      const response = await POST(req)
+      const after = Date.now()
+
+      expect(response.status).toBe(200)
+      const call = prisma.subscription.updateMany.mock.calls.find(
+        (c: any[]) => c[0]?.data?.status === 'PAST_DUE'
+      )
+      expect(call).toBeDefined()
+      const grace: Date = call![0].data.gracePeriodEnd
+      expect(grace).toBeInstanceOf(Date)
+      const TEN_DAYS = 10 * 24 * 60 * 60 * 1000
+      expect(grace.getTime()).toBeGreaterThanOrEqual(before + TEN_DAYS)
+      expect(grace.getTime()).toBeLessThanOrEqual(after + TEN_DAYS)
+      // La cache di accesso viene invalidata (il redis mock espone del)
+      expect(redis.del).toHaveBeenCalled()
+    })
+
+    it('invoice.payment_failed senza PlatformSettings → fallback 7 giorni', async () => {
+      constructWebhookEvent.mockReturnValue(invoiceEvent('invoice.payment_failed'))
+      prisma.subscription.findUnique.mockResolvedValue({ id: 'sub-db-1', tenantId: 'tenant-1' })
+      prisma.platformSettings.findUnique.mockResolvedValue(null)
+
+      const before = Date.now()
+      await POST(createRequest('{}'))
+      const after = Date.now()
+
+      const call = prisma.subscription.updateMany.mock.calls.find(
+        (c: any[]) => c[0]?.data?.status === 'PAST_DUE'
+      )
+      const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000
+      const grace: Date = call![0].data.gracePeriodEnd
+      expect(grace.getTime()).toBeGreaterThanOrEqual(before + SEVEN_DAYS)
+      expect(grace.getTime()).toBeLessThanOrEqual(after + SEVEN_DAYS)
+    })
+
+    it.each([['invoice.payment_succeeded'], ['invoice.paid']])(
+      '%s → azzera gracePeriodEnd',
+      async (type) => {
+        constructWebhookEvent.mockReturnValue(invoiceEvent(type))
+        prisma.subscription.findUnique.mockResolvedValue({ id: 'sub-db-1', tenantId: 'tenant-1' })
+
+        const response = await POST(createRequest('{}'))
+
+        expect(response.status).toBe(200)
+        expect(prisma.subscription.updateMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { stripeSubscriptionId: 'sub_123' },
+            data: { gracePeriodEnd: null },
+          })
+        )
+      }
+    )
+  })
+
+  // ========================================
+  // charge.refunded → payment CANCELLED + storno movimento
+  // ========================================
+  describe('charge.refunded', () => {
+    it('marca il payment CANCELLED e chiama reversePaymentMovement', async () => {
+      constructWebhookEvent.mockReturnValue({
+        id: 'evt_refund',
+        type: 'charge.refunded',
+        data: {
+          object: {
+            id: 'ch_123',
+            metadata: { platform: 'InsegnaMi', paymentId: 'payment-1' },
+          },
+        },
+      })
+
+      const response = await POST(createRequest('{}'))
+
+      expect(response.status).toBe(200)
+      expect(prisma.payment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'payment-1' },
+          data: expect.objectContaining({ status: 'CANCELLED' }),
+        })
+      )
+      expect(reversePaymentMovement).toHaveBeenCalledWith(prisma, 'payment-1')
+    })
+
+    it('senza paymentId nei metadata non tocca nulla', async () => {
+      constructWebhookEvent.mockReturnValue({
+        id: 'evt_refund_nopay',
+        type: 'charge.refunded',
+        data: {
+          object: {
+            id: 'ch_456',
+            metadata: { platform: 'InsegnaMi' },
+          },
+        },
+      })
+
+      const response = await POST(createRequest('{}'))
+
+      expect(response.status).toBe(200)
+      expect(prisma.payment.update).not.toHaveBeenCalled()
+      expect(reversePaymentMovement).not.toHaveBeenCalled()
     })
   })
 })

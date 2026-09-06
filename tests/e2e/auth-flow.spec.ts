@@ -8,7 +8,7 @@ test.describe('Auth Flow', () => {
     await expect(page.getByRole('button', { name: 'Accedi' })).toBeVisible();
   });
 
-  test('credenziali non valide non effettuano il login', async ({ page }) => {
+  test('credenziali non valide non effettuano il login @smoke', async ({ page }) => {
     await page.goto('/it/auth/login');
     await page.getByRole('textbox', { name: 'Email' }).fill('invalid@test.com');
     await page.getByPlaceholder('La tua password').fill('wrongpassword123');

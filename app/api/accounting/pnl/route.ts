@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, authError } from '@/lib/api-auth';
 import { getPnL, getPnLTrend } from '@/lib/accounting/pnl';
+import { endOfDay } from '@/lib/dates';
 
 /**
  * GET /api/accounting/pnl?from=YYYY-MM-DD&to=YYYY-MM-DD&trend=12
@@ -14,14 +15,16 @@ import { getPnL, getPnLTrend } from '@/lib/accounting/pnl';
  */
 export async function GET(request: NextRequest) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'read', resource: 'accounting' } });
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'accounting' }, feature: 'accounting' });
     const sp = request.nextUrl.searchParams;
 
     const tenantId =
       ctx.isSuperAdmin && sp.get('tenantId') ? sp.get('tenantId')! : ctx.tenantId;
 
+    // endOfDay sul `to` esplicito: una data nuda "YYYY-MM-DD" è mezzanotte
+    // e lascerebbe fuori i movimenti dell'ultimo giorno del range.
     const from = sp.get('from') ? new Date(sp.get('from')!) : startOfMonth(new Date());
-    const to = sp.get('to') ? new Date(sp.get('to')!) : endOfMonth(new Date());
+    const to = sp.get('to') ? endOfDay(new Date(sp.get('to')!)) : endOfMonth(new Date());
 
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
       return NextResponse.json({ error: 'Date non valide' }, { status: 400 });

@@ -13,6 +13,7 @@
  */
 import { PUT as putPayment } from '@/app/api/payments/[id]/route'
 import { POST as postPayment } from '@/app/api/payments/route'
+import { GET as getReceiptPdf } from '@/app/api/payments/[id]/receipt/route'
 
 // Mock auth
 jest.mock('@/lib/auth', () => ({
@@ -50,16 +51,23 @@ const mockTx = {
 
 jest.mock('@/lib/db', () => ({
   prisma: {
-    payment: { findFirst: jest.fn() },
+    payment: { findFirst: jest.fn(), count: jest.fn() },
     student: { findFirst: jest.fn() },
     studentClass: { findFirst: jest.fn() },
     $transaction: jest.fn(async (fn: any) => fn(mockTx)),
   },
 }))
 
+// PDF builder mockato: qui testiamo ownership/stati della route, non jspdf
+jest.mock('@/lib/payments/receipt-pdf', () => ({
+  buildPaymentReceiptPdf: jest.fn(() => Buffer.from('%PDF-fake')),
+}))
+
 const { getAuth } = require('@/lib/auth')
 const { createAndDispatch } = require('@/lib/notifications/dispatcher')
 const { prisma } = require('@/lib/db')
+const { buildPaymentReceiptPdf } = require('@/lib/payments/receipt-pdf')
+const { getStudentIdForUser } = require('@/lib/api-auth')
 
 const adminSession = {
   user: { id: 'user-admin', email: 'admin@scuola.it', role: 'ADMIN', tenantId: 'tenant-1' },
@@ -245,5 +253,114 @@ describe('POST /api/payments — ricevuta quando il pagamento nasce già PAID (C
 
     expect(res.status).toBe(201)
     expect(createAndDispatch).not.toHaveBeenCalled()
+  })
+})
+
+describe('GET /api/payments/[id]/receipt — PDF ricevuta con ownership famiglia', () => {
+  const paidPaymentFull = {
+    id: 'pay-1',
+    tenantId: 'tenant-1',
+    studentId: 'stud-1',
+    classId: null,
+    description: 'Retta giugno',
+    amount: 150,
+    currency: 'EUR',
+    status: 'PAID',
+    dueDate: new Date('2026-06-01T00:00:00.000Z'),
+    paidDate: new Date('2026-06-10T00:00:00.000Z'),
+    paymentMethod: 'CASH',
+    reference: null,
+    student: { firstName: 'Marco', lastName: 'Bianchi', studentCode: 'S001' },
+    class: null,
+    tenant: {
+      name: 'Scuola Verdi',
+      address: 'Via Roma 1, Milano',
+      email: 'info@scuola.it',
+      phone: null,
+      vatNumber: 'IT01234567890',
+    },
+  }
+
+  const receiptRequest = () => ({
+    method: 'GET',
+    headers: { get: jest.fn(() => null) },
+  }) as any
+
+  it('ADMIN su pagamento PAID → 200 con PDF e numerazione REC-<anno>-<progressivo>', async () => {
+    prisma.payment.findFirst.mockResolvedValue(paidPaymentFull)
+    prisma.payment.count.mockResolvedValue(4) // 4 PAID precedenti nell'anno
+
+    const res = await getReceiptPdf(receiptRequest(), routeParams('pay-1'))
+
+    expect(res.status).toBe(200)
+    // NB: nell'ambiente jest gli header sono una Map case-sensitive
+    const contentType = res.headers.get('Content-Type') ?? res.headers.get('content-type')
+    const disposition = res.headers.get('Content-Disposition') ?? res.headers.get('content-disposition')
+    expect(contentType).toBe('application/pdf')
+    expect(disposition).toContain('ricevuta-REC-2026-0005.pdf')
+
+    // Il progressivo conta solo i PAID del tenant con paidDate precedente
+    expect(prisma.payment.count).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        tenantId: 'tenant-1',
+        status: 'PAID',
+        paidDate: expect.objectContaining({ lt: paidPaymentFull.paidDate }),
+      }),
+    })
+    expect(buildPaymentReceiptPdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        receiptNumber: 'REC-2026-0005',
+        student: expect.objectContaining({ firstName: 'Marco' }),
+      }),
+    )
+  })
+
+  it('pagamento non PAID → 400 (nessuna ricevuta per pagamenti pendenti)', async () => {
+    prisma.payment.findFirst.mockResolvedValue({ ...paidPaymentFull, status: 'PENDING' })
+
+    const res = await getReceiptPdf(receiptRequest(), routeParams('pay-1'))
+
+    expect(res.status).toBe(400)
+    expect(buildPaymentReceiptPdf).not.toHaveBeenCalled()
+  })
+
+  it('PARENT: il where è guardian-aware (StudentGuardian OR parentUserId) → 404 se non è un figlio', async () => {
+    getAuth.mockResolvedValue({
+      user: { id: 'user-parent', email: 'parent@test.it', role: 'PARENT', tenantId: 'tenant-1' },
+    })
+    prisma.payment.findFirst.mockResolvedValue(null) // il filtro esclude il pagamento
+
+    const res = await getReceiptPdf(receiptRequest(), routeParams('pay-1'))
+
+    expect(res.status).toBe(404)
+    const where = prisma.payment.findFirst.mock.calls[0][0].where
+    expect(where.student).toEqual({
+      OR: [
+        { parentUserId: 'user-parent' },
+        { guardians: { some: { userId: 'user-parent' } } },
+      ],
+    })
+  })
+
+  it('STUDENT senza profilo studente collegato → filtro sentinella, 404', async () => {
+    getAuth.mockResolvedValue({
+      user: { id: 'user-student', email: 'stud@test.it', role: 'STUDENT', tenantId: 'tenant-1' },
+    })
+    getStudentIdForUser.mockResolvedValue(null)
+    prisma.payment.findFirst.mockResolvedValue(null)
+
+    const res = await getReceiptPdf(receiptRequest(), routeParams('pay-1'))
+
+    expect(res.status).toBe(404)
+    const where = prisma.payment.findFirst.mock.calls[0][0].where
+    expect(where.studentId).toBe('__no_student__')
+  })
+
+  it('non autenticato → 401', async () => {
+    getAuth.mockResolvedValue(null)
+
+    const res = await getReceiptPdf(receiptRequest(), routeParams('pay-1'))
+
+    expect(res.status).toBe(401)
   })
 })

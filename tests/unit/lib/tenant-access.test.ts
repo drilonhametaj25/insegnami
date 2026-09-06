@@ -68,6 +68,34 @@ describe('checkTenantAccess', () => {
     })
   })
 
+  // Grace period (dunning): impostato dal webhook su invoice.payment_failed
+  it('allows PAST_DUE while gracePeriodEnd is in the future (dunning grace)', async () => {
+    mockTenant({
+      subscription: { status: 'PAST_DUE', currentPeriodEnd: PAST, gracePeriodEnd: FUTURE },
+    })
+    expect(await checkTenantAccess('tenant-1')).toEqual({ ok: true })
+  })
+
+  it('blocks PAST_DUE once gracePeriodEnd has expired', async () => {
+    mockTenant({
+      subscription: { status: 'PAST_DUE', currentPeriodEnd: PAST, gracePeriodEnd: PAST },
+    })
+    expect(await checkTenantAccess('tenant-1')).toEqual({
+      ok: false,
+      reason: 'subscription-past-due',
+    })
+  })
+
+  it('blocks PAST_DUE with explicit null gracePeriodEnd (nessuna grazia concessa)', async () => {
+    mockTenant({
+      subscription: { status: 'PAST_DUE', currentPeriodEnd: FUTURE, gracePeriodEnd: null },
+    })
+    expect(await checkTenantAccess('tenant-1')).toEqual({
+      ok: false,
+      reason: 'subscription-past-due',
+    })
+  })
+
   it.each([['CANCELLED'], ['UNPAID'], ['PAUSED']])(
     'blocks subscription status %s',
     async (status) => {
@@ -78,6 +106,37 @@ describe('checkTenantAccess', () => {
       })
     }
   )
+
+  // Difesa in profondità: TRIALING/ACTIVE con date scadute non restano attivi
+  it('blocks TRIALING whose trialEnd is in the past (dev-billing/webhook mancante)', async () => {
+    mockTenant({ subscription: { status: 'TRIALING', trialEnd: PAST, currentPeriodEnd: PAST } })
+    expect(await checkTenantAccess('tenant-1')).toEqual({ ok: false, reason: 'trial-expired' })
+  })
+
+  it('allows TRIALING with a live trialEnd', async () => {
+    mockTenant({ subscription: { status: 'TRIALING', trialEnd: FUTURE, currentPeriodEnd: FUTURE } })
+    expect(await checkTenantAccess('tenant-1')).toEqual({ ok: true })
+  })
+
+  it('blocks ACTIVE whose currentPeriodEnd is stale beyond the 3-day grace', async () => {
+    const staleBy5Days = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+    mockTenant({ subscription: { status: 'ACTIVE', currentPeriodEnd: staleBy5Days } })
+    expect(await checkTenantAccess('tenant-1')).toEqual({
+      ok: false,
+      reason: 'subscription-past-due',
+    })
+  })
+
+  it('allows ACTIVE within the 3-day renewal grace (webhook in ritardo)', async () => {
+    const staleBy1Day = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+    mockTenant({ subscription: { status: 'ACTIVE', currentPeriodEnd: staleBy1Day } })
+    expect(await checkTenantAccess('tenant-1')).toEqual({ ok: true })
+  })
+
+  it('allows ACTIVE with no currentPeriodEnd at all', async () => {
+    mockTenant({ subscription: { status: 'ACTIVE', currentPeriodEnd: null } })
+    expect(await checkTenantAccess('tenant-1')).toEqual({ ok: true })
+  })
 
   it('allows tenants on a live trial without subscription', async () => {
     mockTenant({ trialUntil: FUTURE, subscription: null })

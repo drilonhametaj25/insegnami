@@ -9,7 +9,7 @@ import { storageStateFor } from './helpers/auth';
 test.describe('Permessi — ADMIN', () => {
   test.use({ storageState: storageStateFor('admin') });
 
-  test('admin vede le voci di gestione (Utenti, Docenti)', async ({ page }) => {
+  test('admin vede le voci di gestione (Utenti, Docenti) @smoke', async ({ page }) => {
     await page.goto('/it/dashboard');
     await expect(page.getByRole('link', { name: 'Utenti', exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Docenti', exact: true })).toBeVisible();
@@ -30,7 +30,7 @@ test.describe('Permessi — STUDENT', () => {
     await expect(page.getByRole('link', { name: 'Docenti', exact: true })).toHaveCount(0);
   });
 
-  test('lo studente è bloccato dalle route admin (redirect)', async ({ page }) => {
+  test('lo studente è bloccato dalle route admin (redirect) @smoke', async ({ page }) => {
     await page.goto('/it/dashboard/admin/users');
     // Il middleware reindirizza alla dashboard
     await expect(page).not.toHaveURL(/\/admin\/users/, { timeout: 15000 });

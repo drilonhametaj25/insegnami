@@ -95,6 +95,8 @@ export function useStudents(
     classId?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    /** 'true' → lista completa (fino a 1000) per select/filtri */
+    all?: string;
   } = {}
 ) {
   const { data: session } = useSession();

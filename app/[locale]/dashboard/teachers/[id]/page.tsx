@@ -55,6 +55,15 @@ import { AdvancedDataTable } from '@/components/tables/AdvancedDataTable';
 import { AdvancedLessonCalendar } from '@/components/calendar/AdvancedLessonCalendar';
 import { TeacherForm } from '@/components/forms/TeacherForm';
 import { TeacherPayrollSettingsForm } from '@/components/forms/TeacherPayrollSettingsForm';
+import { Select } from '@mantine/core';
+import { usePermission } from '@/lib/hooks/usePermissions';
+
+// Materia insegnata (GET /api/teachers/[id]/subjects)
+interface TeacherSubjectItem {
+  id: string;
+  subjectId: string;
+  subject: { id: string; name: string; code: string; color?: string | null };
+}
 
 export default function TeacherDetailPage() {
   const params = useParams();
@@ -68,6 +77,79 @@ export default function TeacherDetailPage() {
   const [teacher, setTeacher] = useState<any>(null); // Iniziamo con null invece di mock
   const [lessons, setLessons] = useState<any[]>([]); // State per le lezioni reali
   const [submitting, setSubmitting] = useState(false);
+
+  // Materie insegnate (TeacherSubject)
+  const canEditTeacher = usePermission('update', 'teacher');
+  const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubjectItem[]>([]);
+  const [subjectOptions, setSubjectOptions] = useState<Array<{ id: string; name: string; code: string }>>([]);
+  const [newSubjectId, setNewSubjectId] = useState<string | null>(null);
+  const [addingSubject, setAddingSubject] = useState(false);
+
+  const fetchTeacherSubjects = async () => {
+    try {
+      const response = await fetch(`/api/teachers/${teacherId}/subjects`);
+      if (response.ok) {
+        const payload = await response.json();
+        setTeacherSubjects(payload.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching teacher subjects:', error);
+    }
+  };
+
+  const handleAddTeacherSubject = async () => {
+    if (!newSubjectId) return;
+    setAddingSubject(true);
+    try {
+      const response = await fetch(`/api/teachers/${teacherId}/subjects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subjectId: newSubjectId }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Errore aggiunta materia');
+      }
+      notifications.show({
+        title: 'Successo',
+        message: 'Materia aggiunta al docente',
+        color: 'green',
+        icon: <IconCheck size={18} />,
+      });
+      setNewSubjectId(null);
+      fetchTeacherSubjects();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Errore',
+        message: error.message || 'Impossibile aggiungere la materia',
+        color: 'red',
+        icon: <IconX size={18} />,
+      });
+    } finally {
+      setAddingSubject(false);
+    }
+  };
+
+  const handleRemoveTeacherSubject = async (subjectId: string) => {
+    try {
+      const response = await fetch(
+        `/api/teachers/${teacherId}/subjects?subjectId=${subjectId}`,
+        { method: 'DELETE' }
+      );
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Errore rimozione materia');
+      }
+      fetchTeacherSubjects();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Errore',
+        message: error.message || 'Impossibile rimuovere la materia',
+        color: 'red',
+        icon: <IconX size={18} />,
+      });
+    }
+  };
 
   // Fetch teacher data
   useEffect(() => {
@@ -130,7 +212,23 @@ export default function TeacherDetailPage() {
 
     fetchTeacher();
     fetchLessons();
-  }, [teacherId]);
+    fetchTeacherSubjects();
+
+    // Opzioni materie per la select (solo per chi può modificare)
+    if (canEditTeacher) {
+      (async () => {
+        try {
+          const response = await fetch('/api/subjects?all=true');
+          if (response.ok) {
+            const data = await response.json();
+            setSubjectOptions(data.subjects || []);
+          }
+        } catch (error) {
+          console.error('Error fetching subjects:', error);
+        }
+      })();
+    }
+  }, [teacherId, canEditTeacher]);
 
   // Mock loading state
   // const lessons = mockLessons;
@@ -584,6 +682,64 @@ export default function TeacherDetailPage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="qualifications">
+          {/* Materie insegnate (TeacherSubject) */}
+          <Card withBorder radius="md" p="lg" mb="md" data-testid="docente-materie-sezione">
+            <Title order={4} mb="md">Materie Insegnate</Title>
+            <Group gap="xs" mb="md">
+              {teacherSubjects.length > 0 ? (
+                teacherSubjects.map((ts) => (
+                  <Badge
+                    key={ts.id}
+                    variant="light"
+                    size="lg"
+                    rightSection={
+                      canEditTeacher ? (
+                        <ActionIcon
+                          size="xs"
+                          variant="transparent"
+                          color="red"
+                          onClick={() => handleRemoveTeacherSubject(ts.subjectId)}
+                          data-testid={`docente-materie-rimuovi-${ts.subjectId}`}
+                        >
+                          <IconX size={12} />
+                        </ActionIcon>
+                      ) : undefined
+                    }
+                  >
+                    {ts.subject.name}
+                  </Badge>
+                ))
+              ) : (
+                <Text c="dimmed" size="sm">Nessuna materia associata</Text>
+              )}
+            </Group>
+            {canEditTeacher && (
+              <Group gap="sm" align="flex-end">
+                <Select
+                  label="Aggiungi materia"
+                  placeholder="Seleziona materia"
+                  searchable
+                  clearable
+                  data={subjectOptions
+                    .filter((s) => !teacherSubjects.some((ts) => ts.subjectId === s.id))
+                    .map((s) => ({ value: s.id, label: `${s.name} (${s.code})` }))}
+                  value={newSubjectId}
+                  onChange={setNewSubjectId}
+                  style={{ minWidth: 260 }}
+                  data-testid="docente-materie-select"
+                />
+                <Button
+                  onClick={handleAddTeacherSubject}
+                  loading={addingSubject}
+                  disabled={!newSubjectId}
+                  data-testid="docente-materie-aggiungi"
+                >
+                  Aggiungi
+                </Button>
+              </Group>
+            )}
+          </Card>
+
           <Card withBorder radius="md" p="lg">
             <Title order={4} mb="md">Qualifiche e Certificazioni</Title>
             <Stack gap="md">

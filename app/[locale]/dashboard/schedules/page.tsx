@@ -51,6 +51,7 @@ import {
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { ModernModal } from '@/components/modals/ModernModal';
 import { ScheduleForm } from '@/components/schedules/ScheduleForm';
+import { usePermission } from '@/lib/hooks/usePermissions';
 
 interface Schedule {
   id: string;
@@ -130,11 +131,8 @@ export default function SchedulesPage() {
   const [opened, { open, close }] = useDisclosure(false);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
 
-  // Check permissions
-  const canManageSchedules =
-    session?.user?.role === 'ADMIN' ||
-    session?.user?.role === 'DIRECTOR' ||
-    session?.user?.role === 'SUPERADMIN';
+  // Check permissions (matrice: generazione orario = manage su 'schedule')
+  const canManageSchedules = usePermission('manage', 'schedule');
 
   // Fetch schedules
   const fetchSchedules = async () => {

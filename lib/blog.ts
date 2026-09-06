@@ -14,6 +14,8 @@ export interface BlogPost {
   title: string;
   description: string;
   date: string;
+  /** Data di ultimo aggiornamento (frontmatter 'updated'), se presente. */
+  updated?: string;
   author: string;
   category: string;
   tags: string[];
@@ -28,12 +30,27 @@ export interface BlogPostMeta {
   title: string;
   description: string;
   date: string;
+  /** Data di ultimo aggiornamento (frontmatter 'updated'), se presente. */
+  updated?: string;
   author: string;
   category: string;
   tags: string[];
   image?: string;
   readingTime: string;
   locale: string;
+}
+
+/**
+ * Slug URL-safe per categorie e tag ("Registro Elettronico" → "registro-elettronico").
+ * Stessa funzione usata da route e link: il matching resta consistente.
+ */
+export function slugifyTaxonomy(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // rimuove gli accenti (diacritici combinanti)
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 /**
@@ -61,6 +78,7 @@ export async function getBlogPosts(locale: string = 'it'): Promise<BlogPostMeta[
       title: data.title || slug,
       description: data.description || '',
       date: data.date || new Date().toISOString(),
+      updated: data.updated || undefined,
       author: data.author || 'InsegnaMi Team',
       category: data.category || 'Generale',
       tags: data.tags || [],
@@ -97,6 +115,7 @@ export async function getBlogPost(slug: string, locale: string = 'it'): Promise<
     title: data.title || slug,
     description: data.description || '',
     date: data.date || new Date().toISOString(),
+    updated: data.updated || undefined,
     author: data.author || 'InsegnaMi Team',
     category: data.category || 'Generale',
     tags: data.tags || [],
@@ -105,6 +124,45 @@ export async function getBlogPost(slug: string, locale: string = 'it'): Promise<
     content,
     locale,
   };
+}
+
+/**
+ * Posts belonging to a category, matched by slugified name.
+ * Returns the display name too (dal primo post che matcha).
+ */
+export async function getBlogPostsByCategory(
+  categorySlug: string,
+  locale: string = 'it'
+): Promise<{ name: string | null; posts: BlogPostMeta[] }> {
+  const posts = await getBlogPosts(locale);
+  const matching = posts.filter((p) => slugifyTaxonomy(p.category) === categorySlug);
+  return { name: matching[0]?.category ?? null, posts: matching };
+}
+
+/**
+ * Posts carrying a tag, matched by slugified name.
+ */
+export async function getBlogPostsByTag(
+  tagSlug: string,
+  locale: string = 'it'
+): Promise<{ name: string | null; posts: BlogPostMeta[] }> {
+  const posts = await getBlogPosts(locale);
+  let name: string | null = null;
+  const matching = posts.filter((p) => {
+    const tag = p.tags.find((t) => slugifyTaxonomy(t) === tagSlug);
+    if (tag && !name) name = tag;
+    return Boolean(tag);
+  });
+  return { name, posts: matching };
+}
+
+/**
+ * Locali in cui esiste un post con questo slug (per hreflang dei post).
+ */
+export async function getPostLocales(slug: string): Promise<string[]> {
+  if (!SLUG_RE.test(slug)) return [];
+  const locales = ['it', 'en', 'fr', 'pt'];
+  return locales.filter((l) => fs.existsSync(path.join(BLOG_DIR, l, `${slug}.mdx`)));
 }
 
 /**

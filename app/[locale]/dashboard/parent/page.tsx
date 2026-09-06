@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { useQuery } from '@tanstack/react-query';
 import {
   Container,
   Title,
@@ -33,16 +35,10 @@ import {
   IconClipboardCheck,
   IconBell,
   IconCoin,
-  IconTrendingUp,
-  IconDownload,
   IconInfoCircle,
   IconClock,
-  IconMapPin,
-  IconMail,
-  IconPhone,
   IconUser,
   IconKey,
-  IconSettings,
 } from '@tabler/icons-react';
 
 import { useParentDashboard } from '@/lib/hooks/useDashboard';
@@ -51,42 +47,51 @@ import { ChangePasswordModal } from '@/components/modals/ChangePasswordModal';
 
 const localizer = momentLocalizer(moment);
 
-interface Child {
+// Messaggio come restituito da GET /api/messages (subset dei campi usati)
+interface ParentMessage {
   id: string;
-  name: string;
-  avatar?: string;
-  class: string;
-  teacher: string;
-  attendanceRate: number;
-  currentGrade?: number;
-  nextLesson?: Date;
-}
-
-interface Communication {
-  id: string;
-  from: string;
-  subject: string;
-  message: string;
-  date: Date;
-  type: 'notice' | 'grade' | 'attendance' | 'general';
-  childId?: string;
-  read: boolean;
+  title: string;
+  content: string;
+  isUrgent: boolean;
+  createdAt: string;
+  sender?: { id: string; firstName: string; lastName: string } | null;
+  recipients?: Array<{
+    userId: string;
+    emailReadAt?: string | null;
+    pushReadAt?: string | null;
+  }>;
 }
 
 export default function ParentDashboard() {
   const { data: session } = useSession();
   const t = useTranslations('parent');
   const tc = useTranslations('common');
+  const locale = useLocale();
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedChild, setSelectedChild] = useState<string>('all');
   const [changePasswordOpened, setChangePasswordOpened] = useState(false);
 
   // Use the new parent dashboard hook
-  const { 
-    data: dashboardResponse, 
+  const {
+    data: dashboardResponse,
     isLoading: dashboardLoading,
     error: dashboardError
   } = useParentDashboard();
+
+  // Comunicazioni reali: GET /api/messages (già filtrata lato server per
+  // PARENT sui messaggi propri e dei figli, con stato lettura da MessageRecipient)
+  const { data: messagesResponse } = useQuery<{ messages: ParentMessage[] }>({
+    queryKey: ['messages', 'parent-dashboard'],
+    queryFn: async () => {
+      const response = await fetch('/api/messages?limit=20');
+      if (!response.ok) {
+        throw new Error('Failed to fetch messages');
+      }
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
 
   if (!session?.user) {
     return (
@@ -115,14 +120,23 @@ export default function ParentDashboard() {
   }
 
   const dashboardData = dashboardResponse.data;
-  const { parent, stats, children, upcomingLessons, attendanceRecords, payments, notices } = dashboardData;
+  const { parent, stats, children, upcomingLessons, attendanceRecords, payments } = dashboardData;
 
   // Filter lessons by selected child
-  const filteredLessons = selectedChild === 'all' 
-    ? upcomingLessons 
-    : upcomingLessons.filter(lesson => 
+  const filteredLessons = selectedChild === 'all'
+    ? upcomingLessons
+    : upcomingLessons.filter(lesson =>
         lesson.enrolledChildren.some(child => child.id === selectedChild)
       );
+
+  // Selettore figlio applicato anche a presenze e pagamenti
+  const filteredAttendance = selectedChild === 'all'
+    ? attendanceRecords
+    : attendanceRecords.filter(record => record.child.id === selectedChild);
+
+  const filteredPayments = selectedChild === 'all'
+    ? payments
+    : payments.filter(payment => payment.child.id === selectedChild);
 
   // Transform lessons for calendar
   const calendarEvents = filteredLessons.map((lesson) => ({
@@ -133,17 +147,34 @@ export default function ParentDashboard() {
     resource: lesson,
   }));
 
-  // Use real notices data from API as communications
-  const communications = (notices || []).map((notice) => ({
-    id: notice.id,
-    from: 'Scuola',
-    subject: notice.title,
-    message: notice.content,
-    date: new Date(notice.publishAt),
-    type: notice.isUrgent ? 'notice' : 'general' as 'notice' | 'grade' | 'attendance' | 'general',
-    childId: undefined,
-    read: false, // Could be tracked with a separate read status table
-  }));
+  // Comunicazioni reali da GET /api/messages: mittente vero, stato lettura
+  // da MessageRecipient, figlio destinatario risolto via children[]
+  const childByUserId = new Map(
+    children
+      .filter((c) => c.user?.id)
+      .map((c) => [c.user.id as string, c])
+  );
+
+  const communications = (messagesResponse?.messages || []).map((msg) => {
+    const recipients = msg.recipients || [];
+    const read = recipients.some((r) => r.emailReadAt || r.pushReadAt);
+    const childRecipient = recipients.find((r) => childByUserId.has(r.userId));
+    return {
+      id: msg.id,
+      from: msg.sender ? `${msg.sender.firstName} ${msg.sender.lastName}` : '—',
+      subject: msg.title,
+      message: msg.content,
+      date: new Date(msg.createdAt),
+      type: (msg.isUrgent ? 'notice' : 'general') as 'notice' | 'grade' | 'attendance' | 'general',
+      childId: childRecipient ? childByUserId.get(childRecipient.userId)?.id : undefined,
+      read,
+    };
+  });
+
+  // Con figlio selezionato: messaggi di quel figlio + quelli diretti al genitore
+  const filteredCommunications = selectedChild === 'all'
+    ? communications
+    : communications.filter((c) => !c.childId || c.childId === selectedChild);
 
   const dashboardStats = [
     {
@@ -291,10 +322,6 @@ export default function ParentDashboard() {
                                 </Text>
                               </Group>
                             )}
-
-                            <Button variant="light" fullWidth size="sm">
-                              {t('viewDetails')}
-                            </Button>
                           </Stack>
                         </Card>
                       </Grid.Col>
@@ -308,7 +335,7 @@ export default function ParentDashboard() {
                 <Group justify="space-between" align="center" mb="md">
                   <Title order={3}>{t('recentCommunications')}</Title>
                   <Badge color="red" variant="light">
-                    {communications.filter(c => !c.read).length} {t('unread')}
+                    {filteredCommunications.filter(c => !c.read).length} {t('unread')}
                   </Badge>
                 </Group>
 
@@ -318,13 +345,13 @@ export default function ParentDashboard() {
                       <Skeleton key={i} height={80} />
                     ))}
                   </Stack>
-                ) : communications.length === 0 ? (
+                ) : filteredCommunications.length === 0 ? (
                   <Text c="dimmed" ta="center" py="xl">
                     {t('noRecentCommunications')}
                   </Text>
                 ) : (
                   <Stack gap="sm">
-                    {communications.slice(0, 5).map((comm) => (
+                    {filteredCommunications.slice(0, 5).map((comm) => (
                       <Card key={comm.id} p="sm" withBorder={!comm.read}>
                         <Group justify="space-between" align="flex-start">
                           <div>
@@ -349,9 +376,6 @@ export default function ParentDashboard() {
                               {t('from')}: {comm.from} • {moment(comm.date).format('DD/MM/YYYY')}
                             </Text>
                           </div>
-                          <Button size="xs" variant="light">
-                            {t('read')}
-                          </Button>
                         </Group>
                       </Card>
                     ))}
@@ -419,7 +443,7 @@ export default function ParentDashboard() {
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {attendanceRecords.slice(0, 15).map((record) => (
+                    {filteredAttendance.slice(0, 15).map((record) => (
                       <Table.Tr key={record.id}>
                         <Table.Td>
                           <Group gap="sm">
@@ -466,11 +490,16 @@ export default function ParentDashboard() {
             <Stack gap="md">
               <Group justify="space-between">
                 <Title order={2}>{t('paymentStatus')}</Title>
-                <Button leftSection={<IconDownload size={16} />} variant="light">
-                  {t('downloadSummary')}
+                <Button
+                  variant="light"
+                  component={Link}
+                  href={`/${locale}/dashboard/my/payments`}
+                  data-testid="parent-payments-tutti"
+                >
+                  Tutti i Pagamenti
                 </Button>
               </Group>
-              
+
               {dashboardLoading ? (
                 <Grid>
                   {[1, 2, 3, 4].map((i) => (
@@ -479,13 +508,13 @@ export default function ParentDashboard() {
                     </Grid.Col>
                   ))}
                 </Grid>
-              ) : payments.length === 0 ? (
+              ) : filteredPayments.length === 0 ? (
                 <Text c="dimmed" ta="center" py="xl">
                   {t('noPaymentsRecorded')}
                 </Text>
               ) : (
                 <Grid>
-                  {payments.map((payment) => (
+                  {filteredPayments.map((payment) => (
                     <Grid.Col span={{ base: 12, md: 6 }} key={payment.id}>
                       <Card p="md" withBorder>
                         <Group justify="space-between" align="flex-start">
@@ -514,14 +543,15 @@ export default function ParentDashboard() {
                         </Group>
                         
                         {payment.status === 'PENDING' && (
-                          <Button fullWidth mt="md" color="blue">
+                          <Button
+                            fullWidth
+                            mt="md"
+                            color="blue"
+                            component={Link}
+                            href={`/${locale}/dashboard/my/payments`}
+                            data-testid="parent-paga-ora"
+                          >
                             {t('payNow')}
-                          </Button>
-                        )}
-                        
-                        {payment.status === 'PAID' && (
-                          <Button fullWidth mt="md" variant="light">
-                            {t('downloadReceipt')}
                           </Button>
                         )}
                       </Card>
@@ -537,12 +567,12 @@ export default function ParentDashboard() {
               <Group justify="space-between" align="center" mb="md">
                 <Title order={2}>{t('allCommunications')}</Title>
                 <Badge color="red" variant="light">
-                  {communications.filter(c => !c.read).length} {t('unread')}
+                  {filteredCommunications.filter(c => !c.read).length} {t('unread')}
                 </Badge>
               </Group>
-              
+
               <Stack gap="md">
-                {communications.map((comm) => (
+                {filteredCommunications.map((comm) => (
                   <Card key={comm.id} p="md" withBorder={!comm.read} style={{ backgroundColor: !comm.read ? '#f8f9fa' : 'transparent' }}>
                     <Group justify="space-between" align="flex-start">
                       <div style={{ flex: 1 }}>
@@ -580,17 +610,6 @@ export default function ParentDashboard() {
                           </Group>
                         </Group>
                       </div>
-                      
-                      <Group gap="xs">
-                        <Button size="xs" variant="light" leftSection={<IconMail size={14} />}>
-                          {t('reply')}
-                        </Button>
-                        {!comm.read && (
-                          <Button size="xs" variant="outline">
-                            {t('markAsRead')}
-                          </Button>
-                        )}
-                      </Group>
                     </Group>
                   </Card>
                 ))}

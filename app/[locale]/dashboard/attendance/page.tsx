@@ -64,6 +64,20 @@ import {
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { useLessons, useLessonById } from '@/lib/hooks/useLessons';
 import { useClasses } from '@/lib/hooks/useClasses';
+import { usePermission } from '@/lib/hooks/usePermissions';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+interface JustificationItem {
+  id: string;
+  dateFrom: string;
+  dateTo: string;
+  reason: string;
+  note?: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+  student?: { id: string; firstName: string; lastName: string; studentCode?: string } | null;
+  requestedBy?: { id: string; firstName: string; lastName: string } | null;
+}
 
 interface AttendanceFormData {
   lessonId: string;
@@ -80,6 +94,11 @@ export default function AttendancePage() {
   const locale = useLocale();
   
   const [activeTab, setActiveTab] = useState('record');
+
+  // Gating via matrice permessi condivisa (niente confronti ruolo hardcoded)
+  const canRecordAttendance = usePermission('create', 'attendance');
+  const canUpdateAttendance = usePermission('update', 'attendance');
+  const canExportAttendance = usePermission('export', 'attendance');
   const [selectedLessonId, setSelectedLessonId] = useState<string>('');
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [attendanceModalOpened, { open: openAttendanceModal, close: closeAttendanceModal }] = useDisclosure(false);
@@ -115,7 +134,7 @@ export default function AttendancePage() {
   const {
     data: classesData,
     isLoading: classesLoading,
-  } = useClasses();
+  } = useClasses(1, 20, { all: 'true' }); // lista completa per i filtri (pattern grades)
 
   const {
     data: lessonAttendance,
@@ -130,6 +149,58 @@ export default function AttendancePage() {
   const recordAttendance = useRecordAttendance();
   const updateAttendance = useUpdateAttendance();
   const exportAttendance = useExportAttendance();
+
+  // Coda giustificazioni da approvare (feature 'absenceJustifications').
+  // Se la feature non è nel piano la GET risponde 403: il tab mostra l'avviso.
+  const queryClient = useQueryClient();
+  const justificationsQuery = useQuery({
+    queryKey: ['absence-justifications', 'pending'],
+    queryFn: async (): Promise<{ data: JustificationItem[] }> => {
+      const response = await fetch('/api/absence-justifications?status=PENDING&limit=100');
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || 'Errore nel caricamento delle giustificazioni');
+      }
+      return response.json();
+    },
+    enabled: canUpdateAttendance,
+    retry: false,
+  });
+  const pendingJustifications = justificationsQuery.data?.data ?? [];
+
+  const decideJustification = useMutation({
+    mutationFn: async ({ id, action }: { id: string; action: 'approve' | 'reject' }) => {
+      const response = await fetch(`/api/absence-justifications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || 'Errore nella decisione');
+      }
+      return response.json();
+    },
+    onSuccess: (_data, variables) => {
+      notifications.show({
+        title: 'Successo',
+        message:
+          variables.action === 'approve'
+            ? 'Giustificazione approvata: le assenze del periodo sono state giustificate'
+            : 'Giustificazione rifiutata',
+        color: 'green',
+      });
+      queryClient.invalidateQueries({ queryKey: ['absence-justifications'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+    },
+    onError: (error: Error) => {
+      notifications.show({
+        title: 'Errore',
+        message: error.message,
+        color: 'red',
+      });
+    },
+  });
 
   const attendance = attendanceData?.attendance || [];
   const lessons = lessonsData?.lessons || [];
@@ -322,19 +393,25 @@ export default function AttendancePage() {
         <Group justify="space-between">
           <Title order={2}>{t('title')}</Title>
           <Group>
-            <Button
-              variant="light"
-              leftSection={<IconDownload size={16} />}
-              onClick={() => handleExportAttendance('xlsx')}
-            >
-              {t('exportExcel')}
-            </Button>
-            <Button
-              leftSection={<IconCalendar size={16} />}
-              onClick={openAttendanceModal}
-            >
-              {t('recordAttendance')}
-            </Button>
+            {canExportAttendance && (
+              <Button
+                variant="light"
+                leftSection={<IconDownload size={16} />}
+                onClick={() => handleExportAttendance('xlsx')}
+                data-testid="attendance-export"
+              >
+                {t('exportExcel')}
+              </Button>
+            )}
+            {canRecordAttendance && (
+              <Button
+                leftSection={<IconCalendar size={16} />}
+                onClick={openAttendanceModal}
+                data-testid="attendance-registra"
+              >
+                {t('recordAttendance')}
+              </Button>
+            )}
           </Group>
         </Group>
 
@@ -445,6 +522,21 @@ export default function AttendancePage() {
             >
               Storico
             </Tabs.Tab>
+            {canUpdateAttendance && (
+              <Tabs.Tab
+                value="justifications"
+                leftSection={<IconCheck size={16} />}
+                data-testid="giustificazioni-tab"
+                style={{
+                  color: activeTab === 'justifications' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                  backgroundColor: activeTab === 'justifications' ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+                  borderRadius: '8px',
+                  border: 'none'
+                }}
+              >
+                Giustificazioni{pendingJustifications.length > 0 ? ` (${pendingJustifications.length})` : ''}
+              </Tabs.Tab>
+            )}
           </Tabs.List>
 
           {/* Attendance Records Tab */}
@@ -489,16 +581,18 @@ export default function AttendancePage() {
                       },
                     }}
                   />
-                  <Button
-                    onClick={openAttendanceModal}
-                    disabled={!selectedLessonId}
-                    style={{
-                      background: selectedLessonId ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' : 'rgba(255, 255, 255, 0.1)',
-                      border: 'none',
-                    }}
-                  >
-                    Registra Presenze
-                  </Button>
+                  {canRecordAttendance && (
+                    <Button
+                      onClick={openAttendanceModal}
+                      disabled={!selectedLessonId}
+                      style={{
+                        background: selectedLessonId ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' : 'rgba(255, 255, 255, 0.1)',
+                        border: 'none',
+                      }}
+                    >
+                      Registra Presenze
+                    </Button>
+                  )}
                 </Group>
               </Paper>
 
@@ -573,15 +667,18 @@ export default function AttendancePage() {
                               </Text>
                             </Table.Td>
                             <Table.Td>
-                              <ActionIcon
-                                variant="light"
-                                color="blue"
-                                size="sm"
-                                onClick={() => handleOpenEditModal(record)}
-                                title="Modifica presenza"
-                              >
-                                <IconEdit size={14} />
-                              </ActionIcon>
+                              {canUpdateAttendance && (
+                                <ActionIcon
+                                  variant="light"
+                                  color="blue"
+                                  size="sm"
+                                  onClick={() => handleOpenEditModal(record)}
+                                  title="Modifica presenza"
+                                  data-testid="attendance-modifica"
+                                >
+                                  <IconEdit size={14} />
+                                </ActionIcon>
+                              )}
                             </Table.Td>
                           </Table.Tr>
                         ))}
@@ -609,14 +706,17 @@ export default function AttendancePage() {
                     style={{ flex: 1 }}
                     searchable
                   />
-                  <Button
-                    variant="light"
-                    leftSection={<IconDownload size={16} />}
-                    onClick={() => handleExportAttendance('pdf')}
-                    disabled={!selectedClassId}
-                  >
-                    Esporta Report
-                  </Button>
+                  {canExportAttendance && (
+                    <Button
+                      variant="light"
+                      leftSection={<IconDownload size={16} />}
+                      onClick={() => handleExportAttendance('pdf')}
+                      disabled={!selectedClassId}
+                      data-testid="attendance-export-report"
+                    >
+                      Esporta Report
+                    </Button>
+                  )}
                 </Group>
               </Paper>
 
@@ -775,6 +875,107 @@ export default function AttendancePage() {
               </Table>
             </Paper>
           </Tabs.Panel>
+
+          {/* Coda giustificazioni da approvare */}
+          {canUpdateAttendance && (
+            <Tabs.Panel value="justifications" pt="lg">
+              <Paper p="lg" withBorder data-testid="giustificazioni-coda">
+                <LoadingOverlay visible={justificationsQuery.isLoading} />
+
+                {justificationsQuery.isError ? (
+                  <Alert color="yellow" icon={<IconFileText size={16} />}>
+                    {(justificationsQuery.error as Error)?.message ||
+                      'Giustificazioni non disponibili'}
+                  </Alert>
+                ) : pendingJustifications.length === 0 ? (
+                  <Alert color="blue" icon={<IconCheck size={16} />}>
+                    Nessuna giustificazione in attesa di approvazione.
+                  </Alert>
+                ) : (
+                  <Table striped highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Studente</Table.Th>
+                        <Table.Th>Periodo</Table.Th>
+                        <Table.Th>Motivo</Table.Th>
+                        <Table.Th>Richiesta da</Table.Th>
+                        <Table.Th>Azioni</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {pendingJustifications.map((j) => (
+                        <Table.Tr key={j.id}>
+                          <Table.Td>
+                            <Text size="sm" fw={500}>
+                              {j.student
+                                ? `${j.student.firstName} ${j.student.lastName}`
+                                : '—'}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm">
+                              {dayjs(j.dateFrom).format('DD/MM/YYYY')} –{' '}
+                              {dayjs(j.dateTo).format('DD/MM/YYYY')}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm" lineClamp={2}>
+                              {j.reason}
+                            </Text>
+                            {j.note && (
+                              <Text size="xs" c="dimmed" lineClamp={1}>
+                                {j.note}
+                              </Text>
+                            )}
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm">
+                              {j.requestedBy
+                                ? `${j.requestedBy.firstName} ${j.requestedBy.lastName}`
+                                : '—'}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {dayjs(j.createdAt).format('DD/MM/YYYY HH:mm')}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Group gap="xs">
+                              <Button
+                                size="xs"
+                                color="green"
+                                variant="light"
+                                leftSection={<IconCheck size={14} />}
+                                loading={decideJustification.isPending}
+                                onClick={() =>
+                                  decideJustification.mutate({ id: j.id, action: 'approve' })
+                                }
+                                data-testid="giustificazioni-approva"
+                              >
+                                Approva
+                              </Button>
+                              <Button
+                                size="xs"
+                                color="red"
+                                variant="light"
+                                leftSection={<IconX size={14} />}
+                                loading={decideJustification.isPending}
+                                onClick={() =>
+                                  decideJustification.mutate({ id: j.id, action: 'reject' })
+                                }
+                                data-testid="giustificazioni-rifiuta"
+                              >
+                                Rifiuta
+                              </Button>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                )}
+              </Paper>
+            </Tabs.Panel>
+          )}
         </Tabs>
       </Stack>
 

@@ -3,11 +3,15 @@ import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { can } from '@/lib/permissions/matrix';
 
 const noticeUpdateSchema = z.object({
   title: z.string().min(1, 'Titolo richiesto').optional(),
   content: z.string().min(1, 'Contenuto richiesto').optional(),
   type: z.enum(['ANNOUNCEMENT', 'EVENT', 'REMINDER', 'URGENT']).optional(),
+  // Ciclo di vita: pubblica/archivia dagli hook usePublishNotice/useArchiveNotice
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
+  publishedAt: z.string().datetime().optional(),
   isPublic: z.boolean().optional(),
   targetRoles: z.array(z.enum(['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'])).optional(),
   publishAt: z.string().datetime().optional(),
@@ -31,19 +35,26 @@ export async function GET(
 
     const { id } = await params;
 
+    // Chi gestisce/crea avvisi può leggere anche bozze e archiviati
+    const isManager =
+      can(session.user.role, 'manage', 'notice') || can(session.user.role, 'create', 'notice');
+
     const notice = await prisma.notice.findFirst({
-      where: {
-        id: id,
-        tenantId: session.user.tenantId,
-        targetRoles: {
-          has: session.user.role,
-        },
-        publishAt: { lte: new Date() },
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } },
-        ],
-      },
+      where: isManager
+        ? { id: id, tenantId: session.user.tenantId }
+        : {
+            id: id,
+            tenantId: session.user.tenantId,
+            status: 'PUBLISHED',
+            targetRoles: {
+              has: session.user.role,
+            },
+            publishAt: { lte: new Date() },
+            OR: [
+              { expiresAt: null },
+              { expiresAt: { gt: new Date() } },
+            ],
+          },
     });
 
     if (!notice) {
@@ -73,8 +84,8 @@ export async function PUT(
     const blocked = await blockIfTenantInaccessible(session);
     if (blocked) return blocked;
 
-    // Only admins and teachers can update notices
-    if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
+    // Staff (matrice: manage notice) e docenti possono aggiornare gli avvisi
+    if (!['ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 
@@ -116,6 +127,17 @@ export async function PUT(
     }
     if (validatedData.expiresAt) {
       updateData.expiresAt = new Date(validatedData.expiresAt);
+    }
+    if (validatedData.publishedAt) {
+      updateData.publishedAt = new Date(validatedData.publishedAt);
+    }
+    // Transizione a PUBLISHED senza publishedAt esplicito → timestamp adesso
+    if (
+      validatedData.status === 'PUBLISHED' &&
+      !validatedData.publishedAt &&
+      !existingNotice.publishedAt
+    ) {
+      updateData.publishedAt = new Date();
     }
 
     const updatedNotice = await prisma.notice.update({

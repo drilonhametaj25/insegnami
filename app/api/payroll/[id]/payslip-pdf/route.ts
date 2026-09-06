@@ -16,7 +16,7 @@ interface RouteParams {
  */
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'read', resource: 'payroll' } });
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'payroll' }, feature: 'payroll' });
     const { id } = await params;
 
     const where: any = tenantScope(ctx, { id });

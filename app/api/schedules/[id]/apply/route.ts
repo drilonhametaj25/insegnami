@@ -125,6 +125,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           room: slot.room,
           classId: slot.classId,
           teacherId: slot.teacherId,
+          // Materia dallo slot → abilita filtri/pagelle sulle lezioni generate
+          subjectId: slot.subjectId,
           status: 'SCHEDULED',
           isRecurring: false, // Ogni lezione è singola
           materials: null,

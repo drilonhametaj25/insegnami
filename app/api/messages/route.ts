@@ -16,7 +16,8 @@ const messageSchema = z.object({
   scheduledAt: z.string().datetime().optional(),
   sendEmail: z.boolean().default(true),
   sendSms: z.boolean().default(false),
-  sendPush: z.boolean().default(true),
+  // Push onesto: nessun provider push è implementato → default false
+  sendPush: z.boolean().default(false),
   emailTemplate: z.string().optional(),
   emailSubject: z.string().optional(),
   priority: z.number().min(0).max(2).default(0),
@@ -53,6 +54,9 @@ export async function GET(request: NextRequest) {
     if (sent === 'true') where.sentAt = { not: null };
     if (sent === 'false') where.sentAt = null;
 
+    // Destinatari di cui il chiamante può vedere lo stato di lettura
+    let visibleRecipientUserIds: string[] = [session.user.id];
+
     // Role-based filtering
     if (session.user.role === 'TEACHER') {
       // Teachers can see messages they sent or received
@@ -65,11 +69,14 @@ export async function GET(request: NextRequest) {
       where.recipients = { some: { userId: session.user.id } };
     } else if (session.user.role === 'PARENT') {
       // Parents can see messages sent to themselves or their children
-      // First get the student user IDs for this parent
+      // Guardian-aware: StudentGuardian + fallback legacy parentUserId
       const studentRelations = await prisma.student.findMany({
         where: {
-          parentUserId: session.user.id,
           tenantId: session.user.tenantId,
+          OR: [
+            { parentUserId: session.user.id },
+            { guardians: { some: { userId: session.user.id } } },
+          ],
         },
         select: { userId: true }
       });
@@ -80,6 +87,7 @@ export async function GET(request: NextRequest) {
 
       // Include parent's own ID and their children's IDs
       const allowedUserIds = [session.user.id, ...childUserIds];
+      visibleRecipientUserIds = allowedUserIds;
 
       where.recipients = {
         some: { userId: { in: allowedUserIds } }
@@ -96,6 +104,17 @@ export async function GET(request: NextRequest) {
               firstName: true,
               lastName: true,
               email: true,
+            },
+          },
+          // Stato lettura (MessageRecipient) limitato agli utenti visibili
+          // al chiamante: se stesso e, per un genitore, i propri figli
+          recipients: {
+            where: { userId: { in: visibleRecipientUserIds } },
+            select: {
+              userId: true,
+              emailReadAt: true,
+              pushReadAt: true,
+              emailDeliveredAt: true,
             },
           },
           _count: {
@@ -145,8 +164,8 @@ export async function POST(request: NextRequest) {
     const blocked = await blockIfTenantInaccessible(session);
     if (blocked) return blocked;
 
-    // Only admins and teachers can create messages
-    if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
+    // Matrice: message create concesso ad admin, direzione, segreteria e docenti
+    if (!['ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 

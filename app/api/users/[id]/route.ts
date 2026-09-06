@@ -64,6 +64,43 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Profili collegati (per la scheda utente): studente/docente via FK userId,
+    // figli via StudentGuardian + fallback legacy parentUserId
+    const profileTenantId =
+      session.user.role === 'SUPERADMIN'
+        ? user.tenants[0]?.tenantId
+        : session.user.tenantId;
+
+    const [studentProfile, teacherProfile, childProfiles] = profileTenantId
+      ? await Promise.all([
+          prisma.student.findFirst({
+            where: { userId: user.id, tenantId: profileTenantId },
+            select: { id: true },
+          }),
+          prisma.teacher.findFirst({
+            where: { userId: user.id, tenantId: profileTenantId },
+            select: { id: true },
+          }),
+          prisma.student.findMany({
+            where: {
+              tenantId: profileTenantId,
+              OR: [
+                { parentUserId: user.id },
+                { guardians: { some: { userId: user.id } } },
+              ],
+            },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              studentCode: true,
+              status: true,
+            },
+            orderBy: { lastName: 'asc' },
+          }),
+        ])
+      : [null, null, []];
+
     // Transform user for response
     const responseUser = {
       id: user.id,
@@ -83,6 +120,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         role: ut.role,
         permissions: ut.permissions,
       })),
+      profiles: {
+        studentId: studentProfile?.id ?? null,
+        teacherId: teacherProfile?.id ?? null,
+        children: childProfiles,
+      },
     };
 
     return NextResponse.json({ user: responseUser });

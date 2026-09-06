@@ -6,7 +6,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { z } from 'zod';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
-import { getTeacherIdForUser, type AuthContext } from '@/lib/api-auth';
+import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
 
 // Schema for creating material from URL/link
 const createMaterialSchema = z.object({
@@ -41,6 +41,44 @@ export async function GET(
 
     if (!lesson) {
       return NextResponse.json({ error: 'Lezione non trovata' }, { status: 404 });
+    }
+
+    // Check di ruolo: admin → tutto; TEACHER → solo le proprie lezioni;
+    // STUDENT → solo se iscritto alla classe della lezione; PARENT → 403 (Wave 2).
+    if (!['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY'].includes(session.user.role)) {
+      // SECURITY: Lesson.teacherId referenzia Teacher.id, NON User.id.
+      const ctx = {
+        userId: session.user.id ?? '',
+        tenantId: session.user.tenantId,
+        role: session.user.role,
+        email: session.user.email ?? '',
+        isSuperAdmin: false,
+        session,
+      } as AuthContext;
+
+      if (session.user.role === 'TEACHER') {
+        const tid = await getTeacherIdForUser(ctx);
+        if (!tid || lesson.teacherId !== tid) {
+          return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+        }
+      } else if (session.user.role === 'STUDENT') {
+        const sid = await getStudentIdForUser(ctx);
+        if (!sid) {
+          return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+        }
+        const enrollment = await prisma.studentClass.findFirst({
+          where: {
+            studentId: sid,
+            classId: lesson.classId,
+            isActive: true,
+          },
+        });
+        if (!enrollment) {
+          return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+        }
+      } else {
+        return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+      }
     }
 
     // Fetch materials from database
@@ -149,6 +187,25 @@ export async function POST(
       const maxSize = 10 * 1024 * 1024; // 10MB
       if (file.size > maxSize) {
         return NextResponse.json({ error: 'File troppo grande (max 10MB)' }, { status: 400 });
+      }
+
+      // Enforcement quota storage del piano PRIMA di scrivere su disco:
+      // usato + nuovo file deve stare nel limite effettivo (null = illimitato).
+      const { getEffectiveLimits, getStorageUsedBytes } = await import('@/lib/billing/limits');
+      const limits = await getEffectiveLimits(session.user.tenantId);
+      if (limits.storageBytes != null) {
+        const usedBytes = await getStorageUsedBytes(session.user.tenantId);
+        if (usedBytes + file.size > limits.storageBytes) {
+          return NextResponse.json(
+            {
+              error: 'Spazio di archiviazione del piano esaurito. Acquista un add-on storage o effettua l\'upgrade del piano.',
+              code: 'storage-limit',
+              usedBytes,
+              limitBytes: limits.storageBytes,
+            },
+            { status: 402 }
+          );
+        }
       }
 
       // Create uploads directory if it doesn't exist

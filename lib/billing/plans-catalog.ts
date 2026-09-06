@@ -29,6 +29,13 @@ export interface PlanDefinition {
   sortOrder: number;
 }
 
+/**
+ * Feature flag ONESTI: ogni chiave qui è davvero applicata dal gating
+ * (lib/billing/features.ts + requireAuth({feature})). Le funzionalità core
+ * (registro, presenze, voti, pagelle, comunicazioni email, portale famiglia,
+ * pagamenti manuali) sono incluse in TUTTI i piani e non hanno flag: il
+ * differenziale del piano base sono i limiti numerici.
+ */
 export const PLAN_CATALOG: PlanDefinition[] = [
   {
     name: 'Starter',
@@ -39,12 +46,7 @@ export const PLAN_CATALOG: PlanDefinition[] = [
     maxTeachers: 5,
     maxClasses: 10,
     features: {
-      attendance: true,
-      payments: true,
-      communications: true,
-      calendar: true,
-      reports: true,
-      parentPortal: true,
+      paymentReminders: true,
     },
     description: 'Per piccole scuole e centri di formazione',
     isPopular: false,
@@ -59,15 +61,15 @@ export const PLAN_CATALOG: PlanDefinition[] = [
     maxTeachers: 20,
     maxClasses: 50,
     features: {
-      attendance: true,
-      payments: true,
-      communications: true,
-      calendar: true,
-      reports: true,
-      parentPortal: true,
+      paymentReminders: true,
+      einvoicing: true,
+      payroll: true,
+      accounting: true,
+      hoursPackages: true,
       analytics: true,
-      integrations: true,
-      whiteLabel: true,
+      scheduleGenerator: true,
+      bulkImport: true,
+      absenceJustifications: true,
     },
     description: 'Per scuole in crescita con più sedi',
     isPopular: true,
@@ -82,20 +84,18 @@ export const PLAN_CATALOG: PlanDefinition[] = [
     maxTeachers: null,
     maxClasses: null,
     features: {
-      attendance: true,
-      payments: true,
-      communications: true,
-      calendar: true,
-      reports: true,
-      parentPortal: true,
+      paymentReminders: true,
+      einvoicing: true,
+      payroll: true,
+      accounting: true,
+      hoursPackages: true,
       analytics: true,
-      integrations: true,
+      scheduleGenerator: true,
+      bulkImport: true,
+      absenceJustifications: true,
+      automationsConfig: true,
       whiteLabel: true,
-      advancedReporting: true,
-      multiCampus: true,
-      slaGuarantee: true,
-      dedicatedSupport: true,
-      customIntegrations: true,
+      auditTrail: true,
     },
     description: 'Per grandi istituti e franchising',
     isPopular: false,

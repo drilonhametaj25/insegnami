@@ -24,7 +24,7 @@ test.describe('Permessi dati — ADMIN (vede tutto)', () => {
 test.describe('Permessi dati — PARENT (solo i propri figli)', () => {
   test.use({ storageState: storageStateFor('parent') });
 
-  test('il genitore vede solo i pagamenti del proprio figlio', async ({ page }) => {
+  test('il genitore vede solo i pagamenti del proprio figlio @smoke', async ({ page }) => {
     const res = await page.request.get('/api/payments?page=1&limit=100');
     expect(res.ok()).toBeTruthy();
     const data = await res.json();
@@ -70,7 +70,7 @@ test.describe('Permessi dati — STUDENT (solo i propri voti)', () => {
     }
   });
 
-  test('lo studente NON può elencare tutti gli studenti', async ({ page }) => {
+  test('lo studente NON può elencare tutti gli studenti @smoke', async ({ page }) => {
     const res = await page.request.get('/api/students?page=1&limit=100');
     expect([401, 403]).toContain(res.status());
   });

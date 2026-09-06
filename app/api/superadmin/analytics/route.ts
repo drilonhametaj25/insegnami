@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { yearlyPriceOf } from '@/lib/billing/plans-catalog';
 
 // GET /api/superadmin/analytics - Global platform analytics
 export async function GET(request: NextRequest) {
@@ -124,10 +125,17 @@ export async function GET(request: NextRequest) {
 
     revenueByPlan.forEach((sub) => {
       if (sub.plan) {
+        // MRR guidato dall'intervallo della SUBSCRIPTION (non del piano):
+        // - piano con prezzo annuale → /12
+        // - piano mensile fatturato annualmente → prezzo annuale (12 mesi al
+        //   prezzo di 10, yearlyPriceOf) spalmato su 12 mesi
+        const planPrice = parseFloat(sub.plan.price.toString());
         const monthlyPrice =
           sub.plan.interval === 'YEARLY'
-            ? parseFloat(sub.plan.price.toString()) / 12
-            : parseFloat(sub.plan.price.toString());
+            ? planPrice / 12
+            : sub.interval === 'YEARLY'
+              ? yearlyPriceOf(planPrice) / 12
+              : planPrice;
 
         mrr += monthlyPrice;
 

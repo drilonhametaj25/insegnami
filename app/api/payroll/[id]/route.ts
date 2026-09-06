@@ -11,12 +11,17 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 const lineItemSchema = z.object({
   type: z.enum(['HOURS', 'BONUS', 'EXPENSE_REIMBURSEMENT', 'ADJUSTMENT', 'OTHER']),
   description: z.string().min(1).max(200),
   quantity: z.number().optional(),
   unitAmount: z.number(),
-  total: z.number(),
+  // total del client ignorato: ricalcolato server-side (quantity × unitAmount)
+  total: z.number().optional(),
   lessonId: z.string().cuid().optional(),
 });
 
@@ -24,8 +29,9 @@ const withholdingSchema = z.object({
   type: z.enum(['RITENUTA_ACCONTO', 'INPS', 'INAIL', 'OTHER']),
   label: z.string().min(1).max(120),
   rate: z.number().min(0).max(100),
-  base: z.number(),
-  amount: z.number(),
+  // base/amount del client ignorati: riapplicati da recomputePayrollTotals
+  base: z.number().optional(),
+  amount: z.number().optional(),
 });
 
 const patchSchema = z.object({
@@ -37,7 +43,7 @@ const patchSchema = z.object({
 
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'read', resource: 'payroll' } });
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'payroll' }, feature: 'payroll' });
     const { id } = await params;
 
     const where: any = tenantScope(ctx, { id });
@@ -75,7 +81,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'update', resource: 'payroll' } });
+    const ctx = await requireAuth({ permission: { action: 'update', resource: 'payroll' }, feature: 'payroll' });
     const { id } = await params;
 
     const existing = await prisma.payroll.findFirst({
@@ -96,6 +102,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Dati non validi', details: parsed.error.flatten() }, { status: 400 });
     }
 
+    // Le righe HOURS sono di esclusiva competenza del generatore (timesheet):
+    // un extra di tipo HOURS aggirerebbe il calcolo ore → 400.
+    if (parsed.data.extras?.some((e) => e.type === 'HOURS')) {
+      return NextResponse.json(
+        { error: 'Le righe di tipo HOURS sono gestite dal generatore e non modificabili come extra' },
+        { status: 400 },
+      );
+    }
+
     await prisma.$transaction(async (tx) => {
       if (parsed.data.notes !== undefined) {
         await tx.payroll.update({ where: { id }, data: { notes: parsed.data.notes } });
@@ -105,29 +120,35 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         await tx.payrollLineItem.deleteMany({ where: { payrollId: id, type: { not: 'HOURS' as any } } });
         if (parsed.data.extras.length > 0) {
           await tx.payrollLineItem.createMany({
-            data: parsed.data.extras.map((e) => ({
-              payrollId: id,
-              type: e.type as any,
-              description: e.description,
-              quantity: e.quantity != null ? new Decimal(e.quantity) : null,
-              unitAmount: new Decimal(e.unitAmount),
-              total: new Decimal(e.total),
-              lessonId: e.lessonId ?? null,
-            })),
+            data: parsed.data.extras.map((e) => {
+              // total SEMPRE ricalcolato server-side: quantity × unitAmount
+              const total = round2((e.quantity ?? 1) * e.unitAmount);
+              return {
+                payrollId: id,
+                type: e.type as any,
+                description: e.description,
+                quantity: e.quantity != null ? new Decimal(e.quantity) : null,
+                unitAmount: new Decimal(e.unitAmount),
+                total: new Decimal(total),
+                lessonId: e.lessonId ?? null,
+              };
+            }),
           });
         }
       }
       if (parsed.data.withholdings) {
         await tx.payrollWithholding.deleteMany({ where: { payrollId: id } });
         if (parsed.data.withholdings.length > 0) {
+          // base/amount a 0: valori reali riapplicati da recomputePayrollTotals
+          // (aliquota sulla nuova base) — i numeri del client sono ignorati.
           await tx.payrollWithholding.createMany({
             data: parsed.data.withholdings.map((w) => ({
               payrollId: id,
               type: w.type as any,
               label: w.label,
               rate: new Decimal(w.rate),
-              base: new Decimal(w.base),
-              amount: new Decimal(w.amount),
+              base: new Decimal(0),
+              amount: new Decimal(0),
             })),
           });
         }
@@ -150,7 +171,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'delete', resource: 'payroll' } });
+    const ctx = await requireAuth({ permission: { action: 'delete', resource: 'payroll' }, feature: 'payroll' });
     const { id } = await params;
 
     const existing = await prisma.payroll.findFirst({

@@ -3,10 +3,10 @@ import { redis } from '@/lib/redis';
 import { sendEmail } from '@/lib/email';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { AutomationJob, AutomationService } from '@/lib/automation-service';
+import { AutomationJob } from '@/lib/automation-service';
 
-// Email templates for different automation types
-const EMAIL_TEMPLATES = {
+// Email templates for different automation types (export: verificati dai test)
+export const EMAIL_TEMPLATES = {
   attendanceReminder: {
     'before-class': {
       subject: 'Promemoria: Lezione tra poco - {{lessonTitle}}',
@@ -74,6 +74,26 @@ const EMAIL_TEMPLATES = {
         <p>Per informazioni o per concordare un piano di pagamento, contatta la segreteria.</p>
       `,
     },
+    // Messa in mora "soft": ultimo avviso prima di eventuali azioni formali
+    'final-notice': {
+      subject: 'Ultimo sollecito - {{description}}',
+      template: `
+        <h2>Gentile {{studentName}},</h2>
+        <p>Nonostante i precedenti promemoria, il seguente pagamento risulta ancora insoluto:</p>
+        <div style="background: #f8d7da; border: 1px solid #dc3545; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3>Ultimo Sollecito di Pagamento</h3>
+          <p><strong>Importo:</strong> €{{amount}}</p>
+          <p><strong>Descrizione:</strong> {{description}}</p>
+          <p><strong>Scaduto il:</strong> {{dueDate}}</p>
+          <p><strong>Giorni di ritardo:</strong> {{daysOverdue}}</p>
+        </div>
+        <p>Ti invitiamo a regolarizzare la posizione entro <strong>7 giorni</strong> dalla ricezione
+        di questa comunicazione. In mancanza, la scuola potrà valutare la sospensione dei servizi
+        e le ulteriori azioni previste per il recupero del credito.</p>
+        <p>Se il pagamento è già stato effettuato, o per concordare un piano di rientro,
+        contatta la segreteria: questa comunicazione non tiene conto di versamenti recentissimi.</p>
+      `,
+    },
   },
 };
 
@@ -97,9 +117,6 @@ export const automationWorker = new Worker<AutomationJob>(
           break;
         case 'auto-enrollment':
           await processAutoEnrollment(data);
-          break;
-        case 'recurring-lesson':
-          await processRecurringLesson(data);
           break;
         default:
           logger.warn(`Unknown automation job type: ${(data as any).type}`);
@@ -187,7 +204,10 @@ async function processAttendanceReminder(data: any) {
   logger.info(`Attendance reminder sent to teacher: ${teacherEmail}`);
 }
 
-async function processPaymentReminder(data: any) {
+// Finestra di dedup dei solleciti: stesso payment+tipo, ultimi 3 giorni
+const REMINDER_DEDUP_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+
+export async function processPaymentReminder(data: any) {
   const payment = await prisma.payment.findUnique({
     where: { id: data.paymentId },
     include: {
@@ -210,9 +230,33 @@ async function processPaymentReminder(data: any) {
     return;
   }
 
+  // Ricontrollo dello stato: il pagamento può essere stato saldato (o
+  // annullato) tra l'accodamento e l'esecuzione del job — niente sollecito.
+  if (payment.status === 'PAID' || payment.status === 'CANCELLED') {
+    logger.info(`Payment ${payment.id} is ${payment.status}: reminder skipped`);
+    return;
+  }
+
   const template = EMAIL_TEMPLATES.paymentReminder[data.reminderType as keyof typeof EMAIL_TEMPLATES.paymentReminder];
   if (!template) {
     logger.error(`No template found for payment reminder type: ${data.reminderType}`);
+    return;
+  }
+
+  // Dedup: se un sollecito dello stesso tipo per questo payment è già stato
+  // accodato/inviato negli ultimi 3 giorni, non lo ripetiamo.
+  const dedupSourceId = `${payment.id}:${data.reminderType}`;
+  const recentLog = await prisma.emailLog.findFirst({
+    where: {
+      sourceType: 'payment-reminder',
+      sourceId: dedupSourceId,
+      status: { in: ['QUEUED', 'SENT'] },
+      createdAt: { gte: new Date(Date.now() - REMINDER_DEDUP_WINDOW_MS) },
+    },
+    select: { id: true },
+  });
+  if (recentLog) {
+    logger.info(`Payment reminder dedup: ${dedupSourceId} already sent recently`);
     return;
   }
 
@@ -231,6 +275,8 @@ async function processPaymentReminder(data: any) {
     ? Math.floor((Date.now() - payment.dueDate.getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
+  const emailSubject = template.subject.replace(/{{description}}/g, payment.description);
+
   for (const email of emailAddresses) {
     if (email) {
       let emailContent = template.template
@@ -243,11 +289,31 @@ async function processPaymentReminder(data: any) {
         emailContent = emailContent.replace(/{{daysOverdue}}/g, daysOverdue.toString());
       }
 
-      await sendEmail({
+      const result = await sendEmail({
         to: email,
-        subject: template.subject.replace(/{{description}}/g, payment.description),
+        subject: emailSubject,
         html: emailContent,
       });
+
+      // Registro di consegna: QUEUED se accodata, SENT se SMTP diretto,
+      // FAILED altrimenti. È anche la base del dedup qui sopra.
+      try {
+        await prisma.emailLog.create({
+          data: {
+            tenantId: payment.tenantId,
+            to: email,
+            subject: emailSubject,
+            sourceType: 'payment-reminder',
+            sourceId: dedupSourceId,
+            status: result?.success ? (result.queued ? 'QUEUED' : 'SENT') : 'FAILED',
+            messageId: (result as any)?.messageId ?? null,
+            sentAt: result?.success && !result.queued ? new Date() : null,
+            error: result?.success ? null : ((result as any)?.error ?? 'send failed'),
+          },
+        });
+      } catch (logErr) {
+        logger.warn('EmailLog write failed for payment reminder', logErr);
+      }
     }
   }
 
@@ -321,10 +387,6 @@ async function processClassCapacityWarning(data: any) {
 async function processAutoEnrollment(data: any) {
   // Implement auto enrollment logic when waiting list is implemented
   logger.info(`Auto enrollment processing for student: ${data.studentId}`);
-}
-
-async function processRecurringLesson(data: any) {
-  await AutomationService.generateRecurringLesson(data.templateLessonId, data.nextDate);
 }
 
 // Worker event handlers

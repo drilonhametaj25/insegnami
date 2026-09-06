@@ -32,11 +32,20 @@ jest.mock('@/lib/tenant-guard', () => ({
   blockIfTenantInaccessible: jest.fn().mockResolvedValue(null),
 }))
 
-// Mock Prisma
+// Le route migrate a requireAuth passano da tenant-access, non da tenant-guard
+jest.mock('@/lib/tenant-access', () => ({
+  getTenantAccessCached: jest.fn().mockResolvedValue({ ok: true }),
+  invalidateTenantAccessCache: jest.fn(),
+}))
+
+// Mock Prisma (teacher.findFirst: risoluzione del profilo docente per lo scoping)
 jest.mock('@/lib/db', () => ({
   prisma: {
     attendance: {
       findMany: jest.fn(),
+    },
+    teacher: {
+      findFirst: jest.fn().mockResolvedValue({ id: 'teacher-1' }),
     },
   },
 }))
@@ -158,7 +167,9 @@ describe('GET /api/attendance/export - PII genitori gated per ruolo', () => {
 
   it('TEACHER: il CSV non contiene né header né valori dei contatti genitore', async () => {
     getAuth.mockResolvedValue({
-      user: { id: 'user-2', role: 'TEACHER', tenantId: 'tenant-1' },
+      // email necessaria: lo scoping docente risolve il profilo Teacher e
+      // senza profilo la route ora nega (deny esplicito, non più bypass)
+      user: { id: 'user-2', role: 'TEACHER', tenantId: 'tenant-1', email: 'doc@test.it' },
     })
 
     const response = await exportAttendance(

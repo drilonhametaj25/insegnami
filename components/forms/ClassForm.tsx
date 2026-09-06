@@ -12,23 +12,20 @@ import {
   Stack,
   Grid,
   NumberInput,
-  MultiSelect,
 } from '@mantine/core';
-import { TimeInput, DateInput } from '@mantine/dates';
+import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 
+// La verità dell'orario vive su Schedule/Lesson: il form gestisce solo i
+// dettagli operativi della classe (description/level/room/monthlyPrice).
 interface Class {
   id?: string;
   name: string;
   description?: string;
-  level: 'BEGINNER' | 'ELEMENTARY' | 'INTERMEDIATE' | 'UPPER_INTERMEDIATE' | 'ADVANCED' | 'PROFICIENCY';
+  level?: 'BEGINNER' | 'ELEMENTARY' | 'INTERMEDIATE' | 'UPPER_INTERMEDIATE' | 'ADVANCED' | 'PROFICIENCY';
   maxStudents: number;
   room?: string;
-  schedule?: string[];
-  startTime?: string;
-  endTime?: string;
-  duration: number; // in minutes
-  price?: number;
+  monthlyPrice?: number;
   isActive: boolean;
   teacherIds?: string[];
   courseId?: string;
@@ -44,6 +41,8 @@ interface ClassFormProps {
   loading?: boolean;
   teachers?: Array<{ id: string; name: string }>;
   courses?: Array<{ id: string; name: string; level?: string }>;
+  /** Per creazione da dettaglio corso (?action=create&courseId=...) */
+  prefilledCourseId?: string;
 }
 
 export function ClassForm({
@@ -54,6 +53,7 @@ export function ClassForm({
   loading = false,
   teachers = [],
   courses = [],
+  prefilledCourseId,
 }: ClassFormProps) {
   const [submitLoading, setSubmitLoading] = useState(false);
 
@@ -64,14 +64,10 @@ export function ClassForm({
       level: classData?.level || 'BEGINNER',
       maxStudents: classData?.maxStudents || 15,
       room: classData?.room || '',
-      schedule: classData?.schedule || [],
-      startTime: classData?.startTime || '09:00',
-      endTime: classData?.endTime || '10:30',
-      duration: classData?.duration || 90,
-      price: classData?.price || 0,
+      monthlyPrice: classData?.monthlyPrice ?? 0,
       isActive: classData?.isActive ?? true,
       teacherIds: classData?.teacherIds || [],
-      courseId: classData?.courseId || '',
+      courseId: classData?.courseId || prefilledCourseId || '',
       startDate: classData?.startDate || new Date().toISOString().split('T')[0],
       endDate: classData?.endDate || '',
     },
@@ -85,12 +81,7 @@ export function ClassForm({
         if (value > 50) return 'Numero massimo di studenti: 50';
         return null;
       },
-      duration: (value) => {
-        if (value < 30) return 'Durata minima: 30 minuti';
-        if (value > 240) return 'Durata massima: 4 ore';
-        return null;
-      },
-      price: (value) => {
+      monthlyPrice: (value) => {
         if (value !== undefined && value < 0) return 'Il prezzo non può essere negativo';
         return null;
       },
@@ -127,16 +118,6 @@ export function ClassForm({
     ADVANCED: 'Avanzato',
     PROFICIENCY: 'Competenza',
   };
-
-  const scheduleOptions = [
-    { value: 'monday', label: 'Lunedì' },
-    { value: 'tuesday', label: 'Martedì' },
-    { value: 'wednesday', label: 'Mercoledì' },
-    { value: 'thursday', label: 'Giovedì' },
-    { value: 'friday', label: 'Venerdì' },
-    { value: 'saturday', label: 'Sabato' },
-    { value: 'sunday', label: 'Domenica' },
-  ];
 
   const teacherOptions = Array.isArray(teachers)
     ? teachers.map((teacher) => ({
@@ -196,6 +177,7 @@ export function ClassForm({
             label="Nome Classe"
             placeholder="Es. Inglese Principianti A1"
             required
+            data-testid="classe-form-nome"
             {...form.getInputProps('name')}
           />
 
@@ -203,6 +185,7 @@ export function ClassForm({
             label="Descrizione"
             placeholder="Descrizione del corso e obiettivi"
             minRows={2}
+            data-testid="classe-form-descrizione"
             {...form.getInputProps('description')}
           />
 
@@ -221,8 +204,8 @@ export function ClassForm({
               <Select
                 label="Livello"
                 placeholder="Seleziona livello"
-                required
                 data={levelOptions}
+                data-testid="classe-form-livello"
                 {...form.getInputProps('level')}
               />
             </Grid.Col>
@@ -236,7 +219,6 @@ export function ClassForm({
                 required
                 value={form.values.startDate ? new Date(form.values.startDate) : null}
                 onChange={(date) => form.setFieldValue('startDate', date ? date.toISOString().split('T')[0] : '')}
-                minDate={new Date()}
               />
             </Grid.Col>
             <Grid.Col span={6}>
@@ -251,7 +233,7 @@ export function ClassForm({
           </Grid>
 
           <Grid>
-            <Grid.Col span={12}>
+            <Grid.Col span={6}>
               <NumberInput
                 label="Numero Massimo Studenti"
                 placeholder="15"
@@ -261,57 +243,15 @@ export function ClassForm({
                 {...form.getInputProps('maxStudents')}
               />
             </Grid.Col>
+            <Grid.Col span={6}>
+              <TextInput
+                label="Aula"
+                placeholder="Es. Aula 101"
+                data-testid="classe-form-aula"
+                {...form.getInputProps('room')}
+              />
+            </Grid.Col>
           </Grid>
-
-          {/* Orari e Logistica */}
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-medium text-gray-900 mb-3">
-              Orari e Logistica
-            </h4>
-            <Grid>
-              <Grid.Col span={6}>
-                <TextInput
-                  label="Aula"
-                  placeholder="Es. Aula 101"
-                  {...form.getInputProps('room')}
-                />
-              </Grid.Col>
-              <Grid.Col span={6}>
-                <NumberInput
-                  label="Durata (minuti)"
-                  placeholder="90"
-                  required
-                  min={30}
-                  max={240}
-                  step={15}
-                  {...form.getInputProps('duration')}
-                />
-              </Grid.Col>
-            </Grid>
-
-            <MultiSelect
-              label="Giorni della Settimana"
-              placeholder="Seleziona giorni"
-              data={scheduleOptions}
-              mt="md"
-              {...form.getInputProps('schedule')}
-            />
-
-            <Grid mt="md">
-              <Grid.Col span={6}>
-                <TimeInput
-                  label="Ora Inizio"
-                  {...form.getInputProps('startTime')}
-                />
-              </Grid.Col>
-              <Grid.Col span={6}>
-                <TimeInput
-                  label="Ora Fine"
-                  {...form.getInputProps('endTime')}
-                />
-              </Grid.Col>
-            </Grid>
-          </div>
 
           {/* Docenti e Prezzo */}
           <div className="border-t pt-4">
@@ -336,7 +276,8 @@ export function ClassForm({
               decimalScale={2}
               fixedDecimalScale
               mt="md"
-              {...form.getInputProps('price')}
+              data-testid="classe-form-prezzo"
+              {...form.getInputProps('monthlyPrice')}
             />
           </div>
 
@@ -353,8 +294,8 @@ export function ClassForm({
           />
 
           <Group justify="flex-end" mt="xl">
-            <Button 
-              variant="light" 
+            <Button
+              variant="light"
               onClick={onClose}
               radius="lg"
             >

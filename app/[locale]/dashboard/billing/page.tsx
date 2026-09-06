@@ -23,6 +23,9 @@ import {
   Box,
   SimpleGrid,
   Modal,
+  Table,
+  TextInput,
+  Anchor,
   rem
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -39,10 +42,20 @@ import {
   IconRefresh,
   IconTrendingUp,
   IconClock,
+  IconFileInvoice,
+  IconReceipt2,
+  IconSparkles,
   IconX
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { AddonsManager } from '@/components/billing/AddonsManager';
+import { yearlyPriceOf } from '@/lib/billing/plans-catalog';
+import {
+  ALL_FEATURE_KEYS,
+  FEATURE_LABELS,
+  FEATURE_MIN_PLAN,
+  type FeatureKey,
+} from '@/lib/billing/feature-catalog';
 
 interface Plan {
   id: string;
@@ -82,12 +95,35 @@ interface SubscriptionData {
   subscription: Subscription | null;
   tenant?: Tenant;
   status: string;
+  /** intervallo di fatturazione reale della subscription (MONTHLY | YEARLY) */
+  interval?: string;
+  gracePeriodEnd?: string | null;
+  features?: Record<string, boolean>;
 }
 
 interface UsageStats {
   students: number;
   teachers: number;
   classes: number;
+}
+
+interface StripeInvoice {
+  id: string;
+  number: string | null;
+  date: string | null;
+  amount: number;
+  currency: string;
+  status: string | null;
+  hostedInvoiceUrl: string | null;
+  invoicePdf: string | null;
+}
+
+interface BillingInfo {
+  billingName: string | null;
+  vatNumber: string | null;
+  taxCode: string | null;
+  sdiCode: string | null;
+  pec: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -128,6 +164,24 @@ export default function BillingPage() {
   const [eligibility, setEligibility] = useState<
     Record<string, { allowed: boolean; message?: string }>
   >({});
+  // Fatture Stripe del customer (vuote in dev-billing)
+  const [invoices, setInvoices] = useState<StripeInvoice[]>([]);
+  const [invoicesLoaded, setInvoicesLoaded] = useState(false);
+  // Dati di fatturazione del tenant (campi fiscali)
+  const [billingInfo, setBillingInfo] = useState<BillingInfo>({
+    billingName: '',
+    vatNumber: '',
+    taxCode: '',
+    sdiCode: '',
+    pec: '',
+  });
+  const [billingInfoSaving, setBillingInfoSaving] = useState(false);
+
+  // Upsell mirato (?upsell=<feature>): evidenzia i piani che includono la feature
+  const upsellParam = searchParams.get('upsell');
+  const upsellFeature: FeatureKey | null = ALL_FEATURE_KEYS.includes(upsellParam as FeatureKey)
+    ? (upsellParam as FeatureKey)
+    : null;
 
   // Check for success/cancelled from Stripe redirect
   useEffect(() => {
@@ -155,7 +209,9 @@ export default function BillingPage() {
     fetchSubscription();
     fetchUsage();
     fetchPlans();
-    fetchEligibility();
+    fetchInvoices();
+    fetchBillingInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchPlans = async () => {
@@ -169,19 +225,94 @@ export default function BillingPage() {
     }
   };
 
-  // Per ogni piano: il passaggio è permesso con le risorse attualmente in uso?
-  const fetchEligibility = async () => {
+  // Uso attivo + eligibilità cambio piano in un'unica chiamata: NIENTE più
+  // fetch a students/teachers/classes (che rispondono 402 a tenant bloccati).
+  const fetchUsage = async () => {
     try {
       const res = await fetch('/api/subscriptions/change-plan');
-      if (!res.ok) return;
+      if (!res.ok) throw new Error('Failed to fetch usage statistics');
       const result = await res.json();
+      if (result.usage) {
+        setUsage({
+          students: result.usage.students ?? 0,
+          teachers: result.usage.teachers ?? 0,
+          classes: result.usage.classes ?? 0,
+        });
+      }
       const map: Record<string, { allowed: boolean; message?: string }> = {};
       for (const e of result.eligibility || []) {
         map[e.planSlug] = { allowed: e.allowed, message: e.message };
       }
       setEligibility(map);
+    } catch (err) {
+      notifications.show({
+        title: 'Errore',
+        message: 'Impossibile caricare le statistiche di utilizzo',
+        color: 'red',
+        icon: <IconAlertTriangle size={18} />
+      });
+      console.error('Error fetching usage:', err);
+    }
+  };
+
+  // Storico fatture Stripe (in dev-billing arriva un array vuoto)
+  const fetchInvoices = async () => {
+    try {
+      const res = await fetch('/api/subscriptions/invoices');
+      if (!res.ok) return;
+      const result = await res.json();
+      setInvoices(result.data || []);
     } catch {
       // non-blocking
+    } finally {
+      setInvoicesLoaded(true);
+    }
+  };
+
+  // Dati di fatturazione correnti del tenant
+  const fetchBillingInfo = async () => {
+    try {
+      const res = await fetch('/api/subscriptions/billing-info');
+      if (!res.ok) return;
+      const result = await res.json();
+      if (result.data) {
+        setBillingInfo({
+          billingName: result.data.billingName ?? '',
+          vatNumber: result.data.vatNumber ?? '',
+          taxCode: result.data.taxCode ?? '',
+          sdiCode: result.data.sdiCode ?? '',
+          pec: result.data.pec ?? '',
+        });
+      }
+    } catch {
+      // non-blocking
+    }
+  };
+
+  const handleSaveBillingInfo = async () => {
+    setBillingInfoSaving(true);
+    try {
+      const res = await fetch('/api/subscriptions/billing-info', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(billingInfo),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Salvataggio fallito');
+      notifications.show({
+        title: 'Dati di fatturazione salvati',
+        message: 'Le informazioni fiscali sono state aggiornate.',
+        color: 'green',
+        icon: <IconCheck size={18} />,
+      });
+    } catch (err) {
+      notifications.show({
+        title: 'Errore',
+        message: err instanceof Error ? err.message : 'Errore imprevisto',
+        color: 'red',
+      });
+    } finally {
+      setBillingInfoSaving(false);
     }
   };
 
@@ -202,7 +333,7 @@ export default function BillingPage() {
         icon: <IconCheck size={18} />,
       });
       await fetchSubscription();
-      await fetchEligibility();
+      await fetchUsage();
     } catch (err) {
       notifications.show({
         title: 'Errore',
@@ -253,41 +384,6 @@ export default function BillingPage() {
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchUsage = async () => {
-    try {
-      // Fetch usage stats from dashboard API
-      const [studentsRes, teachersRes, classesRes] = await Promise.all([
-        fetch('/api/students?page=1&limit=1'),
-        fetch('/api/teachers?page=1&limit=1'),
-        fetch('/api/classes?page=1&limit=1')
-      ]);
-
-      // BUG-017 fix: Check response.ok before parsing JSON
-      if (!studentsRes.ok || !teachersRes.ok || !classesRes.ok) {
-        throw new Error('Failed to fetch usage statistics');
-      }
-
-      const studentsData = await studentsRes.json();
-      const teachersData = await teachersRes.json();
-      const classesData = await classesRes.json();
-
-      setUsage({
-        students: studentsData.total || 0,
-        teachers: teachersData.total || 0,
-        classes: classesData.total || 0
-      });
-    } catch (err) {
-      // BUG-021 fix: Show error to user instead of silent console.error
-      notifications.show({
-        title: 'Errore',
-        message: 'Impossibile caricare le statistiche di utilizzo',
-        color: 'red',
-        icon: <IconAlertTriangle size={18} />
-      });
-      console.error('Error fetching usage:', err);
     }
   };
 
@@ -427,6 +523,19 @@ export default function BillingPage() {
   const status = data?.status || 'no_subscription';
   const plan = subscription?.plan;
 
+  // Intervallo REALE di fatturazione della subscription: gli abbonamenti
+  // annuali mostrano il prezzo annuale (12 mesi al prezzo di 10).
+  const isYearly = data?.interval === 'YEARLY';
+  const currentPrice = plan
+    ? isYearly
+      ? Math.round(yearlyPriceOf(Number(plan.price)))
+      : Number(plan.price)
+    : 0;
+
+  // Un piano "include" la feature di upsell? (evidenziazione card)
+  const planIncludesUpsell = (p: Plan): boolean =>
+    !!upsellFeature && p.features?.[upsellFeature] === true;
+
   // Il checkout Stripe è destinato a chi NON ha un abbonamento attivo/in prova
   // gestito da Stripe: trial-tenant senza subscription, trial scaduto,
   // abbonamento cancellato/insoluto. Per ACTIVE/TRIALING reali si usa
@@ -486,6 +595,27 @@ export default function BillingPage() {
             {!['trial-expired', 'subscription-past-due', 'subscription-cancelled'].includes(
               searchParams.get('blocked') || ''
             ) && 'La scuola è temporaneamente sospesa. Contatta il supporto.'}
+          </Alert>
+        )}
+
+        {/* Upsell mirato da ?upsell=<feature>: evidenzia i piani che la includono */}
+        {upsellFeature && (
+          <Alert
+            icon={<IconSparkles />}
+            color="navy"
+            title="Sblocca questa funzionalità"
+            data-testid="upsell-alert"
+          >
+            <Text size="sm">
+              <Text span fw={600}>
+                {FEATURE_LABELS[upsellFeature]}
+              </Text>{' '}
+              è disponibile dal piano{' '}
+              <Text span fw={600} tt="capitalize">
+                {FEATURE_MIN_PLAN[upsellFeature]}
+              </Text>
+              . I piani che la includono sono evidenziati qui sotto.
+            </Text>
           </Alert>
         )}
 
@@ -570,11 +700,11 @@ export default function BillingPage() {
                 </div>
                 {plan && (
                   <div style={{ textAlign: 'right' }}>
-                    <Text size={rem(36)} fw={900} c="navy">
-                      €{plan.price}
+                    <Text size={rem(36)} fw={900} c="navy" data-testid="current-plan-price">
+                      €{currentPrice}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      /{plan.interval === 'MONTHLY' ? 'mese' : 'anno'}
+                      /{isYearly ? 'anno' : 'mese'} · IVA esclusa
                     </Text>
                   </div>
                 )}
@@ -846,17 +976,25 @@ export default function BillingPage() {
                   p="lg"
                   data-testid={`checkout-plan-${p.slug}`}
                   style={
-                    p.isPopular
+                    planIncludesUpsell(p)
+                      ? { borderColor: 'var(--mantine-color-navy-5)', borderWidth: 2 }
+                      : p.isPopular
                       ? { borderColor: 'var(--mantine-color-amber-5)', borderWidth: 2 }
                       : undefined
                   }
                 >
                   <Group justify="space-between" mb="xs">
                     <Text fw={700}>{p.name}</Text>
-                    {p.isPopular && (
-                      <Badge color="amber" variant="filled">
-                        Consigliato
+                    {planIncludesUpsell(p) ? (
+                      <Badge color="navy" variant="filled" data-testid={`upsell-plan-badge-${p.slug}`}>
+                        Include la funzionalità
                       </Badge>
+                    ) : (
+                      p.isPopular && (
+                        <Badge color="amber" variant="filled">
+                          Consigliato
+                        </Badge>
+                      )
                     )}
                   </Group>
                   {p.description && (
@@ -919,10 +1057,29 @@ export default function BillingPage() {
                 const isCurrent = p.slug === plan?.slug;
                 const blocked = !isCurrent && eligibility[p.slug]?.allowed === false;
                 return (
-                  <Card key={p.id} withBorder radius="md" p="lg" data-testid={`plan-option-${p.slug}`}>
+                  <Card
+                    key={p.id}
+                    withBorder
+                    radius="md"
+                    p="lg"
+                    data-testid={`plan-option-${p.slug}`}
+                    style={
+                      planIncludesUpsell(p) && !isCurrent
+                        ? { borderColor: 'var(--mantine-color-navy-5)', borderWidth: 2 }
+                        : undefined
+                    }
+                  >
                     <Group justify="space-between" mb="xs">
                       <Text fw={700}>{p.name}</Text>
-                      {isCurrent && <Badge color="navy">Attuale</Badge>}
+                      {isCurrent ? (
+                        <Badge color="navy">Attuale</Badge>
+                      ) : (
+                        planIncludesUpsell(p) && (
+                          <Badge color="navy" variant="light">
+                            Include la funzionalità
+                          </Badge>
+                        )
+                      )}
                     </Group>
                     <Text size="xl" fw={900} c="navy" mb="xs">
                       €{p.price}
@@ -960,8 +1117,139 @@ export default function BillingPage() {
 
         {/* Add-on / espansioni */}
         {subscription && (
-          <AddonsManager onChange={() => { fetchSubscription(); fetchUsage(); fetchEligibility(); }} />
+          <AddonsManager onChange={() => { fetchSubscription(); fetchUsage(); }} />
         )}
+
+        {/* Storico fatture Stripe */}
+        <Paper p="xl" radius="md" withBorder data-testid="invoices-section">
+          <Group gap="sm" mb="xs">
+            <ThemeIcon size="lg" radius="md" color="navy" variant="light">
+              <IconFileInvoice size={20} />
+            </ThemeIcon>
+            <div>
+              <Title order={3}>Fatture</Title>
+              <Text c="dimmed" size="sm">
+                Le fatture del tuo abbonamento InsegnaMi
+              </Text>
+            </div>
+          </Group>
+          {invoices.length === 0 ? (
+            <Text c="dimmed" size="sm" mt="md" data-testid="invoices-empty">
+              {invoicesLoaded
+                ? 'Nessuna fattura disponibile: le fatture emesse compariranno qui.'
+                : 'Caricamento fatture...'}
+            </Text>
+          ) : (
+            <Table.ScrollContainer minWidth={560} mt="md">
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Numero</Table.Th>
+                    <Table.Th>Data</Table.Th>
+                    <Table.Th>Importo</Table.Th>
+                    <Table.Th>Stato</Table.Th>
+                    <Table.Th></Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {invoices.map((inv) => (
+                    <Table.Tr key={inv.id} data-testid={`invoice-row-${inv.id}`}>
+                      <Table.Td>{inv.number || '—'}</Table.Td>
+                      <Table.Td>{inv.date ? formatDate(inv.date) : '—'}</Table.Td>
+                      <Table.Td>
+                        €{inv.amount.toFixed(2)} {inv.currency?.toUpperCase() !== 'EUR' ? inv.currency?.toUpperCase() : ''}
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge
+                          size="sm"
+                          color={inv.status === 'paid' ? 'green' : inv.status === 'open' ? 'orange' : 'gray'}
+                        >
+                          {inv.status === 'paid' ? 'Pagata' : inv.status === 'open' ? 'Da pagare' : inv.status || '—'}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap="xs" wrap="nowrap">
+                          {inv.hostedInvoiceUrl && (
+                            <Anchor href={inv.hostedInvoiceUrl} target="_blank" size="sm">
+                              Apri
+                            </Anchor>
+                          )}
+                          {inv.invoicePdf && (
+                            <Anchor href={inv.invoicePdf} target="_blank" size="sm">
+                              PDF
+                            </Anchor>
+                          )}
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          )}
+        </Paper>
+
+        {/* Dati di fatturazione (campi fiscali del cliente SaaS) */}
+        <Paper p="xl" radius="md" withBorder data-testid="billing-info-section">
+          <Group gap="sm" mb="md">
+            <ThemeIcon size="lg" radius="md" color="navy" variant="light">
+              <IconReceipt2 size={20} />
+            </ThemeIcon>
+            <div>
+              <Title order={3}>Dati di fatturazione</Title>
+              <Text c="dimmed" size="sm">
+                Ragione sociale e dati fiscali usati per le fatture del tuo abbonamento
+              </Text>
+            </div>
+          </Group>
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+            <TextInput
+              label="Ragione sociale"
+              placeholder="Scuola Esempio S.r.l."
+              value={billingInfo.billingName ?? ''}
+              onChange={(e) => setBillingInfo({ ...billingInfo, billingName: e.currentTarget.value })}
+              data-testid="billing-info-name"
+            />
+            <TextInput
+              label="Partita IVA"
+              placeholder="IT01234567890"
+              value={billingInfo.vatNumber ?? ''}
+              onChange={(e) => setBillingInfo({ ...billingInfo, vatNumber: e.currentTarget.value })}
+              data-testid="billing-info-vat"
+            />
+            <TextInput
+              label="Codice fiscale"
+              placeholder="Codice fiscale"
+              value={billingInfo.taxCode ?? ''}
+              onChange={(e) => setBillingInfo({ ...billingInfo, taxCode: e.currentTarget.value })}
+              data-testid="billing-info-tax-code"
+            />
+            <TextInput
+              label="Codice SDI"
+              placeholder="0000000"
+              value={billingInfo.sdiCode ?? ''}
+              onChange={(e) => setBillingInfo({ ...billingInfo, sdiCode: e.currentTarget.value })}
+              data-testid="billing-info-sdi"
+            />
+            <TextInput
+              label="PEC"
+              placeholder="fatture@pec.scuola.it"
+              value={billingInfo.pec ?? ''}
+              onChange={(e) => setBillingInfo({ ...billingInfo, pec: e.currentTarget.value })}
+              data-testid="billing-info-pec"
+            />
+          </SimpleGrid>
+          <Group justify="flex-end" mt="md">
+            <Button
+              onClick={handleSaveBillingInfo}
+              loading={billingInfoSaving}
+              color="navy"
+              data-testid="billing-info-save"
+            >
+              Salva dati di fatturazione
+            </Button>
+          </Group>
+        </Paper>
       </Stack>
 
       {/* Modal di conferma annullamento abbonamento */}

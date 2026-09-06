@@ -22,6 +22,9 @@ import {
   IconTable,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
+import type { ElementType } from 'react';
+import { buildPublicMetadata } from '@/lib/seo';
 import { CtaBanner, PageHero } from '@/components/public/PublicUI';
 
 export async function generateMetadata({
@@ -29,10 +32,15 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'public.tools.meta' });
   return {
-    title: 'Strumenti Gratuiti per Scuole',
-    description:
-      'Strumenti gratuiti per la gestione scolastica: calcolatori, generatori e validatori. Calcola medie voti, presenze, costi e molto altro.',
+    ...buildPublicMetadata({
+      locale,
+      path: '/tools',
+      title: t('title'),
+      description: t('description'),
+    }),
     keywords: [
       'strumenti scuola gratuiti',
       'calcolatore media voti',
@@ -40,75 +48,25 @@ export async function generateMetadata({
       'generatore calendario scolastico',
       'validatore codice fiscale',
     ],
-    openGraph: {
-      title: 'Strumenti Gratuiti per Scuole | InsegnaMi.pro',
-      description:
-        'Strumenti gratuiti per la gestione scolastica: calcolatori, generatori e validatori.',
-      type: 'website',
-    },
   };
 }
 
-const tools = [
-  {
-    slug: 'calcolatore-media-voti',
-    title: 'Calcolatore Media Voti',
-    description: 'Calcola la media dei voti con pesi personalizzati per materia o tipologia di verifica.',
-    icon: IconCalculator,
-    category: 'Calcolatori',
-  },
-  {
-    slug: 'calcolatore-presenze',
-    title: 'Calcolatore Presenze',
-    description: 'Calcola la percentuale di frequenza e verifica il raggiungimento del monte ore minimo.',
-    icon: IconClipboardCheck,
-    category: 'Calcolatori',
-  },
-  {
-    slug: 'calcolatore-costo-studente',
-    title: 'Calcolatore Costo per Studente',
-    description: 'Calcola il costo effettivo per studente considerando tutte le spese della scuola.',
-    icon: IconCurrencyEuro,
-    category: 'Calcolatori',
-  },
-  {
-    slug: 'validatore-codice-fiscale',
-    title: 'Validatore Codice Fiscale',
-    description: 'Verifica la correttezza di un codice fiscale ed estrai le informazioni anagrafiche.',
-    icon: IconId,
-    category: 'Validatori',
-  },
-  {
-    slug: 'generatore-calendario-scolastico',
-    title: 'Generatore Calendario Scolastico',
-    description: 'Genera un calendario scolastico personalizzato con festività e periodi di vacanza.',
-    icon: IconCalendar,
-    category: 'Generatori',
-  },
-  {
-    slug: 'generatore-orario-settimanale',
-    title: 'Generatore Orario Settimanale',
-    description: 'Crea un orario settimanale delle lezioni da stampare o esportare.',
-    icon: IconTable,
-    category: 'Generatori',
-  },
-  {
-    slug: 'calcolatore-ore-corso',
-    title: 'Calcolatore Ore Corso',
-    description: 'Calcola il totale delle ore di un corso e pianifica le lezioni necessarie.',
-    icon: IconClock,
-    category: 'Calcolatori',
-  },
-  {
-    slug: 'generatore-comunicazioni',
-    title: 'Generatore Comunicazioni',
-    description: 'Genera template per comunicazioni ai genitori, circolari e avvisi.',
-    icon: IconFileText,
-    category: 'Generatori',
-  },
+// Dati non testuali dei tool (slug, icone, categoria); i testi vivono in
+// messages/*.json sotto public.tools.items.<slug>.
+type ToolCategory = 'calculators' | 'generators' | 'validators';
+
+const TOOLS: { slug: string; icon: ElementType; category: ToolCategory }[] = [
+  { slug: 'calcolatore-media-voti', icon: IconCalculator, category: 'calculators' },
+  { slug: 'calcolatore-presenze', icon: IconClipboardCheck, category: 'calculators' },
+  { slug: 'calcolatore-costo-studente', icon: IconCurrencyEuro, category: 'calculators' },
+  { slug: 'validatore-codice-fiscale', icon: IconId, category: 'validators' },
+  { slug: 'generatore-calendario-scolastico', icon: IconCalendar, category: 'generators' },
+  { slug: 'generatore-orario-settimanale', icon: IconTable, category: 'generators' },
+  { slug: 'calcolatore-ore-corso', icon: IconClock, category: 'calculators' },
+  { slug: 'generatore-comunicazioni', icon: IconFileText, category: 'generators' },
 ];
 
-const categories = ['Calcolatori', 'Generatori', 'Validatori'];
+const CATEGORIES: ToolCategory[] = ['calculators', 'generators', 'validators'];
 
 export default async function ToolsPage({
   params,
@@ -116,13 +74,19 @@ export default async function ToolsPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'public.tools' });
+
+  const toolTexts = (slug: string) => ({
+    title: t(`items.${slug}.title`),
+    description: t(`items.${slug}.description`),
+  });
 
   // JSON-LD for SEO
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
-    name: 'Strumenti Gratuiti per Scuole',
-    description: 'Strumenti gratuiti per la gestione scolastica: calcolatori, generatori e validatori.',
+    name: t('meta.title'),
+    description: t('meta.description'),
     publisher: {
       '@type': 'Organization',
       name: 'InsegnaMi.pro',
@@ -130,11 +94,11 @@ export default async function ToolsPage({
     },
     mainEntity: {
       '@type': 'ItemList',
-      itemListElement: tools.map((tool, index) => ({
+      itemListElement: TOOLS.map((tool, index) => ({
         '@type': 'SoftwareApplication',
         position: index + 1,
-        name: tool.title,
-        description: tool.description,
+        name: toolTexts(tool.slug).title,
+        description: toolTexts(tool.slug).description,
         applicationCategory: 'EducationalApplication',
         offers: {
           '@type': 'Offer',
@@ -154,54 +118,57 @@ export default async function ToolsPage({
 
       {/* Hero */}
       <PageHero
-        badge="100% gratuiti"
-        title="Strumenti gratuiti"
-        highlight="per la tua scuola"
-        subtitle="Calcolatori, generatori e validatori pensati per semplificare la gestione quotidiana della tua scuola. Nessuna registrazione richiesta."
+        badge={t('index.badge')}
+        title={t('index.title')}
+        highlight={t('index.highlight')}
+        subtitle={t('index.subtitle')}
       />
 
       {/* Strumenti per categoria */}
       <Container size="xl" py={{ base: 32, sm: 48 }}>
         <Stack gap={48}>
-          {categories.map((category) => {
-            const categoryTools = tools.filter((t) => t.category === category);
+          {CATEGORIES.map((category) => {
+            const categoryTools = TOOLS.filter((tool) => tool.category === category);
             if (categoryTools.length === 0) return null;
 
             return (
               <Box key={category}>
                 <Group align="baseline" gap="sm" mb="lg">
                   <Title order={2} fz={rem(24)} fw={800} c="var(--pub-ink)">
-                    {category}
+                    {t(`index.categories.${category}`)}
                   </Title>
                   <Text size="sm" c="dimmed">
-                    {categoryTools.length}{' '}
-                    {categoryTools.length === 1 ? 'strumento' : 'strumenti'}
+                    {t('index.toolCount', { count: categoryTools.length })}
                   </Text>
                 </Group>
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-                  {categoryTools.map((tool) => (
-                    <Card
-                      key={tool.slug}
-                      component={Link}
-                      href={`/${locale}/tools/${tool.slug}`}
-                      padding="xl"
-                      radius="lg"
-                      bg="white"
-                      className="pub-card"
-                      h="100%"
-                      style={{ textDecoration: 'none' }}
-                    >
-                      <ThemeIcon size={52} radius="md" variant="light" color="indigo" mb="md">
-                        <tool.icon size={28} />
-                      </ThemeIcon>
-                      <Title order={3} fz={rem(20)} fw={700} c="var(--pub-ink)" mb={6}>
-                        {tool.title}
-                      </Title>
-                      <Text size="sm" c="dimmed" lh={1.6}>
-                        {tool.description}
-                      </Text>
-                    </Card>
-                  ))}
+                  {categoryTools.map((tool) => {
+                    const ToolIcon = tool.icon;
+                    const texts = toolTexts(tool.slug);
+                    return (
+                      <Card
+                        key={tool.slug}
+                        component={Link}
+                        href={`/${locale}/tools/${tool.slug}`}
+                        padding="xl"
+                        radius="lg"
+                        bg="white"
+                        className="pub-card"
+                        h="100%"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        <ThemeIcon size={52} radius="md" variant="light" color="indigo" mb="md">
+                          <ToolIcon size={28} />
+                        </ThemeIcon>
+                        <Title order={3} fz={rem(20)} fw={700} c="var(--pub-ink)" mb={6}>
+                          {texts.title}
+                        </Title>
+                        <Text size="sm" c="dimmed" lh={1.6}>
+                          {texts.description}
+                        </Text>
+                      </Card>
+                    );
+                  })}
                 </SimpleGrid>
               </Box>
             );
@@ -210,11 +177,7 @@ export default async function ToolsPage({
       </Container>
 
       {/* CTA finale */}
-      <CtaBanner
-        locale={locale}
-        title="Vuoi Automatizzare Tutto Questo?"
-        subtitle="Con InsegnaMi.pro puoi gestire automaticamente voti, presenze, pagamenti e comunicazioni. Tutti questi strumenti integrati in un'unica piattaforma."
-      />
+      <CtaBanner locale={locale} title={t('index.ctaTitle')} subtitle={t('index.ctaSubtitle')} />
     </>
   );
 }

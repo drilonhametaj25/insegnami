@@ -53,6 +53,8 @@ jest.mock('@/lib/db', () => ({
     payment: { findUnique: jest.fn() },
     class: { findUnique: jest.fn() },
     message: { findFirst: jest.fn() },
+    // emailStatus onesto: la route aggiorna i destinatari dopo l'enqueue
+    messageRecipient: { updateMany: jest.fn().mockResolvedValue({ count: 2 }) },
     $transaction: jest.fn(),
   },
 }))

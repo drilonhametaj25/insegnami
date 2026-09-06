@@ -67,7 +67,10 @@ import {
   useCreateMessage,
   useSendMessage,
   useDeleteMessage,
+  useDeleteMessageTemplate,
+  useDeleteCommunicationGroup,
   type CreateMessageData,
+  type MessageTemplate,
 } from '@/lib/hooks/useMessages';
 import { StatsCard } from '@/components/cards/StatsCard';
 import { MessageTemplateForm } from '@/components/forms/MessageTemplateForm';
@@ -81,6 +84,10 @@ export default function CommunicationPage() {
   const [newMessageOpened, { open: openNewMessage, close: closeNewMessage }] = useDisclosure(false);
   const [newTemplateOpened, { open: openNewTemplate, close: closeNewTemplate }] = useDisclosure(false);
   const [newGroupOpened, { open: openNewGroup, close: closeNewGroup }] = useDisclosure(false);
+
+  // Modifica template/gruppi (modali dedicati)
+  const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
 
   // Users state for recipient selection
   const [usersData, setUsersData] = useState<{ users: any[] }>({ users: [] });
@@ -122,6 +129,8 @@ export default function CommunicationPage() {
   const createMessageMutation = useCreateMessage();
   const sendMessageMutation = useSendMessage();
   const deleteMessageMutation = useDeleteMessage();
+  const deleteTemplateMutation = useDeleteMessageTemplate();
+  const deleteGroupMutation = useDeleteCommunicationGroup();
 
   // Forms
   const messageForm = useForm<CreateMessageData>({
@@ -176,6 +185,53 @@ export default function CommunicationPage() {
       notifications.show({
         title: t('error'),
         message: t('communication.errors.sendFailed'),
+        color: 'red',
+      });
+    }
+  };
+
+  // "Usa template": precompila il form nuovo messaggio con oggetto/contenuto
+  const handleUseTemplate = (template: MessageTemplate) => {
+    messageForm.setValues({
+      ...messageForm.values,
+      title: template.subject,
+      content: template.content,
+    });
+    setActiveTab('messages');
+    openNewMessage();
+  };
+
+  const handleDeleteTemplate = async (template: MessageTemplate) => {
+    if (!confirm(`Eliminare il template "${template.name}"?`)) return;
+    try {
+      await deleteTemplateMutation.mutateAsync(template.id);
+      notifications.show({
+        title: t('success'),
+        message: 'Template eliminato',
+        color: 'green',
+      });
+    } catch (error) {
+      notifications.show({
+        title: t('error'),
+        message: error instanceof Error ? error.message : 'Impossibile eliminare il template',
+        color: 'red',
+      });
+    }
+  };
+
+  const handleDeleteGroup = async (group: { id: string; name: string; type: string }) => {
+    if (!confirm(`Eliminare il gruppo "${group.name}"?`)) return;
+    try {
+      await deleteGroupMutation.mutateAsync(group.id);
+      notifications.show({
+        title: t('success'),
+        message: 'Gruppo eliminato',
+        color: 'green',
+      });
+    } catch (error) {
+      notifications.show({
+        title: t('error'),
+        message: error instanceof Error ? error.message : 'Impossibile eliminare il gruppo',
         color: 'red',
       });
     }
@@ -450,10 +506,28 @@ export default function CommunicationPage() {
                     <strong>{t('communication.templates.subject')}:</strong> {template.subject}
                   </Text>
                   <Group justify="flex-end">
-                    <Button variant="light" size="xs">
+                    <Button
+                      variant="light"
+                      size="xs"
+                      onClick={() => handleUseTemplate(template)}
+                      data-testid={`comunicazione-template-usa-${template.id}`}
+                    >
                       {t('communication.templates.useTemplate')}
                     </Button>
-                    <ActionIcon variant="subtle" color="red">
+                    <ActionIcon
+                      variant="subtle"
+                      color="blue"
+                      onClick={() => setEditingTemplate(template)}
+                      data-testid={`comunicazione-template-modifica-${template.id}`}
+                    >
+                      <IconEdit size="1rem" />
+                    </ActionIcon>
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      onClick={() => handleDeleteTemplate(template)}
+                      data-testid={`comunicazione-template-elimina-${template.id}`}
+                    >
                       <IconTrash size="1rem" />
                     </ActionIcon>
                   </Group>
@@ -485,14 +559,27 @@ export default function CommunicationPage() {
                     <Badge size="sm" color="blue">
                       {t(`communication.groups.groupType.${group.type}`)}
                     </Badge>
-                    <Group gap="xs">
-                      <Button variant="light" size="xs">
-                        {t('edit')}
-                      </Button>
-                      <ActionIcon variant="subtle" color="red">
-                        <IconTrash size="1rem" />
-                      </ActionIcon>
-                    </Group>
+                    {/* Solo i gruppi CUSTOM sono modificabili (gli altri sono sintetici) */}
+                    {group.type === 'CUSTOM' && (
+                      <Group gap="xs">
+                        <Button
+                          variant="light"
+                          size="xs"
+                          onClick={() => setEditingGroupId(group.id)}
+                          data-testid={`comunicazione-gruppo-modifica-${group.id}`}
+                        >
+                          {t('edit')}
+                        </Button>
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          onClick={() => handleDeleteGroup(group as any)}
+                          data-testid={`comunicazione-gruppo-elimina-${group.id}`}
+                        >
+                          <IconTrash size="1rem" />
+                        </ActionIcon>
+                      </Group>
+                    )}
                   </Group>
                 </Card>
               ))}
@@ -630,6 +717,39 @@ export default function CommunicationPage() {
           onSuccess={closeNewGroup}
           onCancel={closeNewGroup}
         />
+      </Modal>
+
+      {/* Edit Template Modal */}
+      <Modal
+        opened={!!editingTemplate}
+        onClose={() => setEditingTemplate(null)}
+        title={editingTemplate?.name || ''}
+        size="lg"
+      >
+        {editingTemplate && (
+          <MessageTemplateForm
+            template={editingTemplate}
+            onSuccess={() => setEditingTemplate(null)}
+            onCancel={() => setEditingTemplate(null)}
+          />
+        )}
+      </Modal>
+
+      {/* Edit Group Modal */}
+      <Modal
+        opened={!!editingGroupId}
+        onClose={() => setEditingGroupId(null)}
+        title={t('edit')}
+        size="lg"
+      >
+        {editingGroupId && (
+          <CommunicationGroupForm
+            users={users}
+            groupId={editingGroupId}
+            onSuccess={() => setEditingGroupId(null)}
+            onCancel={() => setEditingGroupId(null)}
+          />
+        )}
       </Modal>
     </Container>
   );

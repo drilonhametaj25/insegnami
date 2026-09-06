@@ -1,25 +1,30 @@
 import type { Metadata } from 'next';
-import { faqJsonLd, type FaqItem } from '@/components/public/ToolPageShell';
+import { faqJsonLd, toolPageMetadata, type FaqItem } from '@/components/public/ToolPageShell';
 import { GeneratoreComunicazioniClient } from './GeneratoreComunicazioniClient';
 
-export const metadata: Metadata = {
-  title: 'Generatore Comunicazioni | Strumenti Gratuiti',
-  description:
-    'Template gratuiti per comunicazioni scuola-famiglia: assenze, solleciti di pagamento, riunioni, valutazioni e avvisi. Personalizza i campi e copia il testo pronto da inviare.',
-  keywords: [
-    'template comunicazioni scuola',
-    'comunicazioni scuola famiglia',
-    'circolari scolastiche',
-    'avvisi genitori',
-    'lettere scuola genitori',
-  ],
-  openGraph: {
-    title: 'Generatore Comunicazioni | Strumenti Gratuiti | InsegnaMi.pro',
-    description:
-      'Template pronti per comunicazioni scuola-famiglia: personalizza i campi e copia il testo. Gratuito, senza registrazione.',
-    type: 'website',
-  },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return {
+    ...toolPageMetadata({
+      locale,
+      slug: 'generatore-comunicazioni',
+      title: 'Generatore Comunicazioni | Strumenti Gratuiti',
+      description:
+        'Template gratuiti per comunicazioni scuola-famiglia: assenze, solleciti di pagamento, riunioni, valutazioni e avvisi. Personalizza i campi e copia il testo pronto da inviare.',
+    }),
+    keywords: [
+      'template comunicazioni scuola',
+      'comunicazioni scuola famiglia',
+      'circolari scolastiche',
+      'avvisi genitori',
+      'lettere scuola genitori',
+    ],
+  };
+}
 
 const faqs: FaqItem[] = [
   {

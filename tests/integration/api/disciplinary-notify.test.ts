@@ -20,6 +20,7 @@ jest.mock('@/lib/tenant-guard', () => ({
 jest.mock('@/lib/db', () => ({
   prisma: {
     disciplinaryNote: { findFirst: jest.fn(), update: jest.fn() },
+    studentGuardian: { findMany: jest.fn() },
   },
 }))
 
@@ -71,6 +72,8 @@ describe('POST /api/disciplinary-notes/[id]/notify-parent', () => {
       notification: { id: 'notif-1' },
       emailEnqueued: true,
     })
+    // Nessun guardian aggiuntivo: resta il solo parentUser legacy
+    prisma.studentGuardian.findMany.mockResolvedValue([])
     prisma.disciplinaryNote.update.mockResolvedValue({
       ...baseNote,
       parentNotified: true,
@@ -99,7 +102,8 @@ describe('POST /api/disciplinary-notes/[id]/notify-parent', () => {
         priority: 'HIGH',
         sourceType: 'disciplinary_note',
         sourceId: 'note-1',
-        actionUrl: '/dashboard/students/student-1',
+        // Wave 2: il genitore atterra sulla propria vista, non su rotta admin
+        actionUrl: '/it/dashboard/my/notes',
       }),
       expect.objectContaining({ sendEmail: true }),
     )

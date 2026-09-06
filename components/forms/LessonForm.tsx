@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
+import { buildRRuleString } from '@/lib/lessons/recurrence';
 
 interface Lesson {
   id?: string;
@@ -23,6 +24,7 @@ interface Lesson {
   classId: string;
   teacherId: string;
   courseId: string;
+  subjectId?: string | null;
   startTime: string;
   endTime: string;
   room?: string;
@@ -41,6 +43,8 @@ interface LessonFormProps {
   onClose: () => void;
   lessonData?: Lesson;
   onSave: (lessonData: any) => Promise<void>;
+  /** Refresh del chiamante dopo la creazione di una serie ricorrente */
+  onRecurringCreated?: () => void;
   loading?: boolean;
   teachers?: Array<{ id: string; firstName: string; lastName: string }>;
   classes?: Array<{ 
@@ -58,6 +62,7 @@ export function LessonForm({
   onClose,
   lessonData,
   onSave,
+  onRecurringCreated,
   loading = false,
   teachers = [],
   classes = [],
@@ -65,6 +70,10 @@ export function LessonForm({
   prefilledClassId,
 }: LessonFormProps) {
   const [submitLoading, setSubmitLoading] = useState(false);
+  // Materie della classe selezionata (GET /api/classes/[id]/subjects)
+  const [classSubjects, setClassSubjects] = useState<
+    Array<{ subjectId: string; subject: { id: string; name: string; code: string } }>
+  >([]);
 
   const form = useForm<any>({
     initialValues: {
@@ -72,6 +81,7 @@ export function LessonForm({
       classId: lessonData?.classId || prefilledClassId || '',
       teacherId: lessonData?.teacherId || '',
       courseId: lessonData?.courseId || '',
+      subjectId: lessonData?.subjectId || '',
       startTime: lessonData?.startTime ? new Date(lessonData.startTime) : new Date(),
       endTime: lessonData?.endTime 
         ? new Date(lessonData.endTime) 
@@ -115,34 +125,106 @@ export function LessonForm({
     }
   }, [form.values.classId, classes]);
 
+  // Carica le materie della classe selezionata per il select opzionale
+  useEffect(() => {
+    const classId = form.values.classId;
+    if (!classId) {
+      setClassSubjects([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch(`/api/classes/${classId}/subjects`);
+        if (response.ok) {
+          const payload = await response.json();
+          if (!cancelled) setClassSubjects(payload.data || []);
+        } else if (!cancelled) {
+          setClassSubjects([]);
+        }
+      } catch {
+        if (!cancelled) setClassSubjects([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form.values.classId]);
+
   const handleSubmit = async (values: any) => {
     setSubmitLoading(true);
     try {
-      const lessonData = {
+      // Nuova lezione ricorrente: la serie viene creata EAGER da
+      // POST /api/lessons/recurring con la RRULE canonica (lib rrule).
+      if (values.isRecurring && !lessonData) {
+        const recurrenceRule = buildRRuleString(
+          {
+            frequency: values.recurringFrequency,
+            interval: values.recurringInterval,
+            endDate: values.recurringEndDate ?? null,
+          },
+          values.startTime
+        );
+
+        const response = await fetch('/api/lessons/recurring', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: values.title,
+            description: values.description || undefined,
+            classId: values.classId,
+            teacherId: values.teacherId,
+            startTime: values.startTime.toISOString(),
+            endTime: values.endTime.toISOString(),
+            room: values.room || undefined,
+            recurrenceRule,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Errore nella creazione della serie ricorrente');
+        }
+
+        const created = await response.json();
+        notifications.show({
+          title: 'Serie ricorrente creata',
+          message: `${Array.isArray(created) ? created.length : 0} lezioni create con successo`,
+          color: 'green',
+        });
+        onRecurringCreated?.();
+        form.reset();
+        onClose();
+        return;
+      }
+
+      const payload = {
         title: values.title,
         classId: values.classId,
         teacherId: values.teacherId,
         courseId: values.courseId,
+        // Materia opzionale: null esplicito per rimuoverla in modifica
+        subjectId: values.subjectId || (lessonData ? null : undefined),
         startTime: values.startTime.toISOString(),
         endTime: values.endTime.toISOString(),
         room: values.room || undefined,
         description: values.description || undefined,
         status: values.status,
         isRecurring: values.isRecurring,
-        recurringPattern: values.isRecurring
-          ? {
-              frequency: values.recurringFrequency,
-              interval: values.recurringInterval,
-              endDate: values.recurringEndDate?.toISOString(),
-            }
-          : undefined,
       };
 
-      await onSave(lessonData);
+      await onSave(payload);
       form.reset();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving lesson:', error);
+      notifications.show({
+        title: 'Errore',
+        message: error?.message || 'Impossibile salvare la lezione',
+        color: 'red',
+      });
     } finally {
       setSubmitLoading(false);
     }
@@ -234,14 +316,39 @@ export function LessonForm({
             </Grid.Col>
           </Grid>
 
-          <Select
-            label="Corso"
-            placeholder="Seleziona corso"
-            required
-            searchable
-            data={courseOptions}
-            {...form.getInputProps('courseId')}
-          />
+          <Grid>
+            <Grid.Col span={6}>
+              <Select
+                label="Corso"
+                placeholder="Seleziona corso"
+                required
+                searchable
+                data={courseOptions}
+                {...form.getInputProps('courseId')}
+              />
+            </Grid.Col>
+            <Grid.Col span={6}>
+              <Select
+                label="Materia (Opzionale)"
+                placeholder={
+                  form.values.classId
+                    ? classSubjects.length > 0
+                      ? 'Seleziona materia'
+                      : 'Nessuna materia configurata per la classe'
+                    : 'Seleziona prima una classe'
+                }
+                searchable
+                clearable
+                disabled={!form.values.classId || classSubjects.length === 0}
+                data={classSubjects.map((cs) => ({
+                  value: cs.subjectId,
+                  label: `${cs.subject.name} (${cs.subject.code})`,
+                }))}
+                data-testid="lezione-materia"
+                {...form.getInputProps('subjectId')}
+              />
+            </Grid.Col>
+          </Grid>
 
           <Textarea
             label="Descrizione"

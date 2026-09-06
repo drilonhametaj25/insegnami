@@ -32,7 +32,11 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
+import type { ElementType } from 'react';
 import { comuni, getComuneWithContext } from '@/data/italia';
+import { buildPublicMetadata } from '@/lib/seo';
+import { faqPageJsonLd } from '@/lib/structured-data';
 import { CtaBanner, PUB_GRADIENT } from '@/components/public/PublicUI';
 
 export async function generateStaticParams() {
@@ -63,16 +67,21 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, comune: comuneSlug } = await params;
   const context = getComuneWithContext(comuneSlug);
+  const t = await getTranslations({ locale, namespace: 'public.cities.city' });
 
   if (!context) {
-    return { title: 'Comune non trovato' };
+    return { title: t('notFound') };
   }
 
   const { comune, provincia, regione } = context;
 
   return {
-    title: `Software Gestione Scuola a ${comune.nome}`,
-    description: `Cerchi un software gestionale per la tua scuola a ${comune.nome}? InsegnaMi.pro è la soluzione per scuole private, accademie e centri di formazione a ${comune.nome}, ${provincia.nome}. Prova gratis!`,
+    ...buildPublicMetadata({
+      locale,
+      path: `/citta/${regione.slug}/${provincia.slug}/${comune.slug}`,
+      title: t('metaTitle', { city: comune.nome }),
+      description: t('metaDescription', { city: comune.nome, province: provincia.nome }),
+    }),
     keywords: [
       `software gestione scuola ${comune.nome}`,
       `gestionale scolastico ${comune.nome}`,
@@ -80,16 +89,17 @@ export async function generateMetadata({
       `registro elettronico ${comune.nome}`,
       `software scuola ${provincia.sigla}`,
     ],
-    openGraph: {
-      title: `Software Gestione Scuola a ${comune.nome} | InsegnaMi.pro`,
-      description: `Il miglior software gestionale per scuole a ${comune.nome}. Gestisci studenti, docenti, pagamenti e molto altro.`,
-      type: 'website',
-    },
-    alternates: {
-      canonical: `https://insegnami.pro/${locale}/citta/${regione.slug}/${provincia.slug}/${comune.slug}`,
-    },
   };
 }
+
+// Icone delle feature (testi in public.cities.city.features.*)
+const FEATURE_ICONS: { key: string; icon: ElementType }[] = [
+  { key: 'students', icon: IconSchool },
+  { key: 'teachers', icon: IconUsers },
+  { key: 'billing', icon: IconCreditCard },
+  { key: 'calendar', icon: IconCalendar },
+  { key: 'communications', icon: IconMessage },
+];
 
 export default async function ComunePage({
   params,
@@ -104,6 +114,8 @@ export default async function ComunePage({
   }
 
   const { comune, provincia, regione } = context;
+  const t = await getTranslations({ locale, namespace: 'public.cities.city' });
+  const tIndex = await getTranslations({ locale, namespace: 'public.cities.index' });
 
   // Comuni vicini (stessa provincia, comune diverso)
   const nearbyCities = comuni
@@ -115,14 +127,14 @@ export default async function ComunePage({
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
     name: 'InsegnaMi.pro',
-    description: `Software gestionale per scuole a ${comune.nome}`,
+    description: t('metaTitle', { city: comune.nome }),
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
     offers: {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'EUR',
-      description: 'Prova gratuita 14 giorni',
+      description: t('sidebar.trialTitle'),
     },
     areaServed: {
       '@type': 'City',
@@ -151,13 +163,13 @@ export default async function ComunePage({
         {
           '@type': 'ListItem',
           position: 1,
-          name: 'Home',
+          name: tIndex('breadcrumbHome'),
           item: `https://insegnami.pro/${locale}`,
         },
         {
           '@type': 'ListItem',
           position: 2,
-          name: 'Città',
+          name: tIndex('breadcrumbCities'),
           item: `https://insegnami.pro/${locale}/citta`,
         },
         {
@@ -182,42 +194,49 @@ export default async function ComunePage({
     },
   };
 
-  const features = [
-    {
-      icon: IconSchool,
-      title: 'Gestione Studenti',
-      description: `Gestisci facilmente tutti gli studenti della tua scuola a ${comune.nome}. Iscrizioni, anagrafica, documenti e storico in un unico posto.`,
-    },
-    {
-      icon: IconUsers,
-      title: 'Gestione Docenti',
-      description: 'Organizza docenti, orari, disponibilità e compensi. Assegna classi e monitora le ore di lezione.',
-    },
-    {
-      icon: IconCreditCard,
-      title: 'Fatturazione e Pagamenti',
-      description: 'Genera fatture, gestisci pagamenti e monitora gli incassi. Integrazione con i principali metodi di pagamento.',
-    },
-    {
-      icon: IconCalendar,
-      title: 'Calendario e Presenze',
-      description: 'Calendario condiviso, gestione presenze e registro elettronico. Notifiche automatiche per genitori e studenti.',
-    },
-    {
-      icon: IconMessage,
-      title: 'Comunicazioni',
-      description: `Comunica con famiglie e studenti di ${comune.nome} via email, SMS e notifiche push. Newsletter e avvisi automatici.`,
-    },
+  const features = FEATURE_ICONS.map(({ key, icon }) => ({
+    icon,
+    title: t(`features.${key}.title`),
+    description: t(`features.${key}.text`, { city: comune.nome }),
+  }));
+
+  // Motivi della checklist "Perché scegliere InsegnaMi.pro"
+  const reasons = t.raw('reasons') as { title: string; desc: string }[];
+
+  // Bullet legati ai dati demografici del comune presenti nel dataset
+  const gestionaleBullets = [
+    comune.popolazione
+      ? t('bulletPopulation', { population: comune.popolazione.toLocaleString('it-IT') })
+      : t('bulletNoPopulation', { city: comune.nome }),
+    t('bulletFamilies', {
+      city: comune.nome,
+      province: provincia.nome,
+      sigla: provincia.sigla,
+    }),
+    t('bulletCloud', { city: comune.nome, cap: comune.cap }),
   ];
 
-  // Motivi della checklist "Perché le scuole ci scelgono"
-  const reasons = [
-    { title: 'Prova gratuita 14 giorni', desc: 'Testa tutte le funzionalità senza impegno' },
-    { title: 'Nessuna carta di credito', desc: 'Inizia subito, paghi solo se ti piace' },
-    { title: 'Supporto in italiano', desc: 'Team dedicato disponibile via chat, email e telefono' },
-    { title: 'Conforme GDPR', desc: 'Dati protetti e conformità alle normative sulla privacy' },
-    { title: 'Aggiornamenti inclusi', desc: 'Nuove funzionalità e miglioramenti costanti' },
-    { title: 'Import dati', desc: 'Migra facilmente da Excel o altri software' },
+  // Strumenti gratuiti utili per chi gestisce una scuola
+  const freeTools = [
+    { label: t('toolGradeCalculator'), href: `/${locale}/tools/calcolatore-media-voti` },
+    { label: t('toolAttendanceCalculator'), href: `/${locale}/tools/calcolatore-presenze` },
+    { label: t('toolScheduleGenerator'), href: `/${locale}/tools/generatore-orario-settimanale` },
+  ];
+
+  // Mini-FAQ locale (anche in JSON-LD FAQPage)
+  const localFaqs = [
+    {
+      question: t('faq1Question', { city: comune.nome }),
+      answer: t('faq1Answer', { city: comune.nome }),
+    },
+    {
+      question: t('faq2Question', { city: comune.nome }),
+      answer: t('faq2Answer'),
+    },
+    {
+      question: t('faq3Question', { city: comune.nome }),
+      answer: t('faq3Answer'),
+    },
   ];
 
   return (
@@ -226,6 +245,10 @@ export default async function ComunePage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPageJsonLd(localFaqs)) }}
+      />
 
       {/* Hero */}
       <Box className="pub-hero" py={{ base: 40, sm: 56 }}>
@@ -233,7 +256,7 @@ export default async function ComunePage({
           <Stack gap="lg">
             <Breadcrumbs>
               <Anchor component={Link} href={`/${locale}`} size="sm" c="indigo.6" underline="hover">
-                Home
+                {tIndex('breadcrumbHome')}
               </Anchor>
               <Anchor
                 component={Link}
@@ -242,7 +265,7 @@ export default async function ComunePage({
                 c="indigo.6"
                 underline="hover"
               >
-                Città
+                {tIndex('breadcrumbCities')}
               </Anchor>
               <Anchor
                 component={Link}
@@ -273,13 +296,13 @@ export default async function ComunePage({
               </ThemeIcon>
               <Box>
                 <Badge size="lg" variant="light" color="indigo" radius="xl" mb="sm">
-                  Comune
+                  {t('badge')}
                 </Badge>
                 <Title fz={{ base: rem(28), sm: rem(34) }} fw={900} lh={1.15} c="var(--pub-ink)" mb={8}>
-                  Software Gestione Scuola a {comune.nome}
+                  {t('title', { city: comune.nome })}
                 </Title>
                 <Text size="lg" c="dimmed">
-                  Il gestionale per scuole private e accademie
+                  {t('subtitle')}
                 </Text>
                 <Group gap="sm" mt="md">
                   <Badge variant="light" color="indigo" size="lg" radius="xl">
@@ -293,11 +316,13 @@ export default async function ComunePage({
                       radius="xl"
                       leftSection={<IconUsers size={14} />}
                     >
-                      {comune.popolazione.toLocaleString('it-IT')} abitanti
+                      {t('populationBadge', {
+                        population: comune.popolazione.toLocaleString('it-IT'),
+                      })}
                     </Badge>
                   )}
                   <Badge variant="light" color="indigo" size="lg" radius="xl">
-                    CAP {comune.cap}
+                    {t('capBadge', { cap: comune.cap })}
                   </Badge>
                 </Group>
               </Box>
@@ -322,7 +347,7 @@ export default async function ComunePage({
             >
               <Group gap={6} wrap="nowrap">
                 <IconArrowLeft size={16} />
-                Provincia di {provincia.nome}
+                {t('backLink', { province: provincia.nome })}
               </Group>
             </Anchor>
 
@@ -339,21 +364,60 @@ export default async function ComunePage({
                       c="var(--pub-ink)"
                       mb="md"
                     >
-                      InsegnaMi.pro per le Scuole di {comune.nome}
+                      {t('introTitle', { city: comune.nome })}
                     </Title>
                     <Text size="lg" mb="md">
-                      Stai cercando un software gestionale per la tua scuola privata, accademia musicale,
-                      scuola di danza o centro di formazione a {comune.nome}? InsegnaMi.pro è la soluzione
-                      completa e professionale che ti permette di gestire ogni aspetto della tua attività
-                      educativa.
+                      {t('introText1', { city: comune.nome })}
                     </Text>
                     <Text c="dimmed">
-                      Con InsegnaMi.pro, le scuole di {comune.nome} e della provincia di {provincia.nome} ({provincia.sigla})
-                      possono finalmente dire addio a fogli Excel, registri cartacei e software complicati.
-                      La nostra piattaforma è stata progettata pensando alle esigenze specifiche delle
-                      scuole italiane, con conformità GDPR e supporto in italiano.
+                      {t('introText2', {
+                        city: comune.nome,
+                        province: provincia.nome,
+                        sigla: provincia.sigla,
+                      })}
                     </Text>
                   </Box>
+
+                  {/* Perché un gestionale: bullet legati ai dati del comune */}
+                  <Card withBorder radius="lg" padding="xl">
+                    <Title order={2} fz={rem(22)} fw={700} c="var(--pub-ink)" mb="md">
+                      {t('whyTitle', { city: comune.nome })}
+                    </Title>
+                    <List
+                      spacing="md"
+                      icon={
+                        <ThemeIcon size={24} radius="xl" color="indigo" variant="light">
+                          <IconCheck size={14} />
+                        </ThemeIcon>
+                      }
+                    >
+                      {gestionaleBullets.map((bullet) => (
+                        <ListItem key={bullet}>
+                          <Text size="sm" c="dimmed" lh={1.6}>
+                            {bullet}
+                          </Text>
+                        </ListItem>
+                      ))}
+                    </List>
+                    <Text size="sm" fw={600} c="var(--pub-ink)" mt="lg" mb="xs">
+                      {t('toolsPrompt')}
+                    </Text>
+                    <Group gap="sm">
+                      {freeTools.map((tool) => (
+                        <Anchor
+                          key={tool.href}
+                          component={Link}
+                          href={tool.href}
+                          size="sm"
+                          c="indigo.6"
+                          fw={600}
+                          underline="hover"
+                        >
+                          {tool.label}
+                        </Anchor>
+                      ))}
+                    </Group>
+                  </Card>
 
                   {/* Funzionalità */}
                   <Box>
@@ -364,33 +428,36 @@ export default async function ComunePage({
                       c="var(--pub-ink)"
                       mb="lg"
                     >
-                      Cosa Puoi Fare con InsegnaMi.pro a {comune.nome}
+                      {t('featuresTitle', { city: comune.nome })}
                     </Title>
                     <Stack gap="md">
-                      {features.map((feature) => (
-                        <Card key={feature.title} withBorder radius="lg" padding="lg">
-                          <Group gap="md" align="flex-start" wrap="nowrap">
-                            <ThemeIcon size={44} radius="md" variant="light" color="indigo">
-                              <feature.icon size={24} />
-                            </ThemeIcon>
-                            <Box style={{ flex: 1 }}>
-                              <Title order={4} fz={rem(18)} fw={700} c="var(--pub-ink)" mb={4}>
-                                {feature.title}
-                              </Title>
-                              <Text size="sm" c="dimmed" lh={1.6}>
-                                {feature.description}
-                              </Text>
-                            </Box>
-                          </Group>
-                        </Card>
-                      ))}
+                      {features.map((feature) => {
+                        const FeatureIcon = feature.icon;
+                        return (
+                          <Card key={feature.title} withBorder radius="lg" padding="lg">
+                            <Group gap="md" align="flex-start" wrap="nowrap">
+                              <ThemeIcon size={44} radius="md" variant="light" color="indigo">
+                                <FeatureIcon size={24} />
+                              </ThemeIcon>
+                              <Box style={{ flex: 1 }}>
+                                <Title order={4} fz={rem(18)} fw={700} c="var(--pub-ink)" mb={4}>
+                                  {feature.title}
+                                </Title>
+                                <Text size="sm" c="dimmed" lh={1.6}>
+                                  {feature.description}
+                                </Text>
+                              </Box>
+                            </Group>
+                          </Card>
+                        );
+                      })}
                     </Stack>
                   </Box>
 
                   {/* Perché sceglierci */}
                   <Card withBorder radius="lg" padding="xl">
                     <Title order={2} fz={rem(22)} fw={700} c="var(--pub-ink)" mb="lg">
-                      Perché le Scuole di {comune.nome} Scelgono InsegnaMi.pro
+                      {t('reasonsTitle')}
                     </Title>
                     <List
                       spacing="md"
@@ -412,6 +479,31 @@ export default async function ComunePage({
                       ))}
                     </List>
                   </Card>
+
+                  {/* Mini-FAQ locale */}
+                  <Box>
+                    <Title
+                      order={2}
+                      fz={{ base: rem(26), sm: rem(30) }}
+                      fw={800}
+                      c="var(--pub-ink)"
+                      mb="lg"
+                    >
+                      {t('faqTitle', { city: comune.nome })}
+                    </Title>
+                    <Stack gap="md">
+                      {localFaqs.map((faq) => (
+                        <Card key={faq.question} withBorder radius="lg" padding="lg">
+                          <Title order={3} fz={rem(17)} fw={700} c="var(--pub-ink)" mb={6}>
+                            {faq.question}
+                          </Title>
+                          <Text size="sm" c="dimmed" lh={1.6}>
+                            {faq.answer}
+                          </Text>
+                        </Card>
+                      ))}
+                    </Stack>
+                  </Box>
                 </Stack>
               </GridCol>
 
@@ -422,10 +514,10 @@ export default async function ComunePage({
                   <Card padding="xl" radius="lg" style={{ background: 'var(--pub-brand-gradient)' }}>
                     <Stack gap="md">
                       <Title order={3} fz={rem(20)} fw={700} c="white" ta="center">
-                        Prova Gratis
+                        {t('sidebar.trialTitle')}
                       </Title>
                       <Text ta="center" size="sm" c="white" opacity={0.9}>
-                        14 giorni di prova gratuita per la tua scuola a {comune.nome}
+                        {t('sidebar.trialText', { city: comune.nome })}
                       </Text>
                       <Button
                         component={Link}
@@ -437,10 +529,10 @@ export default async function ComunePage({
                         fullWidth
                         rightSection={<IconArrowRight size={16} />}
                       >
-                        Inizia la Prova Gratuita
+                        {t('sidebar.trialCta')}
                       </Button>
                       <Text ta="center" size="xs" c="white" opacity={0.85}>
-                        Nessuna carta di credito richiesta
+                        {t('sidebar.noCard')}
                       </Text>
                     </Stack>
                   </Card>
@@ -449,23 +541,23 @@ export default async function ComunePage({
                   <Card withBorder radius="lg" padding="xl">
                     <Stack gap="sm">
                       <Title order={4} fz={rem(16)} fw={700} c="var(--pub-ink)">
-                        Informazioni su {comune.nome}
+                        {t('sidebar.infoTitle', { city: comune.nome })}
                       </Title>
                       <Group justify="space-between">
-                        <Text size="sm" c="dimmed">Provincia</Text>
+                        <Text size="sm" c="dimmed">{t('sidebar.provinceLabel')}</Text>
                         <Text size="sm" fw={500}>{provincia.nome} ({provincia.sigla})</Text>
                       </Group>
                       <Group justify="space-between">
-                        <Text size="sm" c="dimmed">Regione</Text>
+                        <Text size="sm" c="dimmed">{t('sidebar.regionLabel')}</Text>
                         <Text size="sm" fw={500}>{regione.nome}</Text>
                       </Group>
                       <Group justify="space-between">
-                        <Text size="sm" c="dimmed">CAP</Text>
+                        <Text size="sm" c="dimmed">{t('sidebar.capLabel')}</Text>
                         <Text size="sm" fw={500}>{comune.cap}</Text>
                       </Group>
                       {comune.popolazione && (
                         <Group justify="space-between">
-                          <Text size="sm" c="dimmed">Popolazione</Text>
+                          <Text size="sm" c="dimmed">{t('sidebar.populationLabel')}</Text>
                           <Text size="sm" fw={500}>
                             {comune.popolazione.toLocaleString('it-IT')}
                           </Text>
@@ -478,11 +570,10 @@ export default async function ComunePage({
                   <Card withBorder radius="lg" padding="xl">
                     <Stack gap="sm">
                       <Title order={4} fz={rem(16)} fw={700} c="var(--pub-ink)">
-                        Hai Domande?
+                        {t('sidebar.questionsTitle')}
                       </Title>
                       <Text size="sm" c="dimmed">
-                        Il nostro team è disponibile per aiutarti a scegliere il piano giusto
-                        per la tua scuola a {comune.nome}.
+                        {t('sidebar.questionsText', { city: comune.nome })}
                       </Text>
                       <Button
                         component={Link}
@@ -492,7 +583,7 @@ export default async function ComunePage({
                         radius="xl"
                         fullWidth
                       >
-                        Contattaci
+                        {t('sidebar.contactCta')}
                       </Button>
                     </Stack>
                   </Card>
@@ -514,7 +605,7 @@ export default async function ComunePage({
               c="var(--pub-ink)"
               mb="lg"
             >
-              InsegnaMi.pro in Altri Comuni di {provincia.nome}
+              {t('nearbyTitle', { province: provincia.nome })}
             </Title>
             <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="md">
               {nearbyCities.map((city) => (
@@ -541,8 +632,8 @@ export default async function ComunePage({
       {/* CTA finale */}
       <CtaBanner
         locale={locale}
-        title={`Inizia Oggi con InsegnaMi.pro a ${comune.nome}`}
-        subtitle={`Semplifica la gestione quotidiana della tua scuola a ${comune.nome} (${provincia.nome}). Prova gratuita di 14 giorni, nessuna carta di credito richiesta.`}
+        title={t('ctaTitle', { city: comune.nome })}
+        subtitle={t('ctaSubtitle', { city: comune.nome, province: provincia.nome })}
       />
     </>
   );

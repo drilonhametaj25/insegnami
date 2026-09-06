@@ -50,14 +50,20 @@ export async function GET(request: NextRequest) {
       where.studentId = student.id;
       where.status = 'PUBLISHED';
     } else if (session.user.role === 'PARENT') {
-      // Parents can only see their child's PUBLISHED report cards
-      const child = await prisma.student.findFirst({
-        where: { parentUserId: session.user.id },
+      // Parents can only see their children's PUBLISHED report cards
+      // Guardian-aware: StudentGuardian + fallback legacy parentUserId
+      const children = await prisma.student.findMany({
+        where: {
+          tenantId: session.user.tenantId,
+          OR: [
+            { parentUserId: session.user.id },
+            { guardians: { some: { userId: session.user.id } } },
+          ],
+        },
+        select: { id: true },
       });
-      if (!child) {
-        return NextResponse.json({ error: 'Child not found' }, { status: 404 });
-      }
-      where.studentId = child.id;
+      // Nessun figlio → lista vuota (in: [] non matcha nulla)
+      where.studentId = { in: children.map((c) => c.id) };
       where.status = 'PUBLISHED';
     } else if (session.user.role === 'TEACHER' && session.user.email) {
       // Teachers can see report cards for their classes

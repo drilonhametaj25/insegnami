@@ -54,18 +54,23 @@ export default defineConfig({
       dependencies: ['setup'],
     },
 
-    // Cross-browser disabilitati di default per velocità; riabilitare con
-    // --project=firefox/webkit dopo aver installato i browser.
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-      dependencies: ['setup'],
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-      dependencies: ['setup'],
-    },
+    // Cross-browser SOLO dietro opt-in esplicito (PW_ALL_BROWSERS=1): un
+    // `npx playwright test` senza --project non deve triplicare la suite né
+    // fallire per binari firefox/webkit non installati.
+    ...(process.env.PW_ALL_BROWSERS
+      ? [
+          {
+            name: 'firefox',
+            use: { ...devices['Desktop Firefox'] },
+            dependencies: ['setup'],
+          },
+          {
+            name: 'webkit',
+            use: { ...devices['Desktop Safari'] },
+            dependencies: ['setup'],
+          },
+        ]
+      : []),
   ],
 
   /* Run your local dev server before starting the tests */

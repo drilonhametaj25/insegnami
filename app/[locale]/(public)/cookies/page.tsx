@@ -38,12 +38,23 @@ import {
 import Link from 'next/link';
 import { Metadata } from 'next';
 import type { ComponentType, ReactNode } from 'react';
+import { buildPublicMetadata } from '@/lib/seo';
 import { PUB_GRADIENT } from '@/components/public/PublicUI';
 
-export const metadata: Metadata = {
-  title: 'Cookie Policy',
-  description: 'Informativa sui cookie utilizzati dalla piattaforma InsegnaMi.pro. Scopri come gestiamo i cookie.',
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return buildPublicMetadata({
+    locale,
+    path: '/cookies',
+    title: 'Cookie Policy',
+    description:
+      'Informativa sui cookie utilizzati dalla piattaforma InsegnaMi.pro. Scopri come gestiamo i cookie.',
+  });
+}
 
 // Indice delle sezioni (anchor interni alla pagina)
 const INDICE = [
@@ -90,7 +101,7 @@ export default async function CookiePolicyPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const lastUpdated = '3 Marzo 2026';
+  const lastUpdated = '5 Settembre 2026';
 
   const technicalCookies = [
     { name: 'next-auth.session-token', purpose: 'Gestione sessione utente', duration: 'Sessione', type: 'Essenziale' },
@@ -200,12 +211,38 @@ export default async function CookiePolicyPage({
               </List>
             </Paper>
 
+            {/* Analytics cookieless */}
+            <Paper p="md" radius="md" bg="var(--pub-surface)">
+              <Group gap="xs" mb="sm">
+                <Badge variant="light" color="teal">Senza cookie</Badge>
+                <Text fw={600}>Statistiche di utilizzo (analytics cookieless)</Text>
+              </Group>
+              <Text size="sm" mb="md">
+                Per capire come viene usato il sito raccogliamo statistiche aggregate e anonime
+                tramite una soluzione di analytics self-hosted (Umami) che <strong>non utilizza
+                cookie</strong>, non memorizza dati sul tuo dispositivo e non effettua alcun
+                tracciamento cross-site. Non essendo possibile risalire alla singola persona,
+                questa raccolta non richiede consenso né banner.
+              </Text>
+              <List size="sm" spacing="xs" icon={
+                <ThemeIcon size="xs" radius="xl" color="teal" variant="light">
+                  <IconCheck size={10} />
+                </ThemeIcon>
+              }>
+                <ListItem>Nessun cookie o identificatore persistente</ListItem>
+                <ListItem>Dati aggregati e anonimi (pagine viste, provenienza, dispositivo)</ListItem>
+                <ListItem>Dati ospitati sui nostri server, mai condivisi con terze parti</ListItem>
+              </List>
+            </Paper>
+
             <Alert color="teal" variant="light" icon={<IconShield size={20} />}>
               <Text size="sm" fw={500}>
                 InsegnaMi.pro NON utilizza cookie di profilazione o marketing.
               </Text>
               <Text size="sm">
-                Non tracciamo i tuoi comportamenti per scopi pubblicitari né condividiamo dati con reti pubblicitarie.
+                Non tracciamo i tuoi comportamenti per scopi pubblicitari né condividiamo dati con
+                reti pubblicitarie. Le statistiche di utilizzo sono raccolte senza cookie: per
+                questo il sito non mostra alcun banner cookie.
               </Text>
             </Alert>
           </Stack>
@@ -252,9 +289,15 @@ export default async function CookiePolicyPage({
               <Text fw={500} mb="xs">Stripe (Pagamenti)</Text>
               <Text size="sm" c="dimmed">
                 Per l'elaborazione sicura dei pagamenti. Stripe utilizza cookie per la prevenzione delle frodi
-                e l'autenticazione. <Anchor href="https://stripe.com/privacy" target="_blank" c="indigo.6" underline="hover">Privacy Policy Stripe</Anchor>
+                e l'autenticazione, esclusivamente nelle pagine di pagamento. <Anchor href="https://stripe.com/privacy" target="_blank" c="indigo.6" underline="hover">Privacy Policy Stripe</Anchor>
               </Text>
             </Paper>
+
+            <Text size="sm" c="dimmed">
+              Le statistiche di utilizzo del sito sono invece raccolte con una soluzione
+              self-hosted sui nostri server: nessun dato di navigazione viene inviato a
+              servizi di analytics di terze parti (es. Google Analytics).
+            </Text>
           </Stack>
         </SezioneLegale>
 

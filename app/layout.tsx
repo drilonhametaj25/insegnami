@@ -1,6 +1,7 @@
 import { ColorSchemeScript, MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { appTheme } from '@/lib/theme';
+import { AnalyticsScript } from '@/components/public/AnalyticsScript';
 import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
 import '@mantine/notifications/styles.css';
@@ -36,15 +37,10 @@ export const metadata = {
     description:
       'Piattaforma all-in-one per scuole private. Registro elettronico, presenze, pagamenti e comunicazioni.',
   },
-  alternates: {
-    canonical: '/',
-    languages: {
-      'it': '/it',
-      'en': '/en',
-      'fr': '/fr',
-      'pt': '/pt',
-    },
-  },
+  // ATTENZIONE: niente `alternates` qui. Il merge shallow dei metadata Next
+  // farebbe ereditare canonical '/' a OGNI pagina che non lo ridefinisce,
+  // deindicizzando blog/tool/pricing come duplicati della homepage.
+  // Ogni pagina pubblica dichiara i propri alternates via lib/seo.ts.
 };
 
 export const viewport = {
@@ -62,6 +58,16 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="it" suppressHydrationWarning>
       <head>
         <ColorSchemeScript />
+        {/* Sincrono, prima dell'idratazione: <html lang> deve riflettere il
+            locale del path (it|en|fr|pt). app/layout.tsx resta l'owner di
+            <html> ma non conosce il segmento [locale] lato server. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var m=location.pathname.match(/^\\/(it|en|fr|pt)(?=\\/|$)/);document.documentElement.lang=(m&&m[1])||'it';}catch(e){}})();",
+          }}
+        />
+        <AnalyticsScript />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />

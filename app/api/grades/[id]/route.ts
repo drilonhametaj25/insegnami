@@ -138,14 +138,17 @@ export async function PUT(
     }
 
     // If teacher, verify they created this grade or have permission
-    if (session.user.role === 'TEACHER' && session.user.email) {
-      const teacher = await prisma.teacher.findFirst({
-        where: {
-          email: session.user.email,
-          tenantId: session.user.tenantId,
-        },
-      });
-      if (teacher && existingGrade.teacherId !== teacher.id) {
+    if (session.user.role === 'TEACHER') {
+      const teacher = session.user.email
+        ? await prisma.teacher.findFirst({
+            where: {
+              email: session.user.email,
+              tenantId: session.user.tenantId,
+            },
+          })
+        : null;
+      // Deny esplicito: profilo non risolvibile o voto di un altro docente → 403
+      if (!teacher || existingGrade.teacherId !== teacher.id) {
         return NextResponse.json(
           { error: 'Non puoi modificare voti inseriti da altri docenti' },
           { status: 403 }
@@ -249,14 +252,17 @@ export async function DELETE(
     }
 
     // If teacher, verify they created this grade
-    if (session.user.role === 'TEACHER' && session.user.email) {
-      const teacher = await prisma.teacher.findFirst({
-        where: {
-          email: session.user.email,
-          tenantId: session.user.tenantId,
-        },
-      });
-      if (teacher && grade.teacherId !== teacher.id) {
+    if (session.user.role === 'TEACHER') {
+      const teacher = session.user.email
+        ? await prisma.teacher.findFirst({
+            where: {
+              email: session.user.email,
+              tenantId: session.user.tenantId,
+            },
+          })
+        : null;
+      // Deny esplicito: profilo non risolvibile o voto di un altro docente → 403
+      if (!teacher || grade.teacherId !== teacher.id) {
         return NextResponse.json(
           { error: 'Non puoi eliminare voti inseriti da altri docenti' },
           { status: 403 }

@@ -23,6 +23,7 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import {
   regioni,
   province,
@@ -30,6 +31,7 @@ import {
   getProvincia,
   getComuniByProvincia,
 } from '@/data/italia';
+import { buildPublicMetadata } from '@/lib/seo';
 import { CtaBanner, PUB_GRADIENT, SectionHeader } from '@/components/public/PublicUI';
 
 export async function generateStaticParams() {
@@ -60,23 +62,25 @@ export async function generateMetadata({
   const { locale, regione: regioneSlug, provincia: provinciaSlug } = await params;
   const regione = getRegione(regioneSlug);
   const provincia = getProvincia(provinciaSlug);
+  const t = await getTranslations({ locale, namespace: 'public.cities.province' });
 
   if (!regione || !provincia) {
-    return { title: 'Provincia non trovata' };
+    return { title: t('notFound') };
   }
 
-  return {
-    title: `Software Gestione Scuola a ${provincia.nome} (${provincia.sigla})`,
-    description: `Cerchi un software gestionale per la tua scuola a ${provincia.nome}? InsegnaMi.pro è la soluzione per le scuole in provincia di ${provincia.nome}, ${regione.nome}. Provalo gratis!`,
-    openGraph: {
-      title: `Software Gestione Scuola a ${provincia.nome} | InsegnaMi.pro`,
-      description: `Il miglior software gestionale per scuole in provincia di ${provincia.nome}. Supporto locale e conformità normative.`,
-      type: 'website',
-    },
-    alternates: {
-      canonical: `https://insegnami.pro/${locale}/citta/${regioneSlug}/${provinciaSlug}`,
-    },
-  };
+  // Province senza comuni popolati nel dataset: pagina sottile → noindex
+  const hasComuni = getComuniByProvincia(provinciaSlug).length > 0;
+
+  return buildPublicMetadata({
+    locale,
+    path: `/citta/${regioneSlug}/${provinciaSlug}`,
+    title: t('metaTitle', { province: provincia.nome, sigla: provincia.sigla }),
+    description: t('metaDescription', {
+      province: provincia.nome,
+      region: regione.nome,
+    }),
+    noindex: !hasComuni,
+  });
 }
 
 export default async function ProvinciaPage({
@@ -92,14 +96,17 @@ export default async function ProvinciaPage({
     notFound();
   }
 
+  const t = await getTranslations({ locale, namespace: 'public.cities.province' });
+  const tIndex = await getTranslations({ locale, namespace: 'public.cities.index' });
   const comuni = getComuniByProvincia(provinciaSlug);
+  const cards = t.raw('cards') as { title: string; text: string }[];
 
   // JSON-LD for SEO
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: `Software Gestione Scuola a ${provincia.nome}`,
-    description: `InsegnaMi.pro è il software gestionale scolastico per le scuole in provincia di ${provincia.nome}.`,
+    name: t('metaTitle', { province: provincia.nome, sigla: provincia.sigla }),
+    description: t('metaDescription', { province: provincia.nome, region: regione.nome }),
     publisher: {
       '@type': 'Organization',
       name: 'InsegnaMi.pro',
@@ -111,13 +118,13 @@ export default async function ProvinciaPage({
         {
           '@type': 'ListItem',
           position: 1,
-          name: 'Home',
+          name: tIndex('breadcrumbHome'),
           item: `https://insegnami.pro/${locale}`,
         },
         {
           '@type': 'ListItem',
           position: 2,
-          name: 'Città',
+          name: tIndex('breadcrumbCities'),
           item: `https://insegnami.pro/${locale}/citta`,
         },
         {
@@ -149,7 +156,7 @@ export default async function ProvinciaPage({
           <Stack gap="lg">
             <Breadcrumbs>
               <Anchor component={Link} href={`/${locale}`} size="sm" c="indigo.6" underline="hover">
-                Home
+                {tIndex('breadcrumbHome')}
               </Anchor>
               <Anchor
                 component={Link}
@@ -158,7 +165,7 @@ export default async function ProvinciaPage({
                 c="indigo.6"
                 underline="hover"
               >
-                Città
+                {tIndex('breadcrumbCities')}
               </Anchor>
               <Anchor
                 component={Link}
@@ -180,13 +187,13 @@ export default async function ProvinciaPage({
               </ThemeIcon>
               <Box>
                 <Badge size="lg" variant="light" color="indigo" radius="xl" mb="sm">
-                  Provincia · {provincia.sigla}
+                  {t('badge', { sigla: provincia.sigla })}
                 </Badge>
                 <Title fz={{ base: rem(28), sm: rem(34) }} fw={900} lh={1.15} c="var(--pub-ink)" mb={8}>
-                  Software Gestione Scuola a {provincia.nome}
+                  {t('title', { province: provincia.nome })}
                 </Title>
                 <Text size="lg" c="dimmed">
-                  Provincia di {provincia.nome}, {regione.nome}
+                  {t('subtitle', { province: provincia.nome, region: regione.nome })}
                 </Text>
               </Box>
             </Group>
@@ -210,19 +217,21 @@ export default async function ProvinciaPage({
             >
               <Group gap={6} wrap="nowrap">
                 <IconArrowLeft size={16} />
-                Torna a {regione.nome}
+                {t('backLink', { region: regione.nome })}
               </Group>
             </Anchor>
 
             {/* Introduzione */}
             <Box>
               <Title order={2} fz={{ base: rem(26), sm: rem(30) }} fw={800} c="var(--pub-ink)" mb="md">
-                Comuni in Provincia di {provincia.nome}
+                {comuni.length > 0
+                  ? t('comuniTitle', { province: provincia.nome })
+                  : t('noComuniTitle', { province: provincia.nome })}
               </Title>
               <Text size="lg" c="dimmed" maw={800}>
-                InsegnaMi.pro è disponibile in tutti i comuni della provincia di {provincia.nome}.
-                Trova la tua città per scoprire come il nostro software gestionale può aiutare
-                la tua scuola.
+                {comuni.length > 0
+                  ? t('comuniIntro', { province: provincia.nome })
+                  : t('noComuniIntro', { province: provincia.nome })}
               </Text>
             </Box>
 
@@ -253,7 +262,7 @@ export default async function ProvinciaPage({
                       </Group>
                       <Group gap="xs" mt="auto">
                         <Badge color="gray" variant="light" size="sm" radius="xl">
-                          CAP {comune.cap}
+                          {t('capBadge', { cap: comune.cap })}
                         </Badge>
                         {comune.popolazione && (
                           <Badge
@@ -263,7 +272,9 @@ export default async function ProvinciaPage({
                             radius="xl"
                             leftSection={<IconUsers size={12} />}
                           >
-                            {comune.popolazione.toLocaleString('it-IT')} ab.
+                            {t('populationBadge', {
+                              population: comune.popolazione.toLocaleString('it-IT'),
+                            })}
                           </Badge>
                         )}
                       </Group>
@@ -272,23 +283,25 @@ export default async function ProvinciaPage({
                 ))}
               </SimpleGrid>
             ) : (
-              <Card withBorder padding="xl" radius="lg" ta="center">
-                <Stack align="center" gap="md">
+              <Card withBorder padding="xl" radius="lg">
+                <Stack gap="md">
+                  <Title order={3} fz={rem(20)} fw={700} c="var(--pub-ink)">
+                    {t('everywhereTitle', { province: provincia.nome })}
+                  </Title>
                   <Text c="dimmed">
-                    Dati dei comuni in provincia di {provincia.nome} in arrivo.
+                    {t('everywhereText', { province: provincia.nome, sigla: provincia.sigla })}
                   </Text>
-                  <Text size="sm">
-                    Nel frattempo, contattaci per informazioni sulla tua scuola a {provincia.nome}.
-                  </Text>
-                  <Button
-                    component={Link}
-                    href={`/${locale}/contact`}
-                    variant="light"
-                    color="indigo"
-                    radius="xl"
-                  >
-                    Contattaci
-                  </Button>
+                  <Group>
+                    <Button
+                      component={Link}
+                      href={`/${locale}/contact`}
+                      variant="light"
+                      color="indigo"
+                      radius="xl"
+                    >
+                      {t('contactCta')}
+                    </Button>
+                  </Group>
                 </Stack>
               </Card>
             )}
@@ -300,25 +313,12 @@ export default async function ProvinciaPage({
       <Box bg="var(--pub-surface)" py={{ base: 64, sm: 96 }}>
         <Container size="xl">
           <SectionHeader
-            title={`Perché le Scuole di ${provincia.nome}`}
-            highlight="Scelgono InsegnaMi.pro"
-            subtitle={`InsegnaMi.pro è la soluzione gestionale preferita dalle scuole private, accademie e centri di formazione in provincia di ${provincia.nome}. Ecco perché sempre più istituti ci scelgono:`}
+            title={t('seoTitle')}
+            highlight={provincia.nome}
+            subtitle={t('seoSubtitle', { province: provincia.nome })}
           />
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
-            {[
-              {
-                title: 'Facile da Usare',
-                text: 'Interfaccia intuitiva che non richiede formazione tecnica. I tuoi docenti e staff saranno operativi in pochi minuti.',
-              },
-              {
-                title: 'Tutto in Uno',
-                text: 'Studenti, docenti, classi, pagamenti, comunicazioni. Un unico software per gestire ogni aspetto della tua scuola.',
-              },
-              {
-                title: 'Supporto Dedicato',
-                text: 'Team di supporto italiano disponibile per aiutarti. Assistenza via email, chat e telefono inclusa.',
-              },
-            ].map((item) => (
+            {cards.map((item) => (
               <Card key={item.title} padding="xl" radius="lg" withBorder bg="white" h="100%">
                 <Title order={4} fz={rem(20)} fw={700} c="var(--pub-ink)" mb="xs">
                   {item.title}
@@ -335,8 +335,8 @@ export default async function ProvinciaPage({
       {/* CTA finale */}
       <CtaBanner
         locale={locale}
-        title={`La Tua Scuola a ${provincia.nome} Merita il Meglio`}
-        subtitle={`Porta la gestione della tua scuola a ${provincia.nome} nel digitale. Inizia la tua prova gratuita oggi.`}
+        title={t('ctaTitle', { province: provincia.nome })}
+        subtitle={t('ctaSubtitle', { province: provincia.nome })}
       />
     </>
   );

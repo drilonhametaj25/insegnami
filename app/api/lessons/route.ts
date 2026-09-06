@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
-import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
+import { getTeacherIdForUser, getStudentIdForUser, getChildStudentIds, type AuthContext } from '@/lib/api-auth';
 import { findLessonConflicts, conflictMessage } from '@/lib/lessons/conflicts';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 
@@ -15,6 +15,8 @@ const lessonSchema = z.object({
   room: z.string().optional(),
   classId: z.string().cuid(),
   teacherId: z.string().cuid(),
+  // Materia opzionale (dalle materie della classe)
+  subjectId: z.string().cuid().optional().nullable(),
   isRecurring: z.boolean().default(false),
   recurrenceRule: z.string().optional(),
   materials: z.string().optional(),
@@ -37,6 +39,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const classId = searchParams.get('classId');
     const teacherId = searchParams.get('teacherId');
+    const subjectId = searchParams.get('subjectId');
     const date = searchParams.get('date');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -52,6 +55,7 @@ export async function GET(request: NextRequest) {
 
     if (classId) where.classId = classId;
     if (teacherId) where.teacherId = teacherId;
+    if (subjectId) where.subjectId = subjectId;
     if (status) where.status = status;
 
     // Ricerca testuale su titolo/descrizione e nome classe
@@ -114,6 +118,17 @@ export async function GET(request: NextRequest) {
           },
         },
       };
+    } else if (session.user.role === 'PARENT') {
+      // Wave 2: lezioni delle classi dei figli (guardian + fallback parentUserId);
+      // senza figli → sentinella che non matcha nulla
+      const childIds = await getChildStudentIds(ctx);
+      where.class = {
+        students: {
+          some: {
+            studentId: { in: childIds.length > 0 ? childIds : ['__none__'] },
+          },
+        },
+      };
     }
 
     const [lessons, total] = await Promise.all([
@@ -129,6 +144,14 @@ export async function GET(request: NextRequest) {
                   description: true,
                 },
               },
+            },
+          },
+          subject: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              color: true,
             },
           },
           teacher: {
@@ -188,8 +211,8 @@ export async function POST(request: NextRequest) {
     const blocked = await blockIfTenantInaccessible(session);
     if (blocked) return blocked;
 
-    // Only admins and teachers can create lessons
-    if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
+    // Matrice: lesson create concesso ad admin, direzione, segreteria e docenti
+    if (!['ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 
@@ -218,6 +241,19 @@ export async function POST(request: NextRequest) {
 
     if (!teacher) {
       return NextResponse.json({ error: 'Docente non trovato' }, { status: 404 });
+    }
+
+    // Materia opzionale: se indicata deve appartenere allo stesso tenant
+    if (validatedData.subjectId) {
+      const subject = await prisma.subject.findFirst({
+        where: {
+          id: validatedData.subjectId,
+          tenantId: session.user.tenantId,
+        },
+      });
+      if (!subject) {
+        return NextResponse.json({ error: 'Materia non trovata' }, { status: 404 });
+      }
     }
 
     // Check for overlapping lessons (teacher + room).
@@ -266,41 +302,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Recurring lesson: schedule the BullMQ job that materializes the next
-    // occurrence. The processor (lib/automation-worker.ts processRecurringLesson)
-    // creates a NEW Lesson row at the computed time and re-schedules the
-    // following occurrence, forming a chain. Without this trigger the
-    // isRecurring flag was a noop.
-    if (lesson.isRecurring && lesson.recurrenceRule) {
-      try {
-        const { AutomationService, automationQueue } = await import('@/lib/automation-service');
-        const nextDate = AutomationService.calculateNextOccurrenceFromRule(
-          lesson.startTime,
-          lesson.recurrenceRule,
-        );
-        const queue = automationQueue.get();
-        if (nextDate && queue) {
-          await queue.add(
-            'recurring-lesson',
-            {
-              type: 'recurring-lesson' as const,
-              tenantId: lesson.tenantId,
-              templateLessonId: lesson.id,
-              nextDate,
-            },
-            {
-              delay: Math.max(0, nextDate.getTime() - Date.now()),
-              jobId: `recurring-${lesson.id}-${nextDate.getTime()}`,
-            },
-          );
-        }
-      } catch (recErr) {
-        // A failed scheduling shouldn't kill the create — the parent lesson
-        // is still in DB and an admin can use POST /api/automation
-        // {action:'generate-recurring-lesson'} to backfill.
-        console.error('Failed to schedule recurring lesson trigger:', recErr);
-      }
-    }
+    // NOTA: la generazione delle serie ricorrenti è EAGER via
+    // POST /api/lessons/recurring (RRULE canonica, lib/lessons/recurrence.ts).
+    // Il vecchio trigger BullMQ "recurring-lesson" è deprecato: il processor
+    // in automation-worker verrà rimosso separatamente.
 
     return NextResponse.json(lesson, { status: 201 });
   } catch (error) {

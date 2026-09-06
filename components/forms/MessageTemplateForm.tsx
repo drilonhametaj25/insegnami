@@ -10,7 +10,11 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { useCreateMessageTemplate } from '@/lib/hooks/useMessages';
+import {
+  useCreateMessageTemplate,
+  useUpdateMessageTemplate,
+  type MessageTemplate,
+} from '@/lib/hooks/useMessages';
 
 export interface MessageTemplateFormValues {
   name: string;
@@ -31,20 +35,24 @@ const TEMPLATE_TYPES = [
 ];
 
 interface MessageTemplateFormProps {
+  /** Template esistente → modalità modifica (PUT) */
+  template?: MessageTemplate;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
-export function MessageTemplateForm({ onSuccess, onCancel }: MessageTemplateFormProps) {
+export function MessageTemplateForm({ template, onSuccess, onCancel }: MessageTemplateFormProps) {
   const createTemplate = useCreateMessageTemplate();
+  const updateTemplate = useUpdateMessageTemplate();
+  const isPending = createTemplate.isPending || updateTemplate.isPending;
 
   const form = useForm<MessageTemplateFormValues>({
     initialValues: {
-      name: '',
-      description: '',
-      subject: '',
-      content: '',
-      type: 'MESSAGE',
+      name: template?.name || '',
+      description: template?.description || '',
+      subject: template?.subject || '',
+      content: template?.content || '',
+      type: template?.type || 'MESSAGE',
     },
     validate: {
       name: (value) => (!value.trim() ? 'Nome richiesto' : null),
@@ -55,16 +63,22 @@ export function MessageTemplateForm({ onSuccess, onCancel }: MessageTemplateForm
 
   const handleSubmit = async (values: MessageTemplateFormValues) => {
     try {
-      await createTemplate.mutateAsync({
+      const payload = {
         name: values.name.trim(),
         description: values.description.trim() || undefined,
         subject: values.subject.trim(),
         content: values.content,
         type: values.type,
-      });
+      };
+
+      if (template) {
+        await updateTemplate.mutateAsync({ id: template.id, ...payload });
+      } else {
+        await createTemplate.mutateAsync(payload);
+      }
       notifications.show({
-        title: 'Template creato',
-        message: `Il template "${values.name.trim()}" è stato creato con successo`,
+        title: template ? 'Template aggiornato' : 'Template creato',
+        message: `Il template "${values.name.trim()}" è stato ${template ? 'aggiornato' : 'creato'} con successo`,
         color: 'green',
       });
       form.reset();
@@ -72,7 +86,7 @@ export function MessageTemplateForm({ onSuccess, onCancel }: MessageTemplateForm
     } catch (error) {
       notifications.show({
         title: 'Errore',
-        message: error instanceof Error ? error.message : 'Impossibile creare il template',
+        message: error instanceof Error ? error.message : 'Impossibile salvare il template',
         color: 'red',
       });
     }
@@ -119,12 +133,12 @@ export function MessageTemplateForm({ onSuccess, onCancel }: MessageTemplateForm
 
         <Group justify="flex-end" mt="md">
           {onCancel && (
-            <Button variant="default" onClick={onCancel} disabled={createTemplate.isPending}>
+            <Button variant="default" onClick={onCancel} disabled={isPending}>
               Annulla
             </Button>
           )}
-          <Button type="submit" loading={createTemplate.isPending}>
-            Crea Template
+          <Button type="submit" loading={isPending} data-testid="comunicazione-template-salva">
+            {template ? 'Aggiorna Template' : 'Crea Template'}
           </Button>
         </Group>
       </Stack>

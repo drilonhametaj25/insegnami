@@ -16,9 +16,7 @@ import {
   Avatar,
   Tabs,
   Card,
-  Progress,
   ActionIcon,
-  Divider,
   UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -29,7 +27,6 @@ import {
   IconBook,
   IconCalendar,
   IconCash,
-  IconClipboardList,
   IconPhone,
   IconMail,
   IconUsers,
@@ -54,83 +51,97 @@ interface UserDetails {
   tenants?: Array<{
     tenantId: string;
     role: Role;
-    tenant: {
+    tenant?: {
       id: string;
       name: string;
     };
   }>;
+  // Profili collegati risolti dall'API
+  profiles?: {
+    studentId: string | null;
+    teacherId: string | null;
+    children: Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      studentCode: string;
+      status: string;
+    }>;
+  };
 }
 
+// Dati reali per la scheda studente: /api/students/[id], /api/grades/student/[id], /api/payments?studentId=
 interface StudentData {
-  enrollmentDate: string;
-  classes: Array<{
+  student: {
     id: string;
-    name: string;
-    teacher: string;
-    level: string;
-    progress: number;
-  }>;
-  attendance: {
-    total: number;
-    present: number;
-    absent: number;
-    percentage: number;
-  };
+    classes?: Array<{
+      id: string;
+      name: string;
+      course?: { name: string; level?: string | null } | null;
+      teacher?: { id: string; name: string } | null;
+      isActive: boolean;
+    }>;
+  } | null;
+  grades: {
+    subjectGrades: Array<{
+      subjectId: string;
+      subjectName: string;
+      grades: Array<{ id: string; value: string | number; date: string }>;
+      averages: { overall: number; gradeCount: number };
+    }>;
+    overallAverage: number;
+    totalGrades: number;
+  } | null;
   payments: Array<{
     id: string;
-    amount: number;
-    status: 'PAID' | 'PENDING' | 'OVERDUE';
+    amount: string | number;
+    description: string;
+    status: string;
     dueDate: string;
-    period: string;
-  }>;
-  grades: Array<{
-    subject: string;
-    grade: number;
-    date: string;
+    paidDate?: string | null;
   }>;
 }
 
+// Dati reali docente: /api/teachers/[id]
 interface TeacherData {
-  hireDate: string;
-  specializations: string[];
-  qualifications: string[];
-  classes: Array<{
+  id: string;
+  hireDate?: string;
+  specializations?: string | null;
+  qualifications?: string | null;
+  classes?: Array<{
     id: string;
     name: string;
-    students: number;
-    level: string;
-    schedule: string;
+    level?: string;
+    schedule?: string;
+    status?: string;
+    _count?: { students: number };
   }>;
-  performance: {
-    totalStudents: number;
-    averageAttendance: number;
-    completionRate: number;
-  };
-  schedule: Array<{
-    day: string;
-    time: string;
-    class: string;
-    room: string;
+  lessons?: Array<{
+    id: string;
+    date: string;
+    topic: string;
+    status: string;
+    class?: { id: string; name: string } | null;
   }>;
 }
 
+// Dati reali genitore: figli da /api/users/[id] (profiles.children) + pagamenti per figlio
 interface ParentData {
   children: Array<{
     id: string;
     firstName: string;
     lastName: string;
-    class: string;
-    teacher: string;
-    attendance: number;
-    lastPayment: string;
+    studentCode: string;
+    status: string;
   }>;
   payments: Array<{
     id: string;
-    childName: string;
-    amount: number;
-    status: 'PAID' | 'PENDING' | 'OVERDUE';
+    amount: string | number;
+    description: string;
+    status: string;
     dueDate: string;
-    period: string;
+    paidDate?: string | null;
+    student?: { id: string; firstName: string; lastName: string } | null;
   }>;
 }
 
@@ -157,27 +168,32 @@ export default function UserDetailPage() {
   const loadUserDetails = async () => {
     try {
       setLoading(true);
-      
+
       // Load basic user data
       const userResponse = await fetch(`/api/users/${userId}`);
       if (!userResponse.ok) throw new Error('Failed to load user');
       const data = await userResponse.json();
-      
+
       // Extract user from response (API returns { user: ... })
-      const userData = data.user || data;
+      const userData: UserDetails = data.user || data;
       setUser(userData);
 
-      // Load role-specific data based on user role
+      // Load role-specific data based on user role, via profili collegati
       const userRole = userData.tenants?.[0]?.role || userData.role;
+      const profiles = userData.profiles;
       switch (userRole) {
         case 'STUDENT':
-          await loadStudentData();
+          if (profiles?.studentId) {
+            await loadStudentData(profiles.studentId);
+          }
           break;
         case 'TEACHER':
-          await loadTeacherData();
+          if (profiles?.teacherId) {
+            await loadTeacherData(profiles.teacherId);
+          }
           break;
         case 'PARENT':
-          await loadParentData();
+          await loadParentData(profiles?.children || []);
           break;
       }
     } catch (error) {
@@ -191,82 +207,41 @@ export default function UserDetailPage() {
     }
   };
 
-  const loadStudentData = async () => {
-    // Mock data - replace with actual API calls
+  const loadStudentData = async (studentId: string) => {
+    const [studentRes, gradesRes, paymentsRes] = await Promise.all([
+      fetch(`/api/students/${studentId}`),
+      fetch(`/api/grades/student/${studentId}`),
+      fetch(`/api/payments?studentId=${studentId}&limit=50`),
+    ]);
+
     setStudentData({
-      enrollmentDate: '2024-01-15',
-      classes: [
-        { id: '1', name: 'Inglese A1', teacher: 'Sarah Johnson', level: 'Principiante', progress: 75 },
-        { id: '2', name: 'Conversazione', teacher: 'John Smith', level: 'Intermedio', progress: 60 },
-      ],
-      attendance: {
-        total: 40,
-        present: 35,
-        absent: 5,
-        percentage: 87.5,
-      },
-      payments: [
-        { id: '1', amount: 120, status: 'PAID', dueDate: '2024-01-01', period: 'Gennaio 2024' },
-        { id: '2', amount: 120, status: 'PENDING', dueDate: '2024-02-01', period: 'Febbraio 2024' },
-      ],
-      grades: [
-        { subject: 'Inglese A1', grade: 8.5, date: '2024-01-20' },
-        { subject: 'Conversazione', grade: 7.8, date: '2024-01-25' },
-      ],
+      student: studentRes.ok ? (await studentRes.json()).student : null,
+      grades: gradesRes.ok ? await gradesRes.json() : null,
+      payments: paymentsRes.ok ? (await paymentsRes.json()).payments || [] : [],
     });
   };
 
-  const loadTeacherData = async () => {
-    // Mock data - replace with actual API calls
-    setTeacherData({
-      hireDate: '2023-09-01',
-      specializations: ['Inglese', 'Conversazione', 'Business English'],
-      qualifications: ['CELTA', 'Laurea in Lingue'],
-      classes: [
-        { id: '1', name: 'Inglese A1', students: 15, level: 'Principiante', schedule: 'Lun/Mer/Ven 10:00' },
-        { id: '2', name: 'Business English', students: 8, level: 'Avanzato', schedule: 'Mar/Gio 18:00' },
-      ],
-      performance: {
-        totalStudents: 23,
-        averageAttendance: 89.2,
-        completionRate: 94.5,
-      },
-      schedule: [
-        { day: 'Lunedì', time: '10:00-11:30', class: 'Inglese A1', room: 'Aula 1' },
-        { day: 'Mercoledì', time: '10:00-11:30', class: 'Inglese A1', room: 'Aula 1' },
-        { day: 'Venerdì', time: '10:00-11:30', class: 'Inglese A1', room: 'Aula 1' },
-      ],
-    });
+  const loadTeacherData = async (teacherId: string) => {
+    const res = await fetch(`/api/teachers/${teacherId}`);
+    if (res.ok) {
+      setTeacherData(await res.json());
+    }
   };
 
-  const loadParentData = async () => {
-    // Mock data - replace with actual API calls
+  const loadParentData = async (
+    children: NonNullable<UserDetails['profiles']>['children']
+  ) => {
+    const paymentsResults = await Promise.all(
+      children.map((child) =>
+        fetch(`/api/payments?studentId=${child.id}&limit=20`).then((r) =>
+          r.ok ? r.json() : { payments: [] }
+        )
+      )
+    );
+
     setParentData({
-      children: [
-        {
-          id: '1',
-          firstName: 'Marco',
-          lastName: 'Rossi',
-          class: 'Inglese A1',
-          teacher: 'Sarah Johnson',
-          attendance: 92,
-          lastPayment: '2024-01-30',
-        },
-        {
-          id: '2',
-          firstName: 'Elena',
-          lastName: 'Rossi',
-          class: 'Inglese A2',
-          teacher: 'John Smith',
-          attendance: 88,
-          lastPayment: '2024-01-30',
-        },
-      ],
-      payments: [
-        { id: '1', childName: 'Marco Rossi', amount: 120, status: 'PAID', dueDate: '2024-01-01', period: 'Gennaio 2024' },
-        { id: '2', childName: 'Elena Rossi', amount: 120, status: 'PAID', dueDate: '2024-01-01', period: 'Gennaio 2024' },
-        { id: '3', childName: 'Marco Rossi', amount: 120, status: 'PENDING', dueDate: '2024-02-01', period: 'Febbraio 2024' },
-      ],
+      children,
+      payments: paymentsResults.flatMap((r) => r.payments || []),
     });
   };
 
@@ -304,7 +279,7 @@ export default function UserDetailPage() {
   const handleUpdateUser = async (data: UserFormData) => {
     try {
       setSubmitting(true);
-      
+
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PUT',
         headers: {
@@ -319,7 +294,7 @@ export default function UserDetailPage() {
       }
 
       const result = await response.json();
-      
+
       // Update local user data
       const updatedUser = result.user || result;
       setUser(updatedUser);
@@ -347,9 +322,6 @@ export default function UserDetailPage() {
       <Tabs.Tab value="classes" leftSection={<IconBook size={16} />}>
         Corsi
       </Tabs.Tab>
-      <Tabs.Tab value="attendance" leftSection={<IconClipboardList size={16} />}>
-        Presenze
-      </Tabs.Tab>
       <Tabs.Tab value="payments" leftSection={<IconCash size={16} />}>
         Pagamenti
       </Tabs.Tab>
@@ -364,11 +336,8 @@ export default function UserDetailPage() {
       <Tabs.Tab value="classes" leftSection={<IconBook size={16} />}>
         Classi
       </Tabs.Tab>
-      <Tabs.Tab value="schedule" leftSection={<IconCalendar size={16} />}>
-        Orario
-      </Tabs.Tab>
-      <Tabs.Tab value="performance" leftSection={<IconChartBar size={16} />}>
-        Performance
+      <Tabs.Tab value="lessons" leftSection={<IconCalendar size={16} />}>
+        Lezioni Recenti
       </Tabs.Tab>
     </>
   );
@@ -411,7 +380,7 @@ export default function UserDetailPage() {
               </Group>
             </div>
           </Group>
-          <Button leftSection={<IconEdit size={16} />} variant="light" onClick={openEditModal}>
+          <Button leftSection={<IconEdit size={16} />} variant="light" onClick={openEditModal} data-testid="users-modifica">
             Modifica
           </Button>
         </Group>
@@ -421,8 +390,8 @@ export default function UserDetailPage() {
           <Grid>
             <Grid.Col span={{ base: 12, md: 3 }}>
               <Stack align="center">
-                <Avatar 
-                  size={120} 
+                <Avatar
+                  size={120}
                   src={user.avatar}
                   style={{
                     background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
@@ -440,7 +409,7 @@ export default function UserDetailPage() {
                 </Stack>
               </Stack>
             </Grid.Col>
-            
+
             <Grid.Col span={{ base: 12, md: 9 }}>
               <Grid>
                 <Grid.Col span={6}>
@@ -451,7 +420,7 @@ export default function UserDetailPage() {
                       <Text fw={500}>{user.email}</Text>
                     </div>
                   </Group>
-                  
+
                   <Group gap="xs" mb="md">
                     <IconPhone size={16} />
                     <div>
@@ -460,7 +429,7 @@ export default function UserDetailPage() {
                     </div>
                   </Group>
                 </Grid.Col>
-                
+
                 <Grid.Col span={6}>
                   <Group gap="xs" mb="md">
                     <IconCalendar size={16} />
@@ -471,7 +440,7 @@ export default function UserDetailPage() {
                       </Text>
                     </div>
                   </Group>
-                  
+
                   {user.lastLogin && (
                     <Group gap="xs" mb="md">
                       <IconUser size={16} />
@@ -495,9 +464,9 @@ export default function UserDetailPage() {
             <Tabs.Tab value="overview" leftSection={<IconUser size={16} />}>
               Panoramica
             </Tabs.Tab>
-            {userRole === 'STUDENT' && renderStudentTabs()}
-            {userRole === 'TEACHER' && renderTeacherTabs()}
-            {userRole === 'PARENT' && renderParentTabs()}
+            {userRole === 'STUDENT' && studentData && renderStudentTabs()}
+            {userRole === 'TEACHER' && teacherData && renderTeacherTabs()}
+            {userRole === 'PARENT' && parentData && renderParentTabs()}
           </Tabs.List>
 
           <Tabs.Panel value="overview" pt="lg">
@@ -506,65 +475,72 @@ export default function UserDetailPage() {
               <Text c="dimmed">
                 Informazioni di base per {user.firstName} {user.lastName} ({userRole.toLowerCase()})
               </Text>
+              {userRole === 'STUDENT' && user.profiles?.studentId && (
+                <Button
+                  mt="md"
+                  variant="light"
+                  onClick={() => router.push(`/${locale}/dashboard/students/${user.profiles!.studentId}`)}
+                  data-testid="users-profilo-studente"
+                >
+                  Apri Profilo Studente
+                </Button>
+              )}
+              {userRole === 'TEACHER' && user.profiles?.teacherId && (
+                <Button
+                  mt="md"
+                  variant="light"
+                  onClick={() => router.push(`/${locale}/dashboard/teachers/${user.profiles!.teacherId}`)}
+                  data-testid="users-profilo-docente"
+                >
+                  Apri Profilo Docente
+                </Button>
+              )}
             </Card>
           </Tabs.Panel>
 
-          {/* Student-specific panels */}
+          {/* Student-specific panels (dati reali) */}
           {userRole === 'STUDENT' && studentData && (
             <>
               <Tabs.Panel value="classes" pt="lg">
                 <Stack gap="md">
-                  {studentData.classes.map((course) => (
-                    <Card key={course.id} withBorder radius="md" p="lg">
-                      <Group justify="space-between" mb="md">
+                  {(studentData.student?.classes || []).map((cls) => (
+                    <Card key={cls.id} withBorder radius="md" p="lg">
+                      <Group justify="space-between">
                         <div>
-                          <Text fw={600}>{course.name}</Text>
-                          <Text size="sm" c="dimmed">Docente: {course.teacher}</Text>
+                          <UnstyledButton
+                            onClick={() => router.push(`/${locale}/dashboard/classes/${cls.id}`)}
+                          >
+                            <Text fw={600} c="blue" size="lg" style={{ cursor: 'pointer' }}>
+                              {cls.name}
+                            </Text>
+                          </UnstyledButton>
+                          <Text size="sm" c="dimmed">
+                            Corso: {cls.course?.name || '-'}
+                            {cls.teacher ? ` • Docente: ${cls.teacher.name}` : ''}
+                          </Text>
                         </div>
-                        <Badge variant="light">{course.level}</Badge>
-                      </Group>
-                      <div>
-                        <Group justify="space-between" mb="xs">
-                          <Text size="sm">Progresso</Text>
-                          <Text size="sm">{course.progress}%</Text>
+                        <Group>
+                          {cls.course?.level && <Badge variant="light">{cls.course.level}</Badge>}
+                          <Badge color={cls.isActive ? 'green' : 'gray'} variant="light">
+                            {cls.isActive ? 'Attiva' : 'Chiusa'}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="light"
+                            onClick={() => router.push(`/${locale}/dashboard/classes/${cls.id}`)}
+                          >
+                            Vedi Classe
+                          </Button>
                         </Group>
-                        <Progress value={course.progress} color="blue" />
-                      </div>
+                      </Group>
                     </Card>
                   ))}
+                  {(studentData.student?.classes || []).length === 0 && (
+                    <Text c="dimmed" ta="center" py="xl">
+                      Nessuna classe associata
+                    </Text>
+                  )}
                 </Stack>
-              </Tabs.Panel>
-
-              <Tabs.Panel value="attendance" pt="lg">
-                <Card withBorder radius="md" p="lg">
-                  <Title order={3} mb="md">Statistiche Presenze</Title>
-                  <Grid>
-                    <Grid.Col span={3}>
-                      <Stack align="center">
-                        <Text size="2xl" fw={700} c="blue">{studentData.attendance.present}</Text>
-                        <Text size="sm" c="dimmed">Presenti</Text>
-                      </Stack>
-                    </Grid.Col>
-                    <Grid.Col span={3}>
-                      <Stack align="center">
-                        <Text size="2xl" fw={700} c="red">{studentData.attendance.absent}</Text>
-                        <Text size="sm" c="dimmed">Assenti</Text>
-                      </Stack>
-                    </Grid.Col>
-                    <Grid.Col span={3}>
-                      <Stack align="center">
-                        <Text size="2xl" fw={700}>{studentData.attendance.total}</Text>
-                        <Text size="sm" c="dimmed">Totale</Text>
-                      </Stack>
-                    </Grid.Col>
-                    <Grid.Col span={3}>
-                      <Stack align="center">
-                        <Text size="2xl" fw={700} c="green">{studentData.attendance.percentage}%</Text>
-                        <Text size="sm" c="dimmed">Percentuale</Text>
-                      </Stack>
-                    </Grid.Col>
-                  </Grid>
-                </Card>
               </Tabs.Panel>
 
               <Tabs.Panel value="payments" pt="lg">
@@ -573,11 +549,16 @@ export default function UserDetailPage() {
                     <Card key={payment.id} withBorder radius="md" p="lg">
                       <Group justify="space-between">
                         <div>
-                          <Text fw={600}>{payment.period}</Text>
-                          <Text size="sm" c="dimmed">Scadenza: {new Date(payment.dueDate).toLocaleDateString('it-IT')}</Text>
+                          <Text fw={600}>{payment.description}</Text>
+                          <Text size="sm" c="dimmed">
+                            Scadenza: {new Date(payment.dueDate).toLocaleDateString('it-IT')}
+                            {payment.paidDate
+                              ? ` • Pagato il: ${new Date(payment.paidDate).toLocaleDateString('it-IT')}`
+                              : ''}
+                          </Text>
                         </div>
                         <Group>
-                          <Text fw={600}>€{payment.amount}</Text>
+                          <Text fw={600}>€{Number(payment.amount).toFixed(2)}</Text>
                           <Badge color={payment.status === 'PAID' ? 'green' : payment.status === 'PENDING' ? 'yellow' : 'red'}>
                             {payment.status}
                           </Badge>
@@ -585,33 +566,93 @@ export default function UserDetailPage() {
                       </Group>
                     </Card>
                   ))}
+                  {studentData.payments.length === 0 && (
+                    <Text c="dimmed" ta="center" py="xl">
+                      Nessun pagamento registrato
+                    </Text>
+                  )}
+                </Stack>
+              </Tabs.Panel>
+
+              <Tabs.Panel value="grades" pt="lg">
+                <Stack gap="md">
+                  {studentData.grades && studentData.grades.subjectGrades.length > 0 && (
+                    <Card withBorder radius="md" p="lg">
+                      <Group justify="space-between">
+                        <Text fw={600}>Media Generale</Text>
+                        <Badge
+                          size="lg"
+                          color={
+                            studentData.grades.overallAverage >= 8
+                              ? 'green'
+                              : studentData.grades.overallAverage >= 6
+                              ? 'yellow'
+                              : 'red'
+                          }
+                        >
+                          {studentData.grades.overallAverage}/10
+                        </Badge>
+                      </Group>
+                    </Card>
+                  )}
+                  {(studentData.grades?.subjectGrades || []).map((subject) => (
+                    <Card key={subject.subjectId} withBorder radius="md" p="lg">
+                      <Group justify="space-between">
+                        <div>
+                          <Text fw={600}>{subject.subjectName}</Text>
+                          <Text size="sm" c="dimmed">
+                            {subject.averages.gradeCount} voti registrati
+                          </Text>
+                        </div>
+                        <Badge
+                          size="lg"
+                          color={
+                            subject.averages.overall >= 8
+                              ? 'green'
+                              : subject.averages.overall >= 6
+                              ? 'yellow'
+                              : 'red'
+                          }
+                        >
+                          {subject.averages.overall}/10
+                        </Badge>
+                      </Group>
+                    </Card>
+                  ))}
+                  {(!studentData.grades || studentData.grades.subjectGrades.length === 0) && (
+                    <Text c="dimmed" ta="center" py="xl">
+                      Nessuna valutazione registrata
+                    </Text>
+                  )}
                 </Stack>
               </Tabs.Panel>
             </>
           )}
 
-          {/* Teacher-specific panels */}
+          {/* Teacher-specific panels (dati reali) */}
           {userRole === 'TEACHER' && teacherData && (
             <>
               <Tabs.Panel value="classes" pt="lg">
                 <Stack gap="md">
-                  {teacherData.classes.map((classItem) => (
+                  {(teacherData.classes || []).map((classItem) => (
                     <Card key={classItem.id} withBorder radius="md" p="lg">
                       <Group justify="space-between" mb="md">
                         <div>
-                          <UnstyledButton 
+                          <UnstyledButton
                             onClick={() => router.push(`/${locale}/dashboard/classes/${classItem.id}`)}
                           >
                             <Text fw={600} c="blue" size="lg" style={{ cursor: 'pointer' }}>
                               {classItem.name}
                             </Text>
                           </UnstyledButton>
-                          <Text size="sm" c="dimmed">
-                            Orario: {classItem.schedule}
-                          </Text>
+                          {classItem.level && (
+                            <Text size="sm" c="dimmed">
+                              Corso: {classItem.level}
+                            </Text>
+                          )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <Badge variant="light">{classItem.level}</Badge>
+                          {classItem.status && <Badge variant="light">{classItem.status}</Badge>}
                           <Button
                             size="sm"
                             variant="light"
@@ -623,7 +664,7 @@ export default function UserDetailPage() {
                       </Group>
                       <Group>
                         <Text size="sm">
-                          <strong>{classItem.students}</strong> studenti
+                          <strong>{classItem._count?.students ?? 0}</strong> studenti
                         </Text>
                         <Button
                           size="xs"
@@ -635,356 +676,95 @@ export default function UserDetailPage() {
                       </Group>
                     </Card>
                   ))}
+                  {(teacherData.classes || []).length === 0 && (
+                    <Text c="dimmed" ta="center" py="xl">
+                      Nessuna classe assegnata
+                    </Text>
+                  )}
                 </Stack>
               </Tabs.Panel>
 
-              <Tabs.Panel value="schedule" pt="lg">
+              <Tabs.Panel value="lessons" pt="lg">
                 <Stack gap="md">
-                  {teacherData.schedule.map((scheduleItem, index) => (
-                    <Card key={index} withBorder radius="md" p="lg">
+                  {(teacherData.lessons || []).slice(0, 15).map((lesson) => (
+                    <Card key={lesson.id} withBorder radius="md" p="lg">
                       <Group justify="space-between">
                         <div>
-                          <Text fw={600}>{scheduleItem.day}</Text>
-                          <Text size="sm" c="dimmed">{scheduleItem.time}</Text>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <UnstyledButton 
-                            onClick={() => {
-                              const classItem = teacherData.classes.find(c => c.name === scheduleItem.class);
-                              if (classItem) {
-                                router.push(`/${locale}/dashboard/classes/${classItem.id}`);
-                              }
-                            }}
-                          >
-                            <Text fw={500} c="blue" style={{ cursor: 'pointer' }}>
-                              {scheduleItem.class}
-                            </Text>
-                          </UnstyledButton>
-                          <Text size="sm" c="dimmed">{scheduleItem.room}</Text>
-                          <Group gap="xs" mt="xs">
-                            <Button
-                              size="xs"
-                              variant="light"
-                              onClick={() => router.push(`/${locale}/dashboard/attendance?class=${scheduleItem.class}&date=${new Date().toISOString().split('T')[0]}`)}
-                            >
-                              Presenze Oggi
-                            </Button>
-                          </Group>
-                        </div>
-                      </Group>
-                    </Card>
-                  ))}
-                </Stack>
-              </Tabs.Panel>
-
-              <Tabs.Panel value="performance" pt="lg">
-                <Grid>
-                  <Grid.Col span={{ base: 12, md: 4 }}>
-                    <Card withBorder radius="md" p="lg" h="100%">
-                      <Stack align="center">
-                        <Text size="2xl" fw={700} c="blue">
-                          {teacherData.performance.totalStudents}
-                        </Text>
-                        <Text size="sm" c="dimmed" ta="center">
-                          Studenti Totali
-                        </Text>
-                        <Button
-                          size="xs"
-                          variant="light"
-                          mt="xs"
-                          onClick={() => router.push(`/${locale}/dashboard/students?teacher=${user.id}`)}
-                        >
-                          Vedi Lista
-                        </Button>
-                      </Stack>
-                    </Card>
-                  </Grid.Col>
-                  
-                  <Grid.Col span={{ base: 12, md: 4 }}>
-                    <Card withBorder radius="md" p="lg" h="100%">
-                      <Stack align="center">
-                        <Text size="2xl" fw={700} c="green">
-                          {teacherData.performance.averageAttendance}%
-                        </Text>
-                        <Text size="sm" c="dimmed" ta="center">
-                          Presenze Medie
-                        </Text>
-                        <Button
-                          size="xs"
-                          variant="light"
-                          mt="xs"
-                          onClick={() => router.push(`/${locale}/dashboard/attendance?teacher=${user.id}`)}
-                        >
-                          Report Completo
-                        </Button>
-                      </Stack>
-                    </Card>
-                  </Grid.Col>
-                  
-                  <Grid.Col span={{ base: 12, md: 4 }}>
-                    <Card withBorder radius="md" p="lg" h="100%">
-                      <Stack align="center">
-                        <Text size="2xl" fw={700} c="orange">
-                          {teacherData.performance.completionRate}%
-                        </Text>
-                        <Text size="sm" c="dimmed" ta="center">
-                          Tasso Completamento
-                        </Text>
-                      </Stack>
-                    </Card>
-                  </Grid.Col>
-                </Grid>
-              </Tabs.Panel>
-            </>
-          )}
-
-          {/* Student-specific panels */}
-          {userRole === 'STUDENT' && studentData && (
-            <>
-              <Tabs.Panel value="classes" pt="lg">
-                <Stack gap="md">
-                  {studentData.classes.map((course) => (
-                    <Card key={course.id} withBorder radius="md" p="lg">
-                      <Group justify="space-between" mb="md">
-                        <div>
-                          <UnstyledButton
-                            onClick={() => router.push(`/${locale}/dashboard/classes/${course.id}`)}
-                          >
-                            <Text fw={600} c="blue" size="lg" style={{ cursor: 'pointer' }}>
-                              {course.name}
-                            </Text>
-                          </UnstyledButton>
-                          <Text size="sm" c="dimmed">Docente: {course.teacher}</Text>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <Badge variant="light">{course.level}</Badge>
-                          <Button
-                            size="sm"
-                            variant="light"
-                            onClick={() => router.push(`/${locale}/dashboard/classes/${course.id}`)}
-                          >
-                            Vedi Classe
-                          </Button>
-                        </div>
-                      </Group>
-                      <div>
-                        <Group justify="space-between" mb="xs">
-                          <Text size="sm">Progresso</Text>
-                          <Text size="sm">{course.progress}%</Text>
-                        </Group>
-                        <Progress value={course.progress} color="blue" />
-                      </div>
-                    </Card>
-                  ))}
-                </Stack>
-              </Tabs.Panel>
-
-              <Tabs.Panel value="attendance" pt="lg">
-                <Card withBorder radius="md" p="lg" mb="lg">
-                  <Title order={3} mb="md">Statistiche Presenze</Title>
-                  <Grid>
-                    <Grid.Col span={3}>
-                      <Stack align="center">
-                        <Text size="2xl" fw={700} c="blue">{studentData.attendance.present}</Text>
-                        <Text size="sm" c="dimmed">Presenti</Text>
-                      </Stack>
-                    </Grid.Col>
-                    <Grid.Col span={3}>
-                      <Stack align="center">
-                        <Text size="2xl" fw={700} c="red">{studentData.attendance.absent}</Text>
-                        <Text size="sm" c="dimmed">Assenti</Text>
-                      </Stack>
-                    </Grid.Col>
-                    <Grid.Col span={3}>
-                      <Stack align="center">
-                        <Text size="2xl" fw={700}>{studentData.attendance.total}</Text>
-                        <Text size="sm" c="dimmed">Totale</Text>
-                      </Stack>
-                    </Grid.Col>
-                    <Grid.Col span={3}>
-                      <Stack align="center">
-                        <Text size="2xl" fw={700} c="green">{studentData.attendance.percentage}%</Text>
-                        <Text size="sm" c="dimmed">Percentuale</Text>
-                        <Button
-                          size="xs"
-                          variant="light"
-                          mt="xs"
-                          onClick={() => router.push(`/${locale}/dashboard/attendance?student=${user.id}`)}
-                        >
-                          Report Dettagli
-                        </Button>
-                      </Stack>
-                    </Grid.Col>
-                  </Grid>
-                </Card>
-                
-                {/* Recent attendance with clickable links */}
-                <Card withBorder radius="md" p="lg">
-                  <Title order={4} mb="md">Presenze Recenti</Title>
-                  <Stack gap="xs">
-                    <Paper p="sm" withBorder radius="sm">
-                      <Group justify="space-between">
-                        <div>
-                          <Text size="sm" fw={500}>Inglese A1 - Lezione del 15/01/2024</Text>
-                          <Text size="xs" c="dimmed">Presente</Text>
-                        </div>
-                        <Button
-                          size="xs"
-                          variant="light"
-                          onClick={() => router.push(`/${locale}/dashboard/attendance/lesson/1?date=2024-01-15`)}
-                        >
-                          Vedi Chi C'era
-                        </Button>
-                      </Group>
-                    </Paper>
-                    <Paper p="sm" withBorder radius="sm">
-                      <Group justify="space-between">
-                        <div>
-                          <Text size="sm" fw={500}>Conversazione - Lezione del 14/01/2024</Text>
-                          <Text size="xs" c="dimmed">Presente</Text>
-                        </div>
-                        <Button
-                          size="xs"
-                          variant="light"
-                          onClick={() => router.push(`/${locale}/dashboard/attendance/lesson/2?date=2024-01-14`)}
-                        >
-                          Vedi Chi C'era
-                        </Button>
-                      </Group>
-                    </Paper>
-                  </Stack>
-                </Card>
-              </Tabs.Panel>
-
-              <Tabs.Panel value="payments" pt="lg">
-                <Stack gap="md">
-                  {studentData.payments.map((payment) => (
-                    <Card key={payment.id} withBorder radius="md" p="lg">
-                      <Group justify="space-between">
-                        <div>
-                          <Text fw={600}>{payment.period}</Text>
-                          <Text size="sm" c="dimmed">Scadenza: {new Date(payment.dueDate).toLocaleDateString('it-IT')}</Text>
-                        </div>
-                        <Group>
-                          <Text fw={600}>€{payment.amount}</Text>
-                          <Badge color={payment.status === 'PAID' ? 'green' : payment.status === 'PENDING' ? 'yellow' : 'red'}>
-                            {payment.status}
-                          </Badge>
-                          <Button
-                            size="xs"
-                            variant="light"
-                            onClick={() => router.push(`/${locale}/dashboard/payments/${payment.id}`)}
-                          >
-                            Dettagli
-                          </Button>
-                        </Group>
-                      </Group>
-                    </Card>
-                  ))}
-                </Stack>
-              </Tabs.Panel>
-
-              <Tabs.Panel value="grades" pt="lg">
-                <Stack gap="md">
-                  {studentData.grades.map((grade, index) => (
-                    <Card key={index} withBorder radius="md" p="lg">
-                      <Group justify="space-between">
-                        <div>
-                          <UnstyledButton
-                            onClick={() => {
-                              const courseId = studentData.classes.find(c => c.name === grade.subject)?.id;
-                              if (courseId) {
-                                router.push(`/${locale}/dashboard/classes/${courseId}`);
-                              }
-                            }}
-                          >
-                            <Text fw={600} c="blue" style={{ cursor: 'pointer' }}>
-                              {grade.subject}
-                            </Text>
-                          </UnstyledButton>
+                          <Text fw={600}>{lesson.topic}</Text>
                           <Text size="sm" c="dimmed">
-                            {new Date(grade.date).toLocaleDateString('it-IT')}
+                            {new Date(lesson.date).toLocaleString('it-IT')}
+                            {lesson.class ? ` • ${lesson.class.name}` : ''}
                           </Text>
                         </div>
-                        <Badge 
-                          size="lg"
-                          color={grade.grade >= 8 ? 'green' : grade.grade >= 6 ? 'yellow' : 'red'}
+                        <Badge
+                          variant="light"
+                          color={
+                            lesson.status === 'COMPLETED'
+                              ? 'green'
+                              : lesson.status === 'CANCELLED'
+                              ? 'red'
+                              : 'blue'
+                          }
                         >
-                          {grade.grade}/10
+                          {lesson.status}
                         </Badge>
                       </Group>
                     </Card>
                   ))}
+                  {(teacherData.lessons || []).length === 0 && (
+                    <Text c="dimmed" ta="center" py="xl">
+                      Nessuna lezione registrata
+                    </Text>
+                  )}
                 </Stack>
               </Tabs.Panel>
             </>
           )}
 
-          {/* Parent-specific panels */}
+          {/* Parent-specific panels (dati reali) */}
           {userRole === 'PARENT' && parentData && (
             <>
               <Tabs.Panel value="children" pt="lg">
                 <Stack gap="md">
                   {parentData.children.map((child) => (
                     <Card key={child.id} withBorder radius="md" p="lg">
-                      <Grid>
-                        <Grid.Col span={{ base: 12, md: 8 }}>
-                          <Group mb="sm">
-                            <Avatar size="md" color="blue">
-                              {child.firstName[0]}{child.lastName[0]}
-                            </Avatar>
-                            <div>
-                              <UnstyledButton
-                                onClick={() => router.push(`/${locale}/dashboard/users/${child.id}`)}
-                              >
-                                <Text fw={600} c="blue" style={{ cursor: 'pointer' }}>
-                                  {child.firstName} {child.lastName}
-                                </Text>
-                              </UnstyledButton>
-                              <UnstyledButton
-                                onClick={() => router.push(`/${locale}/dashboard/classes/${child.class}`)}
-                              >
-                                <Text size="sm" c="blue" style={{ cursor: 'pointer' }}>
-                                  Classe: {child.class}
-                                </Text>
-                              </UnstyledButton>
-                              <Text size="sm" c="dimmed">Docente: {child.teacher}</Text>
-                            </div>
-                          </Group>
-                        </Grid.Col>
-                        
-                        <Grid.Col span={{ base: 12, md: 4 }}>
-                          <Stack gap="xs">
-                            <Group justify="space-between">
-                              <Text size="sm">Presenze</Text>
-                              <Badge color={child.attendance >= 90 ? 'green' : child.attendance >= 75 ? 'yellow' : 'red'}>
-                                {child.attendance}%
-                              </Badge>
-                            </Group>
-                            <Text size="xs" c="dimmed">
-                              Ultimo pagamento: {new Date(child.lastPayment).toLocaleDateString('it-IT')}
-                            </Text>
-                            <Group gap="xs" mt="xs">
-                              <Button
-                                size="xs"
-                                variant="light"
-                                onClick={() => router.push(`/${locale}/dashboard/attendance?student=${child.id}`)}
-                              >
-                                Presenze
-                              </Button>
-                              <Button
-                                size="xs"
-                                variant="outline"
-                                onClick={() => router.push(`/${locale}/dashboard/payments?student=${child.id}`)}
-                              >
-                                Pagamenti
-                              </Button>
-                            </Group>
-                          </Stack>
-                        </Grid.Col>
-                      </Grid>
+                      <Group justify="space-between">
+                        <Group>
+                          <Avatar size="md" color="blue">
+                            {child.firstName[0]}{child.lastName[0]}
+                          </Avatar>
+                          <div>
+                            <UnstyledButton
+                              onClick={() => router.push(`/${locale}/dashboard/students/${child.id}`)}
+                            >
+                              <Text fw={600} c="blue" style={{ cursor: 'pointer' }}>
+                                {child.firstName} {child.lastName}
+                              </Text>
+                            </UnstyledButton>
+                            <Text size="sm" c="dimmed">Codice: {child.studentCode}</Text>
+                          </div>
+                        </Group>
+                        <Group>
+                          <Badge color={child.status === 'ACTIVE' ? 'green' : 'gray'} variant="light">
+                            {child.status}
+                          </Badge>
+                          <Button
+                            size="xs"
+                            variant="light"
+                            onClick={() => router.push(`/${locale}/dashboard/students/${child.id}`)}
+                            data-testid="users-figlio-profilo"
+                          >
+                            Profilo Studente
+                          </Button>
+                        </Group>
+                      </Group>
                     </Card>
                   ))}
+                  {parentData.children.length === 0 && (
+                    <Text c="dimmed" ta="center" py="xl">
+                      Nessun figlio collegato a questo account
+                    </Text>
+                  )}
                 </Stack>
               </Tabs.Panel>
 
@@ -994,16 +774,20 @@ export default function UserDetailPage() {
                     <Card key={payment.id} withBorder radius="md" p="lg">
                       <Group justify="space-between">
                         <div>
-                          <Text fw={600}>{payment.childName}</Text>
-                          <Text size="sm" c="dimmed">{payment.period}</Text>
+                          <Text fw={600}>
+                            {payment.student
+                              ? `${payment.student.firstName} ${payment.student.lastName}`
+                              : '-'}
+                          </Text>
+                          <Text size="sm" c="dimmed">{payment.description}</Text>
                           <Text size="sm" c="dimmed">
                             Scadenza: {new Date(payment.dueDate).toLocaleDateString('it-IT')}
                           </Text>
                         </div>
                         <Group>
-                          <Text fw={600}>€{payment.amount}</Text>
+                          <Text fw={600}>€{Number(payment.amount).toFixed(2)}</Text>
                           <Badge color={
-                            payment.status === 'PAID' ? 'green' : 
+                            payment.status === 'PAID' ? 'green' :
                             payment.status === 'PENDING' ? 'yellow' : 'red'
                           }>
                             {payment.status}
@@ -1012,6 +796,11 @@ export default function UserDetailPage() {
                       </Group>
                     </Card>
                   ))}
+                  {parentData.payments.length === 0 && (
+                    <Text c="dimmed" ta="center" py="xl">
+                      Nessun pagamento registrato
+                    </Text>
+                  )}
                 </Stack>
               </Tabs.Panel>
             </>

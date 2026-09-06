@@ -3,60 +3,54 @@ import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 
-// System settings stored in a simple key-value table
-// For now, we'll use a JSON file or environment-based approach
-// In production, this could be stored in Redis or a dedicated settings table
+// Impostazioni piattaforma persistite sul singleton PlatformSettings
+// (id 'platform'): trial predefinito, blocco registrazioni, manutenzione,
+// mittente email e giorni di grazia dunning.
+
+const PLATFORM_ID = 'platform';
 
 const updateSettingsSchema = z.object({
   defaultTrialDays: z.number().int().min(0).max(90).optional(),
-  maxTenantsPerPlan: z.record(z.number().int().positive()).optional(),
-  maintenanceMode: z.boolean().optional(),
-  maintenanceMessage: z.string().max(500).optional(),
   allowNewRegistrations: z.boolean().optional(),
-  defaultFeatureFlags: z.record(z.boolean()).optional(),
-  emailSettings: z
-    .object({
-      fromName: z.string().optional(),
-      fromEmail: z.string().email().optional(),
-      replyTo: z.string().email().optional(),
-    })
-    .optional(),
-  stripeSettings: z
-    .object({
-      webhookEnabled: z.boolean().optional(),
-      testMode: z.boolean().optional(),
-    })
-    .optional(),
+  maintenanceMode: z.boolean().optional(),
+  senderName: z.string().max(100).nullable().optional(),
+  senderEmail: z.string().email().nullable().optional(),
+  replyTo: z.string().email().nullable().optional(),
+  graceDays: z.number().int().min(0).max(60).optional(),
 });
 
-// Default settings
-const defaultSettings = {
+const DEFAULT_SETTINGS = {
   defaultTrialDays: 14,
-  maxTenantsPerPlan: {},
-  maintenanceMode: false,
-  maintenanceMessage: '',
   allowNewRegistrations: true,
-  defaultFeatureFlags: {
-    advancedReporting: false,
-    apiAccess: false,
-    customBranding: false,
-    multiLanguage: true,
-  },
-  emailSettings: {
-    fromName: 'InsegnaMi.pro',
-    fromEmail: 'noreply@insegnami.pro',
-    replyTo: 'support@insegnami.pro',
-  },
-  stripeSettings: {
-    webhookEnabled: true,
-    testMode: process.env.NODE_ENV !== 'production',
-  },
+  maintenanceMode: false,
+  senderName: null as string | null,
+  senderEmail: null as string | null,
+  replyTo: null as string | null,
+  graceDays: 7,
 };
 
-// In-memory settings cache (in production, use Redis or DB)
-let settingsCache: typeof defaultSettings = { ...defaultSettings };
+function serializeSettings(row: {
+  defaultTrialDays: number;
+  allowNewRegistrations: boolean;
+  maintenanceMode: boolean;
+  senderName: string | null;
+  senderEmail: string | null;
+  replyTo: string | null;
+  graceDays: number;
+} | null) {
+  if (!row) return { ...DEFAULT_SETTINGS };
+  return {
+    defaultTrialDays: row.defaultTrialDays,
+    allowNewRegistrations: row.allowNewRegistrations,
+    maintenanceMode: row.maintenanceMode,
+    senderName: row.senderName,
+    senderEmail: row.senderEmail,
+    replyTo: row.replyTo,
+    graceDays: row.graceDays,
+  };
+}
 
-// GET /api/superadmin/settings - Get system settings
+// GET /api/superadmin/settings - Impostazioni piattaforma + stat di contesto
 export async function GET(request: NextRequest) {
   try {
     const session = await getAuth();
@@ -68,15 +62,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 
-    // Get platform stats for context
-    const [totalTenants, activeSubscriptions, plansCount] = await Promise.all([
+    const [settingsRow, totalTenants, activeSubscriptions, plansCount] = await Promise.all([
+      prisma.platformSettings.findUnique({ where: { id: PLATFORM_ID } }),
       prisma.tenant.count(),
       prisma.subscription.count({ where: { status: 'ACTIVE' } }),
       prisma.plan.count({ where: { isActive: true } }),
     ]);
 
     return NextResponse.json({
-      settings: settingsCache,
+      settings: serializeSettings(settingsRow),
       platformInfo: {
         totalTenants,
         activeSubscriptions,
@@ -91,7 +85,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT /api/superadmin/settings - Update system settings
+// PUT /api/superadmin/settings - Aggiorna il singleton (upsert)
 export async function PUT(request: NextRequest) {
   try {
     const session = await getAuth();
@@ -106,66 +100,24 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const validatedData = updateSettingsSchema.parse(body);
 
-    // Merge with existing settings
-    settingsCache = {
-      ...settingsCache,
-      ...validatedData,
-      emailSettings: {
-        ...settingsCache.emailSettings,
-        ...validatedData.emailSettings,
-      },
-      stripeSettings: {
-        ...settingsCache.stripeSettings,
-        ...validatedData.stripeSettings,
-      },
-      defaultFeatureFlags: {
-        ...settingsCache.defaultFeatureFlags,
-        ...validatedData.defaultFeatureFlags,
-      },
-    };
+    const updated = await prisma.platformSettings.upsert({
+      where: { id: PLATFORM_ID },
+      create: { id: PLATFORM_ID, ...DEFAULT_SETTINGS, ...validatedData },
+      update: validatedData,
+    });
 
-    // Log settings change for audit
+    // Log per audit
     console.log('SuperAdmin settings updated by:', session.user.email, validatedData);
 
     return NextResponse.json({
       message: 'Impostazioni aggiornate con successo',
-      settings: settingsCache,
+      settings: serializeSettings(updated),
     });
   } catch (error) {
     console.error('SuperAdmin settings PUT error:', error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Dati non validi', details: error.errors }, { status: 400 });
     }
-    return NextResponse.json({ error: 'Errore interno del server' }, { status: 500 });
-  }
-}
-
-// POST /api/superadmin/settings/reset - Reset to default settings
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
-    }
-
-    if (session.user.role !== 'SUPERADMIN') {
-      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const action = searchParams.get('action');
-
-    if (action === 'reset') {
-      settingsCache = { ...defaultSettings };
-      return NextResponse.json({
-        message: 'Impostazioni resettate ai valori predefiniti',
-        settings: settingsCache,
-      });
-    }
-
-    return NextResponse.json({ error: 'Azione non valida' }, { status: 400 });
-  } catch (error) {
-    console.error('SuperAdmin settings POST error:', error);
     return NextResponse.json({ error: 'Errore interno del server' }, { status: 500 });
   }
 }

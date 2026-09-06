@@ -74,7 +74,21 @@ export async function GET(
         return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
       }
     } else if (session.user.role === 'PARENT') {
-      if (meeting.parentId !== session.user.id) {
+      // Guardian-aware: accesso in lettura per ogni tutore dello studente
+      // (StudentGuardian + fallback legacy su parentUserId), non solo per
+      // il genitore che ha creato la richiesta.
+      const isGuardian =
+        meeting.parentId === session.user.id ||
+        meeting.student.parentUserId === session.user.id ||
+        !!(await prisma.studentGuardian.findFirst({
+          where: {
+            studentId: meeting.studentId,
+            userId: session.user.id,
+            tenantId: session.user.tenantId,
+          },
+          select: { id: true },
+        }));
+      if (!isGuardian) {
         return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
       }
     } else if (session.user.role === 'TEACHER' && session.user.email) {

@@ -23,6 +23,12 @@ import {
   Tooltip,
   ThemeIcon,
   Progress,
+  Drawer,
+  NumberInput,
+  Textarea,
+  Divider,
+  Skeleton,
+  Card,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
@@ -38,6 +44,7 @@ import {
   IconTrash,
   IconCalendar,
   IconClock,
+  IconClipboardList,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import {
@@ -45,7 +52,10 @@ import {
   useCreateHomework,
   useUpdateHomework,
   useDeleteHomework,
+  useHomeworkSubmissions,
+  useGradeSubmission,
   Homework,
+  HomeworkSubmission,
   getDueDateColor,
   formatDueDate,
   isOverdue,
@@ -54,6 +64,7 @@ import { useClasses } from '@/lib/hooks/useClasses';
 import { useSubjects } from '@/lib/hooks/useSubjects';
 import { HomeworkForm } from '@/components/forms/HomeworkForm';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
+import { usePermission } from '@/lib/hooks/usePermissions';
 
 export default function HomeworkPage() {
   const { data: session } = useSession();
@@ -69,13 +80,11 @@ export default function HomeworkPage() {
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [filterTime, setFilterTime] = useState<string>('upcoming');
 
-  const canManage =
-    session?.user?.role === 'ADMIN' ||
-    session?.user?.role === 'SUPERADMIN' ||
-    session?.user?.role === 'TEACHER';
+  // Matrice: chi crea/gestisce compiti (ADMIN, DIRECTOR, TEACHER)
+  const canManage = usePermission('create', 'homework');
 
-  // Fetch classes for filter
-  const { data: classesData } = useClasses();
+  // Fetch classes for filter (lista completa)
+  const { data: classesData } = useClasses(1, 20, { all: 'true' });
   const classes = classesData?.classes || [];
 
   // Fetch subjects for filter
@@ -97,6 +106,18 @@ export default function HomeworkPage() {
   const createHomework = useCreateHomework();
   const updateHomework = useUpdateHomework();
   const deleteHomework = useDeleteHomework();
+
+  // Drawer consegne: correzione/valutazione per docenti e admin
+  const [submissionsHomework, setSubmissionsHomework] = useState<Homework | null>(null);
+  const [
+    submissionsOpened,
+    { open: openSubmissions, close: closeSubmissions },
+  ] = useDisclosure(false);
+
+  const handleOpenSubmissions = (hw: Homework) => {
+    setSubmissionsHomework(hw);
+    openSubmissions();
+  };
 
   const handleAddHomework = () => {
     setEditingHomework(null);
@@ -345,6 +366,16 @@ export default function HomeworkPage() {
                     {canManage && (
                       <Table.Td>
                         <Group gap="xs" justify="center">
+                          <Tooltip label="Consegne">
+                            <ActionIcon
+                              variant="light"
+                              color="teal"
+                              onClick={() => handleOpenSubmissions(hw)}
+                              data-testid="compiti-consegne-apri"
+                            >
+                              <IconClipboardList size={16} />
+                            </ActionIcon>
+                          </Tooltip>
                           <Tooltip label={t('editHomework')}>
                             <ActionIcon
                               variant="light"
@@ -398,6 +429,217 @@ export default function HomeworkPage() {
         onSave={handleSaveHomework}
         loading={createHomework.isPending || updateHomework.isPending}
       />
+
+      {/* Drawer consegne: lista + valutazione/feedback */}
+      <HomeworkSubmissionsDrawer
+        opened={submissionsOpened}
+        onClose={() => {
+          closeSubmissions();
+          setSubmissionsHomework(null);
+        }}
+        homework={submissionsHomework}
+      />
     </Container>
+  );
+}
+
+/** Riga di valutazione singola consegna (voto 0-10 + feedback). */
+function SubmissionGradeCard({
+  homeworkId,
+  submission,
+}: {
+  homeworkId: string;
+  submission: HomeworkSubmission;
+}) {
+  const gradeSubmission = useGradeSubmission();
+  const [grade, setGrade] = useState<number | string>(submission.grade ?? '');
+  const [feedback, setFeedback] = useState<string>(submission.feedback ?? '');
+
+  const handleSave = async () => {
+    try {
+      await gradeSubmission.mutateAsync({
+        homeworkId,
+        data: {
+          studentId: submission.studentId,
+          grade: grade === '' || grade === null ? null : Number(grade),
+          feedback: feedback.trim() ? feedback.trim() : null,
+        },
+      });
+      notifications.show({
+        title: 'Valutazione salvata',
+        message: 'La consegna è stata valutata con successo',
+        color: 'green',
+        icon: <IconCheck />,
+      });
+    } catch (error) {
+      notifications.show({
+        title: 'Errore',
+        message:
+          error instanceof Error ? error.message : 'Errore nella valutazione',
+        color: 'red',
+        icon: <IconX />,
+      });
+    }
+  };
+
+  return (
+    <Card withBorder radius="md" p="md" data-testid="compiti-consegne-riga">
+      <Group justify="space-between" align="flex-start" wrap="wrap">
+        <div>
+          <Text fw={600} size="sm">
+            {submission.student
+              ? `${submission.student.firstName} ${submission.student.lastName}`
+              : 'Studente'}
+          </Text>
+          <Text size="xs" c="dimmed">
+            Consegnato il{' '}
+            {new Date(submission.submittedAt).toLocaleString('it-IT', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </Text>
+        </div>
+        {submission.grade !== null && submission.grade !== undefined && (
+          <Badge color={submission.grade >= 6 ? 'green' : 'red'} variant="light">
+            Voto: {submission.grade}
+          </Badge>
+        )}
+      </Group>
+
+      {submission.content && (
+        <Paper p="sm" mt="sm" radius="sm" withBorder>
+          <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+            {submission.content}
+          </Text>
+        </Paper>
+      )}
+
+      <Group mt="md" align="flex-end" wrap="wrap">
+        <NumberInput
+          label="Voto (0-10)"
+          min={0}
+          max={10}
+          step={0.5}
+          w={120}
+          value={grade}
+          onChange={setGrade}
+          data-testid="compiti-consegne-voto"
+        />
+        <Textarea
+          label="Feedback"
+          placeholder="Commento per lo studente..."
+          value={feedback}
+          onChange={(e) => setFeedback(e.currentTarget.value)}
+          autosize
+          minRows={1}
+          style={{ flex: 1, minWidth: 220 }}
+          data-testid="compiti-consegne-feedback"
+        />
+        <Button
+          size="sm"
+          onClick={handleSave}
+          loading={gradeSubmission.isPending}
+          data-testid="compiti-consegne-salva"
+        >
+          Salva
+        </Button>
+      </Group>
+    </Card>
+  );
+}
+
+/** Drawer "Consegne" per docenti/admin: lista consegne + mancanti + statistiche. */
+function HomeworkSubmissionsDrawer({
+  opened,
+  onClose,
+  homework,
+}: {
+  opened: boolean;
+  onClose: () => void;
+  homework: Homework | null;
+}) {
+  const { data, isLoading } = useHomeworkSubmissions(
+    opened && homework ? homework.id : ''
+  );
+
+  const submissions = data?.submissions ?? [];
+  const missing = data?.missingSubmissions ?? [];
+  const statistics = data?.statistics;
+
+  return (
+    <Drawer
+      opened={opened}
+      onClose={onClose}
+      position="right"
+      size="lg"
+      title={
+        <div>
+          <Text fw={700}>Consegne</Text>
+          {homework && (
+            <Text size="sm" c="dimmed">
+              {homework.title}
+            </Text>
+          )}
+        </div>
+      }
+      data-testid="compiti-consegne-drawer"
+    >
+      {isLoading ? (
+        <Stack gap="sm">
+          <Skeleton height={60} radius="md" />
+          <Skeleton height={120} radius="md" />
+          <Skeleton height={120} radius="md" />
+        </Stack>
+      ) : (
+        <Stack gap="md">
+          {statistics && (
+            <Group gap="xs">
+              <Badge variant="light" color="blue">
+                Studenti: {statistics.totalStudents}
+              </Badge>
+              <Badge variant="light" color="green">
+                Consegnati: {statistics.submitted}
+              </Badge>
+              <Badge variant="light" color="orange">
+                Mancanti: {statistics.missing}
+              </Badge>
+              <Badge variant="light" color="teal">
+                Valutati: {statistics.graded}
+              </Badge>
+            </Group>
+          )}
+
+          {submissions.length === 0 ? (
+            <Alert color="blue" icon={<IconInfoCircle size="1rem" />}>
+              Nessuna consegna ricevuta per questo compito.
+            </Alert>
+          ) : (
+            submissions.map((submission) => (
+              <SubmissionGradeCard
+                key={submission.id}
+                homeworkId={homework?.id ?? ''}
+                submission={submission}
+              />
+            ))
+          )}
+
+          {missing.length > 0 && (
+            <>
+              <Divider label="Non hanno consegnato" labelPosition="left" />
+              <Group gap="xs">
+                {missing.map((s) => (
+                  <Badge key={s.id} variant="outline" color="gray">
+                    {s.firstName} {s.lastName}
+                  </Badge>
+                ))}
+              </Group>
+            </>
+          )}
+        </Stack>
+      )}
+    </Drawer>
   );
 }

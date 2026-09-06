@@ -74,7 +74,14 @@ export async function GET(
         return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
       }
     } else if (session.user.role === 'PARENT') {
-      if (student.parentUserId !== session.user.id) {
+      // Guardian-aware: tutore primario legacy oppure StudentGuardian
+      const isGuardian =
+        student.parentUserId === session.user.id ||
+        (await prisma.studentGuardian.findFirst({
+          where: { studentId: student.id, userId: session.user.id },
+          select: { id: true },
+        })) !== null;
+      if (!isGuardian) {
         return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
       }
     }

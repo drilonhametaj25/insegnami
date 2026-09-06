@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { faqJsonLd, type FaqItem } from '@/components/public/ToolPageShell';
+import { faqJsonLd, toolPageMetadata, type FaqItem } from '@/components/public/ToolPageShell';
 import { CalcolatoreMediaVotiClient } from './CalcolatoreMediaVotiClient';
 
 // FAQ condivise tra JSON-LD e accordion in pagina (testi invariati).
@@ -32,21 +32,13 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const title = 'Calcolatore Media Voti | Strumenti Gratuiti';
-  const description =
-    'Calcola gratis la media pesata dei voti scolastici: assegna un peso a compiti e interrogazioni e ottieni subito media e giudizio. Nessuna registrazione richiesta.';
-
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      type: 'website',
-      url: `https://insegnami.pro/${locale}/tools/calcolatore-media-voti`,
-      siteName: 'InsegnaMi.pro',
-    },
-  };
+  return toolPageMetadata({
+    locale,
+    slug: 'calcolatore-media-voti',
+    title: 'Calcolatore Media Voti | Strumenti Gratuiti',
+    description:
+      'Calcola gratis la media pesata dei voti scolastici: assegna un peso a compiti e interrogazioni e ottieni subito media e giudizio. Nessuna registrazione richiesta.',
+  });
 }
 
 export default async function CalcolatoreMediaVotiPage({

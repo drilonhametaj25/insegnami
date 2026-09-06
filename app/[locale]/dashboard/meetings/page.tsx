@@ -29,6 +29,7 @@ import { ParentMeetingForm } from '@/components/forms/ParentMeetingForm';
 import {
   ParentMeeting,
   useParentMeetingStats,
+  useParentMeetingOptions,
   useCreateParentMeeting,
   useUpdateMeetingStatus,
   useDeleteParentMeeting,
@@ -36,7 +37,57 @@ import {
 import { useTeachers } from '@/lib/hooks/useTeachers';
 import { useStudents } from '@/lib/hooks/useStudents';
 
+type PersonOption = { id: string; firstName: string; lastName: string };
+
 export default function MeetingsPage() {
+  const { data: session, status } = useSession();
+  const userRole = session?.user?.role;
+
+  if (status === 'loading') {
+    return (
+      <Container size="xl" py="md">
+        <LoadingOverlay visible />
+      </Container>
+    );
+  }
+
+  // Il PARENT non può usare /api/teachers e /api/students (403):
+  // le opzioni arrivano da /api/parent-meetings/my-options.
+  if (userRole === 'PARENT') {
+    return <ParentMeetingsSources />;
+  }
+  return <AdminMeetingsSources />;
+}
+
+function ParentMeetingsSources() {
+  const { data: options } = useParentMeetingOptions();
+  return (
+    <MeetingsPageBody
+      teachers={options?.teachers ?? []}
+      students={options?.children ?? []}
+    />
+  );
+}
+
+function AdminMeetingsSources() {
+  const { data: teachersData } = useTeachers();
+  // Lista completa per il select studenti del modale (pattern grades)
+  const { data: studentsData } = useStudents(1, 20, { all: 'true' });
+  return (
+    <MeetingsPageBody
+      teachers={teachersData?.teachers || []}
+      students={studentsData?.students || []}
+    />
+  );
+}
+
+function MeetingsPageBody({
+  teachers,
+  students,
+}: {
+  teachers: PersonOption[];
+  students: PersonOption[];
+}) {
   const t = useTranslations('meetings');
   const { data: session } = useSession();
   const userRole = session?.user?.role;
@@ -49,11 +100,6 @@ export default function MeetingsPage() {
 
   // Data fetching
   const { data: stats, isLoading: statsLoading } = useParentMeetingStats();
-  const { data: teachersData } = useTeachers();
-  const { data: studentsData } = useStudents();
-
-  const teachers = teachersData?.teachers || [];
-  const students = studentsData?.students || [];
 
   // Mutations
   const createMutation = useCreateParentMeeting();

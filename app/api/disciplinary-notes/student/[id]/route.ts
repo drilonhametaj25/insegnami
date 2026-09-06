@@ -39,7 +39,14 @@ export async function GET(
 
     // Check role-based access
     if (session.user.role === 'PARENT') {
-      if (student.parentUserId !== session.user.id) {
+      // Guardian-aware: legame via StudentGuardian o fallback legacy parentUserId
+      const isGuardian =
+        student.parentUserId === session.user.id ||
+        !!(await prisma.studentGuardian.findFirst({
+          where: { studentId: student.id, userId: session.user.id },
+          select: { id: true },
+        }));
+      if (!isGuardian) {
         return NextResponse.json(
           { error: 'Non autorizzato a visualizzare queste note' },
           { status: 403 }

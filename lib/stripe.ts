@@ -48,6 +48,9 @@ export const stripe = {
   get billingPortal() {
     return getStripeClient().billingPortal;
   },
+  get invoices() {
+    return getStripeClient().invoices;
+  },
   get prices() {
     return getStripeClient().prices;
   },

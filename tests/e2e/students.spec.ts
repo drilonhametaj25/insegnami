@@ -8,7 +8,7 @@ test.describe('Studenti — CRUD', () => {
     await resetTestData(request);
   });
 
-  test('crea un nuovo studente e lo mostra in lista', async ({ page }) => {
+  test('crea un nuovo studente e lo mostra in lista @smoke', async ({ page }) => {
     const stamp = Date.now().toString().slice(-6);
     const firstName = `TestStud${stamp}`;
     const lastName = 'Verdi';

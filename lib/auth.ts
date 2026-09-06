@@ -59,17 +59,23 @@ const authOptions = {
           }
 
           // Get user's tenant relationship
-          const userTenant = await prisma.userTenant.findFirst({
-            where: { userId: user.id },
-            include: {
-              tenant: {
-                select: {
-                  id: true,
-                  name: true,
+          // orderBy deterministico: con più appartenenze viene scelta sempre
+          // la più vecchia; tenantCount serve al futuro switch multi-sede.
+          const [userTenant, tenantCount] = await Promise.all([
+            prisma.userTenant.findFirst({
+              where: { userId: user.id },
+              orderBy: { createdAt: 'asc' },
+              include: {
+                tenant: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
                 },
               },
-            },
-          });
+            }),
+            prisma.userTenant.count({ where: { userId: user.id } }),
+          ]);
 
           if (!userTenant) {
             return null;
@@ -83,6 +89,7 @@ const authOptions = {
             role: userTenant.role,
             tenantId: userTenant.tenantId,
             tenantName: userTenant.tenant.name,
+            tenantCount,
             permissions: userTenant.permissions,
             avatar: user.avatar,
           };
@@ -111,17 +118,17 @@ const authOptions = {
         token.role = user.role;
         token.tenantId = user.tenantId;
         token.tenantName = user.tenantName;
+        token.tenantCount = user.tenantCount;
         token.permissions = user.permissions;
         token.avatar = user.avatar;
         token.refreshedAt = Date.now();
       }
 
-      // Session update — triggered client-side via useSession().update().
-      // We ALWAYS re-fetch role/status/tenant from the DB so a role change
-      // by an admin or a User.status flip to INACTIVE takes effect on the
-      // next request, not after JWT expiry (30 days). The JWT cache stays
-      // (no DB hit per request) but invalidation is now under our control.
-      if (trigger === "update" && token?.id) {
+      // Re-fetch role/status/tenant from the DB so a role change by an admin
+      // or a User.status flip to INACTIVE takes effect quickly, not after
+      // JWT expiry (30 days). The JWT cache stays (no DB hit per request)
+      // but invalidation is now under our control.
+      const refreshFromDb = async () => {
         const fresh = await prisma.user.findUnique({
           where: { id: token.id as string },
           select: {
@@ -154,10 +161,24 @@ const authOptions = {
           // session invalidation, but a role of 'INACTIVE_USER' won't
           // satisfy any can() check.
           token.role = 'INACTIVE_USER';
+          // Timbrato comunque: evita una query DB a ogni richiesta successiva.
+          token.refreshedAt = Date.now();
+        } else {
+          // Utente non trovato (cancellato): niente da aggiornare, ma il
+          // timbro evita di rieseguire la query a ogni richiesta.
+          token.refreshedAt = Date.now();
         }
+      };
+
+      // Session update (useSession().update()) o refresh periodico: il token
+      // resta valido 30 giorni, quindi ogni 5 minuti rileggiamo dal DB.
+      const refreshedAt = typeof token.refreshedAt === 'number' ? token.refreshedAt : 0;
+      const isStale = Date.now() - refreshedAt > 5 * 60 * 1000;
+      if ((trigger === "update" || isStale) && token?.id) {
+        await refreshFromDb();
 
         // Allow caller to additionally override specific keys via session arg.
-        if (session) {
+        if (trigger === "update" && session) {
           token = { ...token, ...session };
         }
       }

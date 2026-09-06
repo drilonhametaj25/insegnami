@@ -28,6 +28,10 @@ export async function GET(request: NextRequest) {
     if (type) where.type = type;
     if (unreadOnly) where.status = 'UNREAD';
 
+    // Fix campanella: le notifiche DISMISSED non tornano più nell'elenco di
+    // default (si vedono solo chiedendo esplicitamente ?status=DISMISSED)
+    if (!where.status) where.status = { not: 'DISMISSED' };
+
     // Condizioni per data
     const now = new Date();
     where.AND = [

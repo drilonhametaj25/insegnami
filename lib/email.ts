@@ -14,7 +14,9 @@ function getTransporter(): nodemailer.Transporter | null {
   transporterInitAttempted = true;
 
   try {
-    if (!SMTP_CONFIG.host || !SMTP_CONFIG.auth.user) {
+    // Auth SMTP opzionale: basta l'host (MailHog/relay locali non richiedono
+    // credenziali). Le credenziali vengono passate solo se presenti.
+    if (!SMTP_CONFIG.host) {
       return null;
     }
 
@@ -22,7 +24,7 @@ function getTransporter(): nodemailer.Transporter | null {
       host: SMTP_CONFIG.host,
       port: SMTP_CONFIG.port,
       secure: SMTP_CONFIG.port === 465, // true per SSL (porta 465 Aruba)
-      auth: SMTP_CONFIG.auth,
+      auth: SMTP_CONFIG.auth.user ? SMTP_CONFIG.auth : undefined,
       tls: {
         rejectUnauthorized: false,
       },
@@ -99,7 +101,7 @@ export class EmailService {
     if (!smtpTransporter) {
       logger.error(
         'Invio email impossibile: né coda BullMQ né SMTP disponibili. ' +
-        'Configurare REDIS_URL e/o SMTP_HOST + SMTP_USER.',
+        'Configurare REDIS_URL e/o SMTP_HOST.',
         { to: options.to, subject: options.subject }
       );
       return {

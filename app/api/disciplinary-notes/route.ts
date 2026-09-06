@@ -49,10 +49,14 @@ export async function GET(request: NextRequest) {
     // Role-based filtering
     if (session.user.role === 'PARENT') {
       // Parents can only see their children's notes
+      // Guardian-aware: StudentGuardian + fallback legacy parentUserId
       const children = await prisma.student.findMany({
         where: {
-          parentUserId: session.user.id,
           tenantId: session.user.tenantId,
+          OR: [
+            { parentUserId: session.user.id },
+            { guardians: { some: { userId: session.user.id } } },
+          ],
         },
         select: { id: true },
       });
@@ -89,7 +93,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Additional filters
-    if (studentId) where.studentId = studentId;
+    // ?studentId= non può scavalcare lo scope: STUDENT resta sul proprio,
+    // PARENT solo se lo studentId richiesto è uno dei figli
+    if (studentId) {
+      if (session.user.role === 'STUDENT') {
+        // scope già fissato sopra, il parametro viene ignorato
+      } else if (session.user.role === 'PARENT') {
+        const childIds: string[] = Array.isArray(where.studentId?.in)
+          ? where.studentId.in
+          : [];
+        where.studentId = childIds.includes(studentId) ? studentId : '__forbidden__';
+      } else {
+        where.studentId = studentId;
+      }
+    }
     if (classId) where.classId = classId;
     if (teacherId) where.teacherId = teacherId;
     if (type) where.type = type;
@@ -272,24 +289,36 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create notification for parent
-    if (student.parentUserId) {
-      await prisma.notification.create({
-        data: {
+    // Create notification for guardians (StudentGuardian + fallback legacy
+    // parentUserId, dedup)
+    const guardianLinks = await prisma.studentGuardian.findMany({
+      where: { studentId: student.id, tenantId: session.user.tenantId },
+      select: { userId: true },
+    });
+    const recipientIds = Array.from(
+      new Set([
+        ...(student.parentUserId ? [student.parentUserId] : []),
+        ...guardianLinks.map((g) => g.userId),
+      ])
+    );
+    if (recipientIds.length > 0) {
+      await prisma.notification.createMany({
+        data: recipientIds.map((userId) => ({
           tenantId: session.user.tenantId,
-          userId: student.parentUserId,
+          userId,
           title: validatedData.type === 'POSITIVE'
             ? 'Nota positiva registrata'
             : 'Nota disciplinare registrata',
           content: `${student.firstName} ha ricevuto una ${
             validatedData.type === 'POSITIVE' ? 'nota positiva' : 'nota disciplinare'
           }: ${validatedData.title}`,
-          type: 'DISCIPLINARY',
-          priority: validatedData.severity === 'CRITICAL' ? 'URGENT' : 'NORMAL',
+          type: 'DISCIPLINARY' as const,
+          priority: (validatedData.severity === 'CRITICAL' ? 'URGENT' : 'NORMAL') as 'URGENT' | 'NORMAL',
           sourceType: 'disciplinaryNote',
           sourceId: note.id,
-          actionUrl: `/dashboard/students/${student.id}`,
-        },
+          // Il genitore atterra sulla propria vista, non su una rotta admin
+          actionUrl: '/it/dashboard/my/notes',
+        })),
       });
 
       // Mark parent as notified

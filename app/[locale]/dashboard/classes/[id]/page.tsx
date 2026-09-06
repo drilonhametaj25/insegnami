@@ -32,6 +32,7 @@ import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft,
   IconBook2,
+  IconPlus,
   IconUsers,
   IconCalendarEvent,
   IconChecklist,
@@ -70,6 +71,18 @@ import { AdvancedCalendarComponent } from '@/components/calendar/AdvancedCalenda
 import { EnrollStudentsModal } from '@/components/forms/EnrollStudentsModal';
 import { AttendanceGrid } from '@/components/attendance/AttendanceGrid';
 import { MaterialsManager } from '@/components/materials/MaterialsManager';
+import { TextInput, Textarea, Switch, Select, NumberInput } from '@mantine/core';
+import { can } from '@/lib/permissions/matrix';
+
+// Assegnazione materia-classe (GET /api/classes/[id]/subjects)
+interface ClassSubjectItem {
+  id: string;
+  subjectId: string;
+  teacherId: string;
+  weeklyHours: number;
+  subject: { id: string; name: string; code: string; color?: string | null };
+  teacher: { id: string; firstName: string; lastName: string; email: string };
+}
 
 interface ClassDetail {
   id: string;
@@ -166,14 +179,37 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [uploading, setUploading] = useState(false);
 
+  // Form comunicazione classe
+  const [commSubject, setCommSubject] = useState('');
+  const [commBody, setCommBody] = useState('');
+  const [commIncludeParents, setCommIncludeParents] = useState(false);
+  const [commSending, setCommSending] = useState(false);
+
+  // Tab Materie: assegnazioni materia-docente della classe
+  const [classSubjects, setClassSubjects] = useState<ClassSubjectItem[]>([]);
+  const [allSubjects, setAllSubjects] = useState<Array<{ id: string; name: string; code: string }>>([]);
+  const [allTeachers, setAllTeachers] = useState<Array<{ id: string; firstName: string; lastName: string }>>([]);
+  const [subjectModalOpened, { open: openSubjectModal, close: closeSubjectModal }] = useDisclosure(false);
+  const [editingClassSubject, setEditingClassSubject] = useState<ClassSubjectItem | null>(null);
+  const [csSubjectId, setCsSubjectId] = useState<string | null>(null);
+  const [csTeacherId, setCsTeacherId] = useState<string | null>(null);
+  const [csWeeklyHours, setCsWeeklyHours] = useState<number>(1);
+  const [csSaving, setCsSaving] = useState(false);
+
   // Resolve params
   useEffect(() => {
     params.then(setResolvedParams);
   }, [params]);
 
-  // Check permissions
-  const canManageClasses = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN';
-  const canViewClasses = canManageClasses || session?.user?.role === 'TEACHER';
+  // Check permissions: canManageClasses resta per le azioni amministrative;
+  // le azioni didattiche (presenze, materiali, comunicazioni) passano da can()
+  const role = session?.user?.role;
+  const canManageClasses = can(role, 'update', 'class');
+  const canDeleteClass = can(role, 'delete', 'class');
+  const canViewClasses = can(role, 'read', 'class');
+  const canEditAttendance = can(role, 'update', 'attendance');
+  const canManageMaterials = can(role, 'create', 'material');
+  const canCommunicate = can(role, 'create', 'message');
 
   // Fetch class data
   const fetchClassData = async () => {
@@ -189,8 +225,18 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
         throw new Error('Errore nel caricamento dei dati');
       }
       
-      const data: ClassDetail = await response.json();
-      setClassData(data);
+      const data: any = await response.json();
+      // L'API risponde { class: {...} } con students già APPIATTITI (Student[]).
+      // La pagina ragiona in termini di enrollment { student } (shape storica
+      // StudentClass): normalizziamo qui, in un punto solo.
+      const raw = data.class ?? data;
+      const normalized = {
+        ...raw,
+        students: (raw.students ?? []).map((s: any) =>
+          s && s.student ? s : { student: s }
+        ),
+      };
+      setClassData(normalized as ClassDetail);
     } catch (error: any) {
       console.error('Error fetching class data:', error);
       setError(error.message);
@@ -235,16 +281,146 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  // Fetch assegnazioni materie della classe
+  const fetchClassSubjects = async () => {
+    if (!resolvedParams?.id || !canViewClasses) return;
+
+    try {
+      const response = await fetch(`/api/classes/${resolvedParams.id}/subjects`);
+      if (response.ok) {
+        const payload = await response.json();
+        setClassSubjects(payload.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching class subjects:', error);
+    }
+  };
+
+  // Opzioni per il modal (materie del tenant + docenti)
+  const fetchSubjectAndTeacherOptions = async () => {
+    if (!canManageClasses) return;
+
+    try {
+      const [subjectsRes, teachersRes] = await Promise.all([
+        fetch('/api/subjects?all=true'),
+        fetch('/api/teachers?limit=100'),
+      ]);
+      if (subjectsRes.ok) {
+        const data = await subjectsRes.json();
+        setAllSubjects(data.subjects || []);
+      }
+      if (teachersRes.ok) {
+        const data = await teachersRes.json();
+        setAllTeachers(data.teachers || []);
+      }
+    } catch (error) {
+      console.error('Error fetching subject/teacher options:', error);
+    }
+  };
+
   useEffect(() => {
     if (resolvedParams?.id) {
       fetchClassData();
       fetchAttendance();
       fetchMaterials();
+      fetchClassSubjects();
+      fetchSubjectAndTeacherOptions();
     }
   }, [resolvedParams?.id, canViewClasses]);
 
+  const openAddSubject = () => {
+    setEditingClassSubject(null);
+    setCsSubjectId(null);
+    setCsTeacherId(classData?.teacher?.id || null);
+    setCsWeeklyHours(1);
+    openSubjectModal();
+  };
+
+  const openEditSubject = (item: ClassSubjectItem) => {
+    setEditingClassSubject(item);
+    setCsSubjectId(item.subjectId);
+    setCsTeacherId(item.teacherId);
+    setCsWeeklyHours(item.weeklyHours);
+    openSubjectModal();
+  };
+
+  const handleSaveClassSubject = async () => {
+    if (!resolvedParams?.id || !csSubjectId) return;
+
+    setCsSaving(true);
+    try {
+      const url = editingClassSubject
+        ? `/api/classes/${resolvedParams.id}/subjects/${editingClassSubject.subjectId}`
+        : `/api/classes/${resolvedParams.id}/subjects`;
+      const method = editingClassSubject ? 'PUT' : 'POST';
+      const body = editingClassSubject
+        ? { teacherId: csTeacherId || undefined, weeklyHours: csWeeklyHours }
+        : { subjectId: csSubjectId, teacherId: csTeacherId || undefined, weeklyHours: csWeeklyHours };
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Errore salvataggio materia');
+      }
+
+      notifications.show({
+        title: 'Successo',
+        message: editingClassSubject ? 'Materia aggiornata' : 'Materia aggiunta alla classe',
+        color: 'green',
+        icon: <IconCheck size={18} />,
+      });
+      closeSubjectModal();
+      fetchClassSubjects();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Errore',
+        message: error.message || 'Impossibile salvare la materia',
+        color: 'red',
+        icon: <IconX size={18} />,
+      });
+    } finally {
+      setCsSaving(false);
+    }
+  };
+
+  const handleDeleteClassSubject = async (item: ClassSubjectItem) => {
+    if (!resolvedParams?.id) return;
+    if (!confirm(`Rimuovere ${item.subject.name} dalla classe?`)) return;
+
+    try {
+      const response = await fetch(
+        `/api/classes/${resolvedParams.id}/subjects/${item.subjectId}`,
+        { method: 'DELETE' }
+      );
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Errore rimozione materia');
+      }
+      notifications.show({
+        title: 'Successo',
+        message: 'Materia rimossa dalla classe',
+        color: 'green',
+        icon: <IconCheck size={18} />,
+      });
+      fetchClassSubjects();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Errore',
+        message: error.message || 'Impossibile rimuovere la materia',
+        color: 'red',
+        icon: <IconX size={18} />,
+      });
+    }
+  };
+
   const handleEdit = () => {
-    router.push(`/${locale}/dashboard/classes/${resolvedParams?.id}/edit`);
+    // La modifica avviene nel modal della lista classi (nessuna pagina /edit)
+    router.push(`/${locale}/dashboard/classes?action=edit&id=${resolvedParams?.id}`);
   };
 
   const handleDelete = async () => {
@@ -317,9 +493,10 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
     });
   };
 
-  const handleCommunicate = async (data: { subject: string; message: string; recipients: string }) => {
+  const handleCommunicate = async (data: { subject: string; body: string; includeParents: boolean }) => {
     if (!resolvedParams?.id) return;
 
+    setCommSending(true);
     try {
       const response = await fetch(`/api/classes/${resolvedParams.id}/communicate`, {
         method: 'POST',
@@ -328,7 +505,8 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
       });
 
       if (!response.ok) {
-        throw new Error('Errore invio comunicazione');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Errore invio comunicazione');
       }
 
       notifications.show({
@@ -338,6 +516,9 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
         icon: <IconCheck size={18} />,
       });
 
+      setCommSubject('');
+      setCommBody('');
+      setCommIncludeParents(false);
       closeCommunicateModal();
     } catch (error: any) {
       notifications.show({
@@ -346,6 +527,8 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
         color: 'red',
         icon: <IconX size={18} />,
       });
+    } finally {
+      setCommSending(false);
     }
   };
 
@@ -499,23 +682,24 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
             </div>
             <Group>
               {canManageClasses && (
-                <>
-                  <Button
-                    leftSection={<IconEdit size={18} />}
-                    variant="light"
-                    onClick={handleEdit}
-                  >
-                    Modifica
-                  </Button>
-                  <Button
-                    leftSection={<IconMail size={18} />}
-                    variant="gradient"
-                    gradient={{ from: 'indigo', to: 'purple', deg: 45 }}
-                    onClick={openCommunicateModal}
-                  >
-                    Invia Comunicazione
-                  </Button>
-                </>
+                <Button
+                  leftSection={<IconEdit size={18} />}
+                  variant="light"
+                  onClick={handleEdit}
+                >
+                  Modifica
+                </Button>
+              )}
+              {canCommunicate && (
+                <Button
+                  leftSection={<IconMail size={18} />}
+                  variant="gradient"
+                  gradient={{ from: 'indigo', to: 'purple', deg: 45 }}
+                  onClick={openCommunicateModal}
+                  data-testid="classe-invia-comunicazione"
+                >
+                  Invia Comunicazione
+                </Button>
               )}
               <Menu shadow="md" width={200}>
                 <Menu.Target>
@@ -530,11 +714,11 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                   >
                     Export Registro
                   </Menu.Item>
-                  {canManageClasses && (
+                  {canDeleteClass && (
                     <>
                       <Menu.Divider />
-                      <Menu.Item 
-                        leftSection={<IconTrash size="1rem" />} 
+                      <Menu.Item
+                        leftSection={<IconTrash size="1rem" />}
                         color="red"
                         onClick={openDeleteModal}
                       >
@@ -681,6 +865,9 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
           </Tabs.Tab>
           <Tabs.Tab value="students" leftSection={<IconUsers size={18} />}>
             Studenti ({totalStudents})
+          </Tabs.Tab>
+          <Tabs.Tab value="subjects" leftSection={<IconBooks size={18} />} data-testid="classi-materie-tab">
+            Materie ({classSubjects.length})
           </Tabs.Tab>
           <Tabs.Tab value="lessons" leftSection={<IconCalendarEvent size={18} />}>
             Lezioni ({totalLessons})
@@ -852,6 +1039,104 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                   <Button onClick={openEnrollModal}>
                     Iscrivi Primo Studente
                   </Button>
+                )}
+              </Paper>
+            )}
+          </Paper>
+        </Tabs.Panel>
+
+        {/* Subjects Tab - ClassSubject CRUD */}
+        <Tabs.Panel value="subjects">
+          <Paper p="lg" radius="lg" withBorder>
+            <Group justify="space-between" mb="md">
+              <div>
+                <Title order={4}>Materie della Classe</Title>
+                <Text size="sm" c="dimmed">
+                  Assegna materie e docenti: sblocca orari e pagelle
+                </Text>
+              </div>
+              {canManageClasses && (
+                <Button
+                  leftSection={<IconPlus size={16} />}
+                  onClick={openAddSubject}
+                  data-testid="classi-materie-aggiungi"
+                >
+                  Aggiungi Materia
+                </Button>
+              )}
+            </Group>
+
+            {classSubjects.length > 0 ? (
+              <Table striped highlightOnHover data-testid="classi-materie-tabella">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Materia</Table.Th>
+                    <Table.Th>Docente</Table.Th>
+                    <Table.Th>Ore Settimanali</Table.Th>
+                    {canManageClasses && <Table.Th>Azioni</Table.Th>}
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {classSubjects.map((item) => (
+                    <Table.Tr key={item.id}>
+                      <Table.Td>
+                        <Group gap="sm">
+                          <Badge
+                            variant="light"
+                            style={item.subject.color ? { color: item.subject.color } : undefined}
+                          >
+                            {item.subject.code}
+                          </Badge>
+                          <Text fw={500} size="sm">{item.subject.name}</Text>
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">
+                          {item.teacher.firstName} {item.teacher.lastName}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{item.weeklyHours}</Text>
+                      </Table.Td>
+                      {canManageClasses && (
+                        <Table.Td>
+                          <Group gap={4}>
+                            <ActionIcon
+                              size="sm"
+                              variant="light"
+                              color="yellow"
+                              onClick={() => openEditSubject(item)}
+                              data-testid={`classi-materie-modifica-${item.subjectId}`}
+                            >
+                              <IconEdit size={14} />
+                            </ActionIcon>
+                            <ActionIcon
+                              size="sm"
+                              variant="light"
+                              color="red"
+                              onClick={() => handleDeleteClassSubject(item)}
+                              data-testid={`classi-materie-elimina-${item.subjectId}`}
+                            >
+                              <IconTrash size={14} />
+                            </ActionIcon>
+                          </Group>
+                        </Table.Td>
+                      )}
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            ) : (
+              <Paper p="xl" withBorder style={{ textAlign: 'center' }}>
+                <IconBooks size={48} color="var(--mantine-color-gray-4)" />
+                <Text size="lg" fw={500} mt="md" c="dimmed">
+                  Nessuna materia assegnata
+                </Text>
+                <Text size="sm" c="dimmed" mb="md">
+                  Aggiungi le materie per abilitare orari e pagelle
+                </Text>
+                {canManageClasses && (
+                  <Button onClick={openAddSubject}>Aggiungi Prima Materia</Button>
                 )}
               </Paper>
             )}
@@ -1064,7 +1349,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
               classId={resolvedParams?.id || ''}
               students={classData.students?.map(sc => sc.student) || []}
               lessons={classData.lessons || []}
-              canEdit={canManageClasses}
+              canEdit={canEditAttendance}
             />
           ) : (
             <Paper p="xl" withBorder style={{ textAlign: 'center' }}>
@@ -1099,7 +1384,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                   tags: []
                 };
               }) || []}
-              canEdit={canManageClasses}
+              canEdit={canManageMaterials}
               onMaterialsUpdate={() => fetchMaterials()}
             />
           ) : (
@@ -1153,6 +1438,69 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
         </Group>
       </Modal>
 
+      {/* Add/Edit Subject Modal */}
+      <Modal
+        opened={subjectModalOpened}
+        onClose={closeSubjectModal}
+        title={editingClassSubject ? 'Modifica Materia' : 'Aggiungi Materia'}
+        centered
+      >
+        <Stack gap="md">
+          <Select
+            label="Materia"
+            placeholder="Seleziona materia"
+            required
+            searchable
+            disabled={!!editingClassSubject}
+            data={allSubjects
+              // In creazione escludi le materie già assegnate
+              .filter((s) =>
+                editingClassSubject
+                  ? true
+                  : !classSubjects.some((cs) => cs.subjectId === s.id)
+              )
+              .map((s) => ({ value: s.id, label: `${s.name} (${s.code})` }))}
+            value={csSubjectId}
+            onChange={setCsSubjectId}
+            data-testid="classi-materie-select-materia"
+          />
+          <Select
+            label="Docente"
+            placeholder="Docente titolare della classe se non indicato"
+            searchable
+            clearable
+            data={allTeachers.map((t) => ({
+              value: t.id,
+              label: `${t.firstName} ${t.lastName}`,
+            }))}
+            value={csTeacherId}
+            onChange={setCsTeacherId}
+            data-testid="classi-materie-select-docente"
+          />
+          <NumberInput
+            label="Ore Settimanali"
+            min={1}
+            max={40}
+            value={csWeeklyHours}
+            onChange={(v) => setCsWeeklyHours(Number(v) || 1)}
+            data-testid="classi-materie-ore"
+          />
+          <Group justify="flex-end">
+            <Button variant="light" onClick={closeSubjectModal}>
+              Annulla
+            </Button>
+            <Button
+              loading={csSaving}
+              disabled={!csSubjectId}
+              onClick={handleSaveClassSubject}
+              data-testid="classi-materie-salva"
+            >
+              {editingClassSubject ? 'Aggiorna' : 'Aggiungi'}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
       {/* Communicate Modal */}
       <ModernModal
         opened={communicateModalOpened}
@@ -1160,10 +1508,50 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
         title="Invia Comunicazione"
         size="lg"
       >
-        <Text c="dimmed" mb="md">
-          Funzionalità di comunicazione in fase di implementazione
-        </Text>
-        <Button onClick={closeCommunicateModal}>Chiudi</Button>
+        <Stack gap="md">
+          <TextInput
+            label="Oggetto"
+            placeholder="Oggetto della comunicazione"
+            required
+            value={commSubject}
+            onChange={(e) => setCommSubject(e.currentTarget.value)}
+            data-testid="classe-comunicazione-oggetto"
+          />
+          <Textarea
+            label="Messaggio"
+            placeholder="Testo della comunicazione agli studenti della classe..."
+            required
+            minRows={4}
+            value={commBody}
+            onChange={(e) => setCommBody(e.currentTarget.value)}
+            data-testid="classe-comunicazione-testo"
+          />
+          <Switch
+            label="Invia anche ai genitori"
+            checked={commIncludeParents}
+            onChange={(e) => setCommIncludeParents(e.currentTarget.checked)}
+            data-testid="classe-comunicazione-genitori"
+          />
+          <Group justify="flex-end">
+            <Button variant="light" onClick={closeCommunicateModal}>
+              Annulla
+            </Button>
+            <Button
+              loading={commSending}
+              disabled={!commSubject.trim() || !commBody.trim()}
+              onClick={() =>
+                handleCommunicate({
+                  subject: commSubject.trim(),
+                  body: commBody.trim(),
+                  includeParents: commIncludeParents,
+                })
+              }
+              data-testid="classe-comunicazione-invia"
+            >
+              Invia
+            </Button>
+          </Group>
+        </Stack>
       </ModernModal>
 
       {/* Enroll Students Modal */}

@@ -53,7 +53,12 @@ import {
 } from '@/lib/hooks/useLessons';
 
 export default function LessonDetailPage() {
-  const t = useTranslations();
+  // Le label della pagina vivono sotto 'lessons.*': namespace esplicito
+  // (un tempo si usava useTranslations() senza namespace e il tab presenze
+  // mostrava le chiavi grezze 'attendance'/'attendanceTracking').
+  const t = useTranslations('lessons');
+  const tCommon = useTranslations('common');
+  const tAttendance = useTranslations('attendance');
   const router = useRouter();
   const locale = useLocale();
   const params = useParams();
@@ -142,14 +147,14 @@ export default function LessonDetailPage() {
     try {
       await updateLesson.mutateAsync({ id: lessonId, data: formData });
       notifications.show({
-        title: t('common.success'),
+        title: tCommon('success'),
         message: 'Lezione aggiornata con successo',
         color: 'green',
       });
       refetch();
     } catch (err: any) {
       notifications.show({
-        title: t('common.error'),
+        title: tCommon('error'),
         message: err?.message || 'Impossibile aggiornare la lezione',
         color: 'red',
       });
@@ -167,7 +172,7 @@ export default function LessonDetailPage() {
       if (scope === 'single') {
         await updateLesson.mutateAsync({ id: lessonId, data: pendingUpdate });
         notifications.show({
-          title: t('common.success'),
+          title: tCommon('success'),
           message: 'Lezione aggiornata con successo',
           color: 'green',
         });
@@ -178,7 +183,7 @@ export default function LessonDetailPage() {
           data: toSeriesData(pendingUpdate),
         });
         notifications.show({
-          title: t('common.success'),
+          title: tCommon('success'),
           message: `Serie aggiornata: ${result.updated} lezioni modificate`,
           color: 'green',
         });
@@ -189,7 +194,7 @@ export default function LessonDetailPage() {
       refetch();
     } catch (err: any) {
       notifications.show({
-        title: t('common.error'),
+        title: tCommon('error'),
         message: err?.message || 'Impossibile aggiornare la lezione',
         color: 'red',
       });
@@ -207,16 +212,16 @@ export default function LessonDetailPage() {
       }
 
       notifications.show({
-        title: t('common.success'),
-        message: t('lessons.notifications.deleted'),
+        title: tCommon('success'),
+        message: t('notifications.deleted'),
         color: 'green',
       });
 
       router.push(`/${locale}/dashboard/lessons`);
     } catch (error) {
       notifications.show({
-        title: t('common.error'),
-        message: t('lessons.notifications.deleteError'),
+        title: tCommon('error'),
+        message: t('notifications.deleteError'),
         color: 'red',
       });
     } finally {
@@ -270,8 +275,8 @@ export default function LessonDetailPage() {
       }
 
       notifications.show({
-        title: t('common.success'),
-        message: t('attendance.updated'),
+        title: tCommon('success'),
+        message: tAttendance('updated'),
         color: 'green',
       });
 
@@ -280,8 +285,8 @@ export default function LessonDetailPage() {
       refetch();
     } catch (error) {
       notifications.show({
-        title: t('common.error'),
-        message: t('attendance.updateError'),
+        title: tCommon('error'),
+        message: tAttendance('updateError'),
         color: 'red',
       });
     }
@@ -305,16 +310,16 @@ export default function LessonDetailPage() {
       }
 
       notifications.show({
-        title: t('common.success'),
-        message: t('lessons.notifications.notesSaved'),
+        title: tCommon('success'),
+        message: t('notifications.notesSaved'),
         color: 'green',
       });
 
       refetch();
     } catch (error) {
       notifications.show({
-        title: t('common.error'),
-        message: t('lessons.notifications.saveError'),
+        title: tCommon('error'),
+        message: t('notifications.saveError'),
         color: 'red',
       });
     }
@@ -331,8 +336,8 @@ export default function LessonDetailPage() {
   if (error) {
     return (
       <Container size="xl" py="xl">
-        <Alert icon={<IconAlertCircle size="1rem" />} title={t('common.error')} color="red">
-          {t('lessons.loadError')}
+        <Alert icon={<IconAlertCircle size="1rem" />} title={tCommon('error')} color="red">
+          {t('loadError')}
         </Alert>
       </Container>
     );
@@ -341,8 +346,8 @@ export default function LessonDetailPage() {
   if (!lesson) {
     return (
       <Container size="xl" py="xl">
-        <Alert icon={<IconAlertCircle size="1rem" />} title={t('common.error')} color="yellow">
-          {t('lessons.loadError')}
+        <Alert icon={<IconAlertCircle size="1rem" />} title={tCommon('error')} color="yellow">
+          {t('loadError')}
         </Alert>
       </Container>
     );
@@ -417,7 +422,7 @@ export default function LessonDetailPage() {
       <Grid mb="xl">
         <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
           <StatsCard
-            title={t('attendance.total')}
+            title={tAttendance('total')}
             value={totalStudents}
             icon={<IconUsers size="1.5rem" />}
             color="blue"
@@ -425,7 +430,7 @@ export default function LessonDetailPage() {
         </Grid.Col>
         <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
           <StatsCard
-            title={t('attendance.present')}
+            title={tAttendance('present')}
             value={presentStudents}
             icon={<IconCheck size="1.5rem" />}
             color="green"
@@ -433,7 +438,7 @@ export default function LessonDetailPage() {
         </Grid.Col>
         <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
           <StatsCard
-            title={t('attendance.rate')}
+            title={tAttendance('rate')}
             value={`${attendanceRate}%`}
             icon={<IconChartBar size="1.5rem" />}
             color="orange"
@@ -736,7 +741,7 @@ export default function LessonDetailPage() {
         centered
       >
         <Text mb="md">
-          {t('lesson.deleteConfirmation', { 
+          {t('deleteConfirmation', { 
             title: lesson.title 
           })}
         </Text>

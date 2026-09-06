@@ -1,7 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
 import { emailService } from '@/lib/email';
 import { escapeHtml } from '@/lib/api-middleware';
 import { rateLimit } from '@/lib/rate-limit';
+
+/**
+ * Form contatti pubblico.
+ *
+ * Flusso: rate limit → parse → anti-spam (honeypot + tempo minimo) →
+ * PERSISTENZA su ContactRequest → invio email. La riga a DB viene scritta
+ * PRIMA delle email: se l'SMTP è giù il lead non va perso (è visibile
+ * nella dashboard superadmin → Lead).
+ */
+
+// Locali pubblici validi: qualunque altro valore degrada a 'it'.
+const VALID_LOCALES = new Set(['it', 'en', 'fr', 'pt']);
+
+/** Risposta identica a quella di successo: i bot non devono capire di essere stati scartati. */
+function fakeSuccess() {
+  return NextResponse.json({
+    success: true,
+    message: 'Messaggio inviato con successo',
+  });
+}
 
 export async function POST(request: NextRequest) {
   // Rate limit: i bot bombardano questo endpoint con payload malformati.
@@ -13,11 +34,37 @@ export async function POST(request: NextRequest) {
   if (!rl.success) return rl.error!;
 
   // Body malformato (probe automatizzati) → 400, non 500.
-  let body: { name?: string; email?: string; subject?: string; message?: string };
+  let body: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    school?: string;
+    subject?: string;
+    message?: string;
+    locale?: string;
+    source?: string;
+    /** Honeypot: campo invisibile agli umani — se compilato è un bot. */
+    website?: string;
+    /** Timestamp (ms) di apertura del form: submit sotto i 3s = bot. */
+    startedAt?: number;
+  };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Richiesta non valida' }, { status: 400 });
+  }
+
+  // --- Anti-spam: rifiuto SILENZIOSO con 200 finto-ok ---
+  // (a) honeypot compilato
+  if (typeof body.website === 'string' && body.website.trim() !== '') {
+    return fakeSuccess();
+  }
+  // (b) submit troppo rapido rispetto all'apertura del form (< 3s)
+  if (body.startedAt !== undefined) {
+    const startedAt = Number(body.startedAt);
+    if (!Number.isFinite(startedAt) || Date.now() - startedAt < 3000) {
+      return fakeSuccess();
+    }
   }
 
   try {
@@ -39,6 +86,28 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const locale = VALID_LOCALES.has(body.locale ?? '') ? body.locale! : 'it';
+
+    // --- PERSISTENZA del lead PRIMA dell'invio email ---
+    // Se l'email fallisce, la richiesta resta comunque tracciata a DB.
+    await prisma.contactRequest.create({
+      data: {
+        name: name.slice(0, 200),
+        email: email.slice(0, 200),
+        phone: body.phone ? String(body.phone).slice(0, 50) : null,
+        school: body.school ? String(body.school).slice(0, 200) : null,
+        subject: subject.slice(0, 300),
+        message: message.slice(0, 5000),
+        locale,
+        source: body.source ? String(body.source).slice(0, 100) : 'contact-form',
+      },
+    });
+
+    // Destinatario interno configurabile via env.
+    // TODO: rimuovere il fallback hardcoded quando CONTACT_TO_EMAIL sarà
+    // presente in tutti gli ambienti (vedi .env.example).
+    const contactTo = process.env.CONTACT_TO_EMAIL || 'info@drilonhametaj.it';
 
     // Generate email HTML
     const htmlContent = `
@@ -73,6 +142,16 @@ export async function POST(request: NextRequest) {
               <div class="field-label">Email:</div>
               <div class="field-value"><a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></div>
             </div>
+            ${body.phone ? `
+            <div class="field">
+              <div class="field-label">Telefono:</div>
+              <div class="field-value">${escapeHtml(String(body.phone))}</div>
+            </div>` : ''}
+            ${body.school ? `
+            <div class="field">
+              <div class="field-label">Scuola:</div>
+              <div class="field-value">${escapeHtml(String(body.school))}</div>
+            </div>` : ''}
             <div class="field">
               <div class="field-label">Oggetto:</div>
               <div class="field-value">${escapeHtml(subject)}</div>
@@ -93,7 +172,7 @@ export async function POST(request: NextRequest) {
 
     // Send email to support
     const result = await emailService.sendEmail({
-      to: 'info@drilonhametaj.it',
+      to: contactTo,
       subject: `[Contatti] ${escapeHtml(subject)}`,
       html: htmlContent,
       replyTo: email,
@@ -101,8 +180,8 @@ export async function POST(request: NextRequest) {
 
     if (!result.success) {
       console.error('Failed to send contact email:', result.error);
-      // Even if email fails, we return success to the user
-      // In a production environment, you might want to queue the message
+      // Even if email fails, we return success to the user:
+      // the lead is already persisted in contact_requests.
     }
 
     // Send confirmation email to the user

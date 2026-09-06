@@ -31,15 +31,16 @@ test.describe.serial('Flusso commerciale (billing)', () => {
     await resetBilling(request);
   });
 
-  test('billing mostra lo stato di prova quando non c\'è abbonamento', async ({ page }) => {
+  test('billing mostra lo stato di prova quando non c\'è abbonamento @smoke', async ({ page }) => {
     await login(page, 'admin');
     await page.goto('/it/dashboard/billing');
     await expect(page.getByText('Fatturazione & Abbonamento')).toBeVisible();
     // In trial senza abbonamento: appare l'invito a scegliere un piano
-    await expect(page.getByRole('link', { name: /Scegli un Piano/i }).first()).toBeVisible();
+    // (Button che scrolla alla sezione piani della stessa pagina)
+    await expect(page.getByTestId('trial-choose-plan-button')).toBeVisible();
   });
 
-  test('sottoscrizione di un piano dalla pagina pricing attiva l\'abbonamento', async ({ page }) => {
+  test('sottoscrizione di un piano dalla pagina pricing attiva l\'abbonamento @smoke', async ({ page }) => {
     await login(page, 'admin');
     await page.goto('/it/pricing');
     await page.getByTestId('subscribe-starter').click();

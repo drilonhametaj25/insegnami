@@ -1,18 +1,21 @@
 import { Metadata } from 'next';
-import { faqJsonLd, type FaqItem } from '@/components/public/ToolPageShell';
+import { faqJsonLd, toolPageMetadata, type FaqItem } from '@/components/public/ToolPageShell';
 import { GeneratoreOrarioClient } from './GeneratoreOrarioClient';
 
-export const metadata: Metadata = {
-  title: 'Generatore Orario Settimanale | Strumenti Gratuiti',
-  description:
-    'Crea gratis l\'orario settimanale delle lezioni della tua classe: materie, docenti, aule e colori personalizzati con anteprima pronta da stampare.',
-  openGraph: {
-    title: 'Generatore Orario Settimanale | Strumenti Gratuiti | InsegnaMi.pro',
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return toolPageMetadata({
+    locale,
+    slug: 'generatore-orario-settimanale',
+    title: 'Generatore Orario Settimanale | Strumenti Gratuiti',
     description:
-      'Crea l\'orario settimanale delle lezioni con materie, docenti, aule e colori personalizzati. Anteprima pronta da stampare.',
-    type: 'website',
-  },
-};
+      'Crea gratis l\'orario settimanale delle lezioni della tua classe: materie, docenti, aule e colori personalizzati con anteprima pronta da stampare.',
+  });
+}
 
 const faqs: FaqItem[] = [
   {

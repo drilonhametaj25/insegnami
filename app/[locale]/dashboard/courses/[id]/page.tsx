@@ -489,7 +489,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                   <Title order={4}>{t('courses.classes')}</Title>
                   <Button
                     leftSection={<IconSchool size={16} />}
-                    onClick={() => router.push(`/${locale}/dashboard/classes/new?courseId=${course.id}`)}
+                    onClick={() => router.push(`/${locale}/dashboard/classes?action=create&courseId=${course.id}`)}
                   >
                     {t('classes.new')}
                   </Button>

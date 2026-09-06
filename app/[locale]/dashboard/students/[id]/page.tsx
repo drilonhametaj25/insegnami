@@ -51,6 +51,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
 import { StudentForm } from '@/components/forms/StudentForm';
+import { usePermission } from '@/lib/hooks/usePermissions';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { DataTable, TableRenderers } from '@/components/tables/DataTable';
 import { AttendanceChart, PaymentStatusChart } from '@/components/charts/DashboardCharts';
@@ -71,6 +72,19 @@ interface Student {
   emergencyContact?: string;
   medicalNotes?: string;
   specialNeeds?: string;
+  guardians?: Array<{
+    id: string;
+    userId: string;
+    relationship?: string | null;
+    isPrimary: boolean;
+    user?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone?: string | null;
+    } | null;
+  }>;
   classes?: Array<{
     id: string;
     name: string;
@@ -127,8 +141,10 @@ export default function StudentDetailPage() {
   const studentId = params.id as string;
 
   // Check permissions
-  const canManageStudents = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'TEACHER';
-  const canViewStudent = canManageStudents || session?.user?.id === studentId;
+  // Permessi da matrice: update per le azioni, read (o se stesso) per la vista
+  const canManageStudents = usePermission('update', 'student');
+  const canReadStudents = usePermission('read', 'student');
+  const canViewStudent = canManageStudents || canReadStudents || session?.user?.id === studentId;
 
   // Fetch student data
   const fetchStudent = async () => {
@@ -535,6 +551,49 @@ export default function StudentDetailPage() {
                         </Group>
                       )}
                     </Stack>
+                  </Card>
+                </Grid.Col>
+
+                {/* Tutori (StudentGuardian) */}
+                <Grid.Col span={12}>
+                  <Card shadow="sm" radius="lg" p="lg" data-testid="studenti-card-tutori">
+                    <Title order={4} mb="md">Tutori</Title>
+                    {(student.guardians || []).length === 0 ? (
+                      <Text size="sm" c="dimmed">
+                        Nessun tutore collegato. Usa "Modifica" per aggiungere un genitore esistente.
+                      </Text>
+                    ) : (
+                      <Stack gap="sm">
+                        {(student.guardians || []).map((guardian) => (
+                          <Group key={guardian.id} justify="space-between">
+                            <Group gap="sm">
+                              <IconUsers size={16} />
+                              <div>
+                                <Group gap="xs">
+                                  <Text size="sm" fw={500}>
+                                    {guardian.user
+                                      ? `${guardian.user.firstName} ${guardian.user.lastName}`
+                                      : guardian.userId}
+                                  </Text>
+                                  {guardian.isPrimary && (
+                                    <Badge size="xs" color="blue">Primario</Badge>
+                                  )}
+                                  {guardian.relationship && (
+                                    <Badge size="xs" variant="light" color="gray">
+                                      {guardian.relationship}
+                                    </Badge>
+                                  )}
+                                </Group>
+                                <Text size="xs" c="dimmed">
+                                  {guardian.user?.email}
+                                  {guardian.user?.phone ? ` • ${guardian.user.phone}` : ''}
+                                </Text>
+                              </div>
+                            </Group>
+                          </Group>
+                        ))}
+                      </Stack>
+                    )}
                   </Card>
                 </Grid.Col>
 

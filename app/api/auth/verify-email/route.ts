@@ -12,6 +12,11 @@ export async function GET(request: NextRequest) {
     const token = searchParams.get('token');
     const email = searchParams.get('email');
     const planId = searchParams.get('plan'); // Plan selected during registration
+    // Intervallo di fatturazione scelto al pricing (propagato dal register)
+    const interval = searchParams.get('interval') === 'yearly' ? 'yearly' : 'monthly';
+    // Locale dell'utente (fallback it): pilota le pagine di ritorno checkout
+    const localeParam = searchParams.get('locale');
+    const locale = localeParam && ['it', 'en', 'fr', 'pt'].includes(localeParam) ? localeParam : 'it';
 
     if (!token || !email) {
       return NextResponse.redirect(new URL('/auth/login?error=invalid-verification', baseUrl));
@@ -103,14 +108,29 @@ export async function GET(request: NextRequest) {
         });
 
         if (plan && plan.stripePriceId) {
-          // Create Stripe checkout session with trial
+          // Annuale: prezzo dedicato (12 mesi al prezzo di 10). Se la sync non
+          // ha ancora creato il prezzo annuale si procede col mensile.
+          const priceId =
+            interval === 'yearly' && plan.stripeYearlyPriceId
+              ? plan.stripeYearlyPriceId
+              : plan.stripePriceId;
+
+          // Guard anti-abuso trial: giorni residui da tenant.trialUntil
+          // (fissato alla registrazione), NON un valore fisso — stesso pattern
+          // di app/api/subscriptions/checkout.
+          const trialUntil = userTenant.tenant.trialUntil;
+          const trialDays = trialUntil
+            ? Math.max(0, Math.ceil((new Date(trialUntil).getTime() - Date.now()) / 86400000))
+            : 0;
+
+          // Create Stripe checkout session with residual trial
           const checkoutSession = await createSubscriptionCheckoutSession({
             customerId: userTenant.tenant.stripeCustomerId,
-            priceId: plan.stripePriceId,
+            priceId,
             tenantId: userTenant.tenantId,
-            trialDays: 14,
-            successUrl: `${baseUrl}/it/dashboard?subscription=success`,
-            cancelUrl: `${baseUrl}/it/pricing?cancelled=true`,
+            trialDays,
+            successUrl: `${baseUrl}/${locale}/checkout/success`,
+            cancelUrl: `${baseUrl}/${locale}/checkout/cancel`,
           });
 
           if (checkoutSession.url) {

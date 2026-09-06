@@ -1,8 +1,23 @@
 'use client';
 
-import { Box, Burger, Button, Container, Divider, Drawer, Group, Stack, Text } from '@mantine/core';
+import {
+  Box,
+  Burger,
+  Button,
+  Container,
+  Divider,
+  Drawer,
+  Group,
+  Menu,
+  Stack,
+  Text,
+  UnstyledButton,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { IconChevronDown } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { FEATURE_SLUGS } from '@/app/[locale]/(public)/funzionalita/_content';
 import { PUB_GRADIENT } from './PublicUI';
 
 function Logo() {
@@ -12,12 +27,19 @@ function Logo() {
 
 export function PublicHeader({ locale }: { locale: string }) {
   const [opened, { toggle, close }] = useDisclosure(false);
+  const t = useTranslations('public.header');
+  const tf = useTranslations('public.features');
+
+  const featureLinks = FEATURE_SLUGS.map((slug) => ({
+    label: tf(`pages.${slug}.navLabel`),
+    href: `/${locale}/funzionalita/${slug}`,
+  }));
 
   const navLinks = [
-    { label: 'Funzionalità', href: `/${locale}/#features` },
-    { label: 'Prezzi', href: `/${locale}/pricing` },
-    { label: 'Strumenti', href: `/${locale}/tools` },
-    { label: 'Blog', href: `/${locale}/blog` },
+    { label: t('pricing'), href: `/${locale}/pricing` },
+    { label: t('tools'), href: `/${locale}/tools` },
+    { label: t('blog'), href: `/${locale}/blog` },
+    { label: t('contact'), href: `/${locale}/contact` },
   ];
 
   return (
@@ -41,6 +63,27 @@ export function PublicHeader({ locale }: { locale: string }) {
 
           {/* Nav desktop */}
           <Group gap={28} visibleFrom="md">
+            <Menu trigger="click-hover" openDelay={80} closeDelay={150} radius="md" shadow="md" width={280}>
+              <Menu.Target>
+                <UnstyledButton className="pub-link" style={{ fontSize: 14 }} aria-label={t('openFeaturesMenu')}>
+                  <Group gap={4} wrap="nowrap">
+                    {t('features')}
+                    <IconChevronDown size={14} />
+                  </Group>
+                </UnstyledButton>
+              </Menu.Target>
+              <Menu.Dropdown>
+                {featureLinks.map((link) => (
+                  <Menu.Item key={link.href} component={Link} href={link.href}>
+                    {link.label}
+                  </Menu.Item>
+                ))}
+                <Menu.Divider />
+                <Menu.Item component={Link} href={`/${locale}/funzionalita`} fw={600}>
+                  {t('allFeatures')}
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
             {navLinks.map((link) => (
               <Link key={link.href} href={link.href} className="pub-link" style={{ fontSize: 14 }}>
                 {link.label}
@@ -50,7 +93,7 @@ export function PublicHeader({ locale }: { locale: string }) {
 
           <Group gap="sm" visibleFrom="md">
             <Button component={Link} href={`/${locale}/auth/login`} variant="subtle" color="gray" radius="xl">
-              Accedi
+              {t('login')}
             </Button>
             <Button
               component={Link}
@@ -60,17 +103,34 @@ export function PublicHeader({ locale }: { locale: string }) {
               radius="xl"
               fw={600}
             >
-              Prova gratis
+              {t('signup')}
             </Button>
           </Group>
 
-          <Burger opened={opened} onClick={toggle} hiddenFrom="md" size="sm" aria-label="Apri menu" />
+          <Burger opened={opened} onClick={toggle} hiddenFrom="md" size="sm" aria-label={t('openMenu')} />
         </Group>
       </Container>
 
       {/* Drawer mobile */}
       <Drawer opened={opened} onClose={close} size="xs" padding="lg" title={<Logo />} zIndex={200}>
         <Stack gap="md" mt="md">
+          <Text size="xs" fw={700} tt="uppercase" c="dimmed">
+            {t('features')}
+          </Text>
+          {featureLinks.map((link) => (
+            <Link key={link.href} href={link.href} className="pub-link" onClick={close} style={{ fontSize: 15 }}>
+              {link.label}
+            </Link>
+          ))}
+          <Link
+            href={`/${locale}/funzionalita`}
+            className="pub-link"
+            onClick={close}
+            style={{ fontSize: 15, fontWeight: 600 }}
+          >
+            {t('allFeatures')}
+          </Link>
+          <Divider my="xs" />
           {navLinks.map((link) => (
             <Link key={link.href} href={link.href} className="pub-link" onClick={close} style={{ fontSize: 16 }}>
               {link.label}
@@ -85,7 +145,7 @@ export function PublicHeader({ locale }: { locale: string }) {
             fullWidth
             onClick={close}
           >
-            Accedi
+            {t('login')}
           </Button>
           <Button
             component={Link}
@@ -97,7 +157,7 @@ export function PublicHeader({ locale }: { locale: string }) {
             fw={600}
             onClick={close}
           >
-            Prova gratis
+            {t('signup')}
           </Button>
         </Stack>
       </Drawer>

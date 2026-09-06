@@ -1,41 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { requireAuth, authError } from '@/lib/api-auth';
+import { endOfDay } from '@/lib/dates';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
-    }
+    // Roles espliciti: payment:read in matrice include STUDENT/PARENT, ma le stats sono dati di scuola
+    const ctx = await requireAuth({ roles: ['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY'] });
 
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
-
-    // Only admins and teachers can access stats
-    if (!['ADMIN', 'SUPERADMIN', 'TEACHER'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
-    }
-
-    const tenantId = session.user.tenantId;
+    const tenantId = ctx.tenantId;
     const now = new Date();
     const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-    // Update overdue payments
-    await prisma.payment.updateMany({
-      where: {
-        tenantId,
-        status: 'PENDING',
-        dueDate: {
-          lt: now,
-        },
-      },
-      data: {
-        status: 'OVERDUE',
-      },
-    });
+    // NB: la transizione PENDING→OVERDUE è responsabilità del cron
+    // markPaymentsOverdue (lib/workers/cron-scheduler): una GET di sole
+    // statistiche non deve avere side-effect di scrittura.
 
     // Get payment statistics
     const [
@@ -106,8 +86,9 @@ export async function GET(request: NextRequest) {
     const monthlyRevenue = await Promise.all(
       Array.from({ length: 12 }, (_, i) => {
         const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-        
+        // endOfDay: l'ultimo giorno del mese va incluso per intero
+        const monthEnd = endOfDay(new Date(now.getFullYear(), now.getMonth() - i + 1, 0));
+
         return prisma.payment.aggregate({
           where: {
             tenantId,
@@ -157,6 +138,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(stats);
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     console.error('Error fetching payment stats:', error);
     return NextResponse.json({ error: 'Errore interno del server' }, { status: 500 });
   }

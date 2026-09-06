@@ -19,9 +19,14 @@ import { escapeHtml } from '@/lib/api-middleware';
  *      observed via emailWorker logs and BullMQ retries — we don't
  *      block the request waiting for SMTP).
  *
- * Quiet hours: Notification.scheduledFor honored when set. We don't yet
- * read NotificationPreferences.quietHoursStart/End here — that's a
- * follow-up. Today, callers can pass scheduledFor explicitly.
+ * NotificationPreferences (rispettate qui, unico chokepoint):
+ *   - emailEnabled=false        → nessuna email (la notifica in-app resta)
+ *   - typePreferences[type]=false → email saltata per quel tipo
+ *   - quiet hours attive        → invio posticipato (delay BullMQ) e
+ *     scheduledFor della riga aggiornato di conseguenza
+ *
+ * Coda non disponibile (niente REDIS_URL / Redis giù): fallback SMTP diretto
+ * via EmailService (useQueue=false) + registrazione EmailLog.
  */
 
 export type DispatchOptions = {
@@ -36,6 +41,48 @@ const FROM_NAME = 'InsegnaMi.pro';
 // tenant. Riusa rateLimitByKey (sliding window su Redis, fail-open se giù).
 const EMAIL_QUEUE_MAX_PER_HOUR = 500;
 const EMAIL_QUEUE_WINDOW_MS = 3600000;
+
+/**
+ * Millisecondi di attesa per uscire dalle quiet hours dell'utente.
+ * Ritorna 0 se `now` è fuori dalla finestra (o input invalido). Gestisce le
+ * finestre a cavallo di mezzanotte (es. 22:00 → 08:00). Il confronto avviene
+ * nell'orario civile del fuso indicato (default Europe/Rome).
+ */
+export function quietHoursDelayMs(
+  now: Date,
+  start: string | null | undefined,
+  end: string | null | undefined,
+  tz = 'Europe/Rome',
+): number {
+  if (!start || !end) return 0;
+  const parse = (s: string): number | null => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(s.trim());
+    if (!m) return null;
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    if (h > 23 || min > 59) return null;
+    return h * 60 + min;
+  };
+  const startMin = parse(start);
+  const endMin = parse(end);
+  if (startMin === null || endMin === null || startMin === endMin) return 0;
+
+  const fmt = new Intl.DateTimeFormat('it-IT', {
+    timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  const [h, m] = fmt.format(now).split(':').map(Number);
+  const nowMin = h * 60 + m;
+
+  if (startMin < endMin) {
+    // Finestra nello stesso giorno (es. 13:00 → 15:00)
+    if (nowMin >= startMin && nowMin < endMin) return (endMin - nowMin) * 60_000;
+    return 0;
+  }
+  // Finestra a cavallo di mezzanotte (es. 22:00 → 08:00)
+  if (nowMin >= startMin) return ((24 * 60 - nowMin) + endMin) * 60_000;
+  if (nowMin < endMin) return (endMin - nowMin) * 60_000;
+  return 0;
+}
 
 function priorityLabel(priority: NotificationPriority): { color: string; label: string } {
   switch (priority) {
@@ -91,6 +138,63 @@ function renderNotificationEmail(notif: Pick<Notification, 'title' | 'content' |
 }
 
 /**
+ * Fallback SMTP diretto quando la coda BullMQ non è disponibile: riusa il
+ * canale diretto di EmailService (useQueue=false, stesso pattern di
+ * lib/email.ts) e registra l'esito su EmailLog. Non lancia mai.
+ */
+async function sendViaSmtpFallback(
+  notification: Notification,
+  payload: { to: string; subject: string; html: string; text: string; meta?: { tenantId?: string; sourceType?: string; sourceId?: string } },
+): Promise<{ sent: boolean; reason: string }> {
+  let sent = false;
+  let errorMsg: string | null = null;
+  try {
+    // Import lazy: evita di pagare nodemailer sulle route che non inviano
+    const { emailService } = await import('@/lib/email');
+    const res = await emailService.sendEmail(
+      { to: payload.to, subject: payload.subject, html: payload.html, text: payload.text },
+      false, // niente coda: SMTP diretto
+    );
+    sent = !!res?.success;
+    if (!sent) errorMsg = (res as any)?.error ?? 'smtp fallback failed';
+  } catch (err) {
+    errorMsg = err instanceof Error ? err.message : String(err);
+    logger.warn(`dispatchNotification: fallback SMTP fallito per notifica ${notification.id}`, err);
+  }
+
+  // EmailLog anche dal fallback (best-effort)
+  try {
+    await prisma.emailLog.create({
+      data: {
+        tenantId: payload.meta?.tenantId ?? notification.tenantId,
+        to: payload.to,
+        subject: payload.subject,
+        sourceType: payload.meta?.sourceType ?? 'notification',
+        sourceId: payload.meta?.sourceId ?? notification.id,
+        status: sent ? 'SENT' : 'FAILED',
+        sentAt: sent ? new Date() : null,
+        error: errorMsg,
+      },
+    });
+  } catch (err) {
+    logger.warn('dispatchNotification: scrittura EmailLog dal fallback fallita', err);
+  }
+
+  if (sent) {
+    try {
+      await prisma.notification.update({
+        where: { id: notification.id },
+        data: { emailSent: true },
+      });
+    } catch (err) {
+      logger.warn('dispatchNotification: update emailSent dal fallback fallita', err);
+    }
+    return { sent: true, reason: 'smtp-fallback' };
+  }
+  return { sent: false, reason: 'queue-unavailable' };
+}
+
+/**
  * Dispatch an existing Notification row through the configured channels.
  * Idempotent on the email side: if emailSent is already true, skip.
  *
@@ -114,11 +218,45 @@ export async function dispatchNotification(
   let emailEnqueued = false;
   let reason: string | undefined;
 
+  // Preferenze utente: lette una volta, best-effort (in assenza di riga
+  // valgono i default: email abilitate, nessuna quiet hour).
+  let prefs: {
+    emailEnabled: boolean;
+    typePreferences: unknown;
+    quietHoursEnabled: boolean;
+    quietHoursStart: string | null;
+    quietHoursEnd: string | null;
+  } | null = null;
+  if (sendEmail) {
+    try {
+      prefs = await prisma.notificationPreferences.findUnique({
+        where: { userId: notification.userId },
+        select: {
+          emailEnabled: true,
+          typePreferences: true,
+          quietHoursEnabled: true,
+          quietHoursStart: true,
+          quietHoursEnd: true,
+        },
+      });
+    } catch (err) {
+      logger.warn('dispatchNotification: lettura NotificationPreferences fallita', err);
+    }
+  }
+
+  const typePrefs = (prefs?.typePreferences ?? null) as Record<string, boolean> | null;
+
   if (sendEmail) {
     if (notification.emailSent) {
       reason = 'already-sent';
     } else if (!user?.email) {
       reason = 'no-recipient-email';
+    } else if (prefs && prefs.emailEnabled === false) {
+      // Preferenza esplicita: niente email — la notifica in-app resta
+      reason = 'email-disabled';
+    } else if (typePrefs && typePrefs[notification.type] === false) {
+      // Tipo disattivato dall'utente
+      reason = 'type-disabled';
     } else if (!(await rateLimitByKey(notification.tenantId, EMAIL_QUEUE_MAX_PER_HOUR, EMAIL_QUEUE_WINDOW_MS, 'rl:queue:email'))) {
       // B3.4: quota tenant esaurita — la notifica resta in-app (emailSent
       // false), nessun throw: un tenant rumoroso non deve saturare la coda.
@@ -132,28 +270,55 @@ export async function dispatchNotification(
 
       // Compute a delay if scheduledFor is in the future. BullMQ's `delay`
       // option (ms) is the simplest way to achieve "send no earlier than X".
-      const delay = notification.scheduledFor
-        ? Math.max(0, notification.scheduledFor.getTime() - Date.now())
+      const now = Date.now();
+      const scheduledDelay = notification.scheduledFor
+        ? Math.max(0, notification.scheduledFor.getTime() - now)
         : 0;
 
+      // Quiet hours: se attive e "adesso" cade nella finestra, l'invio viene
+      // posticipato alla fine della finestra (vince il ritardo maggiore).
+      const quietDelay = prefs?.quietHoursEnabled
+        ? quietHoursDelayMs(new Date(now), prefs.quietHoursStart, prefs.quietHoursEnd)
+        : 0;
+      const delay = Math.max(scheduledDelay, quietDelay);
+      const postponedTo = quietDelay > scheduledDelay ? new Date(now + quietDelay) : null;
+
+      const emailPayload = {
+        to: user.email,
+        subject,
+        html,
+        text,
+        meta: {
+          tenantId: notification.tenantId,
+          sourceType: notification.sourceType ?? 'notification',
+          sourceId: notification.sourceId ?? notification.id,
+        },
+      };
+
       try {
-        await EmailNotificationService.sendGenericEmail({
-          to: user.email,
-          subject,
-          html,
-          text,
-        });
+        await EmailNotificationService.sendGenericEmail(emailPayload, { delay });
         await prisma.notification.update({
           where: { id: notification.id },
-          data: { emailSent: true },
+          data: {
+            emailSent: true,
+            // scheduledFor posticipato quando le quiet hours spostano l'invio
+            ...(postponedTo ? { scheduledFor: postponedTo } : {}),
+          },
         });
         emailEnqueued = true;
         if (delay > 0) reason = `delayed-${delay}ms`;
       } catch (err) {
-        // Email queue unavailable (e.g. Redis down). We don't fail the
-        // upstream operation — log and let an admin retry via tooling.
+        // Coda non disponibile (es. Redis giù / REDIS_URL assente):
+        // fallback SMTP diretto — ma solo per invii immediati, perché senza
+        // coda non possiamo posticipare.
         logger.warn(`dispatchNotification: failed to enqueue email for notification ${notification.id}`, err);
-        reason = 'queue-unavailable';
+        if (delay > 0) {
+          reason = 'queue-unavailable';
+        } else {
+          const fb = await sendViaSmtpFallback(notification, emailPayload);
+          emailEnqueued = fb.sent;
+          reason = fb.reason;
+        }
       }
     }
   }

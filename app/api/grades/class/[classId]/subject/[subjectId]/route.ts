@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { requireAuth, authError, getTeacherIdForUser } from '@/lib/api-auth';
 
 // GET /api/grades/class/[classId]/subject/[subjectId] - Get grade grid for class/subject
 export async function GET(
@@ -9,13 +8,18 @@ export async function GET(
   { params }: { params: Promise<{ classId: string; subjectId: string }> }
 ) {
   try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const ctx = await requireAuth({
+      roles: ['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER'],
+    });
 
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
+    // Deny-by-default: TEACHER senza profilo risolvibile non accede alla griglia
+    let teacherId: string | null = null;
+    if (ctx.role === 'TEACHER') {
+      teacherId = await getTeacherIdForUser(ctx);
+      if (!teacherId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
 
     const { classId, subjectId } = await params;
     const { searchParams } = new URL(request.url);
@@ -25,7 +29,7 @@ export async function GET(
     const classEntity = await prisma.class.findFirst({
       where: {
         id: classId,
-        ...(session.user.role !== 'SUPERADMIN' ? { tenantId: session.user.tenantId } : {}),
+        ...(!ctx.isSuperAdmin ? { tenantId: ctx.tenantId } : {}),
       },
       include: {
         course: true,
@@ -35,6 +39,11 @@ export async function GET(
 
     if (!classEntity) {
       return NextResponse.json({ error: 'Classe non trovata' }, { status: 404 });
+    }
+
+    // TEACHER: solo il titolare della classe può leggere la griglia
+    if (ctx.role === 'TEACHER' && classEntity.teacherId !== teacherId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Verify subject exists
@@ -177,6 +186,8 @@ export async function GET(
       },
     });
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     console.error('Class grades GET error:', error);
     return NextResponse.json(
       { error: 'Errore interno del server' },

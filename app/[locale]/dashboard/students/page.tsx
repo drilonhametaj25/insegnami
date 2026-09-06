@@ -19,8 +19,10 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCheck, IconX, IconInfoCircle, IconEye, IconPlus, IconRefresh, IconDownload, IconTrash, IconUsers, IconUserCheck, IconUserOff, IconUserPlus } from '@tabler/icons-react';
+import { IconCheck, IconX, IconInfoCircle, IconEye, IconPlus, IconRefresh, IconDownload, IconUpload, IconTrash, IconUsers, IconUserCheck, IconUserOff, IconUserPlus } from '@tabler/icons-react';
+import Link from 'next/link';
 import { DataTable, TableRenderers } from '@/components/tables/DataTable';
+import { usePermission } from '@/lib/hooks/usePermissions';
 import { AdvancedStudentForm } from '@/components/forms/AdvancedStudentForm';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { EmptyState, emptyStateConfigs } from '@/components/ui/EmptyState';
@@ -92,8 +94,9 @@ export default function StudentsPage() {
   const [opened, { open, close }] = useDisclosure(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
-  // Check if user has permission to manage students
-  const canManageStudents = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'TEACHER';
+  // Permessi da matrice: lettura per la pagina, creazione per le azioni
+  const canViewStudents = usePermission('read', 'student');
+  const canManageStudents = usePermission('create', 'student');
 
   // Navigate to student detail
   const handleViewStudent = (studentId: string) => {
@@ -145,11 +148,11 @@ export default function StudentsPage() {
   };
 
   useEffect(() => {
-    if (canManageStudents) {
+    if (canViewStudents) {
       fetchStudents();
       fetchStats();
     }
-  }, [pagination.page, searchQuery, statusFilter, canManageStudents]);
+  }, [pagination.page, searchQuery, statusFilter, canViewStudents]);
 
   // BUG-053 fix: Use useCallback for handleSearch
   const handleSearch = useCallback((query: string) => {
@@ -334,7 +337,7 @@ export default function StudentsPage() {
     },
   ];
 
-  if (!canManageStudents) {
+  if (!canViewStudents) {
     return (
       <Container size="lg" py="xl">
         <Alert icon={<IconInfoCircle />} color="red">
@@ -358,6 +361,15 @@ export default function StudentsPage() {
               onClick={handleExport}
             >
               Esporta
+            </Button>
+            <Button
+              leftSection={<IconUpload size={16} />}
+              variant="light"
+              component={Link}
+              href={`/${locale}/dashboard/students/import`}
+              data-testid="students-import-link"
+            >
+              Importa da CSV
             </Button>
             <Button
               leftSection={<IconRefresh size={16} />}

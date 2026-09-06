@@ -1,24 +1,20 @@
 import { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
-// NB: niente componenti dot-notation (Card.Section) nei Server Components:
-// in build di produzione risolvono a undefined ("Element type is invalid").
-import {
-  Badge,
-  Box,
-  Card,
-  CardSection,
-  Container,
-  Group,
-  SimpleGrid,
-  Stack,
-  Text,
-  Title,
-  rem,
-} from '@mantine/core';
-import { IconCalendar, IconClock } from '@tabler/icons-react';
+import { Anchor, Badge, Box, Card, Container, Group, Text } from '@mantine/core';
 import Link from 'next/link';
-import { getBlogPosts, getBlogCategories } from '@/lib/blog';
+import { getBlogPosts, getBlogCategories, slugifyTaxonomy } from '@/lib/blog';
+import { buildPublicMetadata } from '@/lib/seo';
 import { CtaBanner, PageHero } from '@/components/public/PublicUI';
+import { PostGrid } from './PostGrid';
+
+const POSTS_PER_PAGE = 12;
+
+// Stringhe della pagina (hardcoded IT in questa fase: un agente successivo
+// estrae e traduce tutto in messages/*.json).
+const copy = {
+  title: 'Blog: guide e consigli per la gestione scolastica',
+  description:
+    'Articoli, guide e consigli per gestire al meglio la tua scuola. Scopri le ultime novità sul mondo della formazione e della digitalizzazione scolastica.',
+};
 
 export async function generateMetadata({
   params,
@@ -26,31 +22,31 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'Blog' });
-
-  return {
-    title: t('title') || 'Blog',
-    description:
-      t('description') ||
-      'Articoli, guide e consigli per la gestione della tua scuola. Scopri le ultime novità sul mondo della formazione.',
-    openGraph: {
-      title: t('title') || 'Blog',
-      description:
-        t('description') ||
-        'Articoli, guide e consigli per la gestione della tua scuola.',
-      type: 'website',
-    },
-  };
+  return buildPublicMetadata({
+    locale,
+    path: '/blog',
+    title: copy.title,
+    description: copy.description,
+  });
 }
 
 export default async function BlogPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { locale } = await params;
+  const { page: pageParam } = await searchParams;
   const posts = await getBlogPosts(locale);
   const categories = await getBlogCategories(locale);
+
+  // Paginazione: 12 articoli per pagina, ?page= (clamp su range valido)
+  const totalPages = Math.max(1, Math.ceil(posts.length / POSTS_PER_PAGE));
+  const requestedPage = parseInt(pageParam ?? '1', 10);
+  const page = Math.min(totalPages, Math.max(1, Number.isFinite(requestedPage) ? requestedPage : 1));
+  const pagePosts = posts.slice((page - 1) * POSTS_PER_PAGE, page * POSTS_PER_PAGE);
 
   return (
     <>
@@ -61,11 +57,20 @@ export default async function BlogPage({
         highlight="gestione scolastica"
         subtitle="Articoli, guide e consigli per gestire al meglio la tua scuola. Scopri le ultime novità sul mondo della formazione."
       >
-        {/* Categorie: testo informativo con conteggio, non cliccabili */}
+        {/* Categorie cliccabili → pagina categoria */}
         {categories.length > 0 && (
           <Group justify="center" gap="xs" mt="sm">
             {categories.map((category) => (
-              <Badge key={category.name} variant="light" color="indigo" size="lg" radius="xl">
+              <Badge
+                key={category.name}
+                component={Link}
+                href={`/${locale}/blog/categoria/${slugifyTaxonomy(category.name)}`}
+                variant="light"
+                color="indigo"
+                size="lg"
+                radius="xl"
+                style={{ cursor: 'pointer' }}
+              >
                 {category.name} ({category.count})
               </Badge>
             ))}
@@ -76,75 +81,59 @@ export default async function BlogPage({
       {/* Griglia articoli */}
       <Box bg="white" py={{ base: 32, sm: 48 }}>
         <Container size="xl">
-          {posts.length > 0 ? (
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-              {posts.map((post) => (
-                <Card
-                  key={post.slug}
-                  component={Link}
-                  href={`/${locale}/blog/${post.slug}`}
-                  padding="xl"
-                  radius="lg"
-                  bg="white"
-                  className="pub-card"
-                  h="100%"
-                  style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column' }}
-                >
-                  {/* Blocco decorativo al posto delle immagini (asset non presenti) */}
-                  <CardSection>
-                    <Box h={140} pos="relative" style={{ background: 'var(--pub-brand-gradient)' }}>
-                      <Box
-                        pos="absolute"
-                        inset={0}
-                        style={{
-                          background:
-                            'radial-gradient(90% 90% at 85% -10%, rgba(255, 255, 255, 0.28) 0%, transparent 60%)',
-                        }}
-                      />
+          {pagePosts.length > 0 ? (
+            <>
+              <PostGrid posts={pagePosts} locale={locale} />
+
+              {/* Paginazione server-side via link ?page= (niente componenti
+                  client interattivi: pagina 100% renderizzabile lato server) */}
+              {totalPages > 1 && (
+                <Group justify="center" gap="xs" mt="xl">
+                  {page > 1 && (
+                    <Anchor
+                      component={Link}
+                      href={`/${locale}/blog${page - 1 > 1 ? `?page=${page - 1}` : ''}`}
+                      size="sm"
+                      c="indigo.6"
+                      underline="hover"
+                    >
+                      ← Precedente
+                    </Anchor>
+                  )}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) =>
+                    p === page ? (
+                      <Badge key={p} variant="filled" color="indigo" radius="xl" size="lg">
+                        {p}
+                      </Badge>
+                    ) : (
                       <Badge
-                        variant="white"
+                        key={p}
+                        component={Link}
+                        href={`/${locale}/blog${p > 1 ? `?page=${p}` : ''}`}
+                        variant="light"
                         color="indigo"
                         radius="xl"
-                        pos="absolute"
-                        bottom={12}
-                        left={12}
+                        size="lg"
+                        style={{ cursor: 'pointer' }}
                       >
-                        {post.category}
+                        {p}
                       </Badge>
-                    </Box>
-                  </CardSection>
-
-                  <Stack gap="sm" mt="md" style={{ flex: 1 }}>
-                    <Title order={3} fz={rem(20)} fw={700} lh={1.3} c="var(--pub-ink)" lineClamp={2}>
-                      {post.title}
-                    </Title>
-
-                    <Text size="sm" c="dimmed" lineClamp={3}>
-                      {post.description}
-                    </Text>
-
-                    <Group gap="lg" mt="auto">
-                      <Group gap={4}>
-                        <IconCalendar size={14} />
-                        <Text size="xs" c="dimmed">
-                          {new Date(post.date).toLocaleDateString(locale, {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </Text>
-                      </Group>
-                      <Group gap={4}>
-                        <IconClock size={14} />
-                        <Text size="xs" c="dimmed">
-                          {post.readingTime.replace('min read', 'min di lettura')}
-                        </Text>
-                      </Group>
-                    </Group>
-                  </Stack>
-                </Card>
-              ))}
-            </SimpleGrid>
+                    )
+                  )}
+                  {page < totalPages && (
+                    <Anchor
+                      component={Link}
+                      href={`/${locale}/blog?page=${page + 1}`}
+                      size="sm"
+                      c="indigo.6"
+                      underline="hover"
+                    >
+                      Successiva →
+                    </Anchor>
+                  )}
+                </Group>
+              )}
+            </>
           ) : (
             <Card withBorder p="xl" radius="lg" ta="center">
               <Text c="dimmed">Nessun articolo disponibile al momento.</Text>

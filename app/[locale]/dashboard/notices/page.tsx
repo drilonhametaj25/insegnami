@@ -153,10 +153,13 @@ export default function NoticesPage() {
       new Set((values.targetAudience || []).flatMap((a) => AUDIENCE_MAP[a] || []))
     );
 
-    const noticeData = {
+    const noticeData: CreateNoticeData = {
       title: values.title,
       content: values.content,
-      type: TYPE_MAP[values.type] || 'ANNOUNCEMENT',
+      type: (TYPE_MAP[values.type] || 'ANNOUNCEMENT') as CreateNoticeData['type'],
+      // POST accetta DRAFT/PUBLISHED; ARCHIVED solo in aggiornamento
+      status:
+        !editingNotice && values.status === 'ARCHIVED' ? 'PUBLISHED' : values.status,
       isPublic: (values.targetAudience || []).includes('ALL'),
       targetRoles: targetRoles.length ? targetRoles : ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'],
       isUrgent: values.priority === 'HIGH' || values.type === 'URGENT',
@@ -165,7 +168,7 @@ export default function NoticesPage() {
           ? values.publishedAt?.toISOString() || new Date().toISOString()
           : undefined,
       expiresAt: values.expiresAt?.toISOString(),
-    } as unknown as CreateNoticeData;
+    };
 
     if (editingNotice) {
       updateNotice.mutate(
@@ -211,17 +214,33 @@ export default function NoticesPage() {
     }
   };
 
+  // Mappa i campi reali del model (targetRoles/isUrgent) sui valori del form
+  const rolesToAudience = (roles?: string[]): string[] => {
+    if (!roles || roles.length === 0) return ['ALL'];
+    const all = ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'];
+    if (all.every((r) => roles.includes(r))) return ['ALL'];
+    const map: Record<string, string> = {
+      STUDENT: 'STUDENTS',
+      TEACHER: 'TEACHERS',
+      PARENT: 'PARENTS',
+      ADMIN: 'ADMINS',
+    };
+    return roles.map((r) => map[r]).filter(Boolean);
+  };
+
   const handleEditNotice = (notice: Notice) => {
     setEditingNotice(notice);
     form.setValues({
       title: notice.title,
       content: notice.content,
-      type: notice.type,
-      status: notice.status,
-      priority: notice.priority,
+      type: (['GENERAL', 'URGENT', 'EVENT', 'ANNOUNCEMENT'].includes(notice.type)
+        ? notice.type
+        : 'GENERAL') as NoticeFormData['type'],
+      status: notice.status || 'PUBLISHED',
+      priority: notice.isUrgent ? 'HIGH' : 'MEDIUM',
       publishedAt: notice.publishedAt ? new Date(notice.publishedAt) : undefined,
       expiresAt: notice.expiresAt ? new Date(notice.expiresAt) : undefined,
-      targetAudience: notice.targetAudience,
+      targetAudience: rolesToAudience(notice.targetRoles),
     });
     openModal();
   };
@@ -350,6 +369,7 @@ export default function NoticesPage() {
         case 'STUDENTS': return t('audiences.students');
         case 'TEACHERS': return t('audiences.teachers');
         case 'PARENTS': return t('audiences.parents');
+        case 'ADMINS': return 'Admin';
         default: return a;
       }
     }).join(', ');
@@ -514,13 +534,18 @@ export default function NoticesPage() {
                         </Badge>
                       </Table.Td>
                       <Table.Td>
-                        <Badge color={getPriorityColor(notice.priority)} variant="light" size="sm">
-                          {getPriorityLabel(notice.priority)}
+                        {/* Priorità derivata dal campo reale isUrgent */}
+                        <Badge
+                          color={getPriorityColor(notice.isUrgent ? 'HIGH' : 'MEDIUM')}
+                          variant="light"
+                          size="sm"
+                        >
+                          {getPriorityLabel(notice.isUrgent ? 'HIGH' : 'MEDIUM')}
                         </Badge>
                       </Table.Td>
                       <Table.Td>
                         <Text size="xs">
-                          {getTargetAudienceLabel(notice.targetAudience)}
+                          {getTargetAudienceLabel(rolesToAudience(notice.targetRoles))}
                         </Text>
                       </Table.Td>
                       <Table.Td>
@@ -545,6 +570,7 @@ export default function NoticesPage() {
                               size="sm"
                               onClick={() => handlePublishNotice(notice.id)}
                               title={t('publish')}
+                              data-testid="notices-pubblica"
                             >
                               <IconSend size={14} />
                             </ActionIcon>
@@ -571,9 +597,10 @@ export default function NoticesPage() {
                                 {t('view')}
                               </Menu.Item>
                               {notice.status === 'PUBLISHED' && (
-                                <Menu.Item 
+                                <Menu.Item
                                   leftSection={<IconPin size={14} />}
                                   onClick={() => handleArchiveNotice(notice.id)}
+                                  data-testid="notices-archivia"
                                 >
                                   {t('archive')}
                                 </Menu.Item>
@@ -670,6 +697,7 @@ export default function NoticesPage() {
                     { value: 'STUDENTS', label: t('audiences.students') },
                     { value: 'TEACHERS', label: t('audiences.teachers') },
                     { value: 'PARENTS', label: t('audiences.parents') },
+                    { value: 'ADMINS', label: 'Admin' },
                   ]}
                   {...form.getInputProps('targetAudience')}
                 />
@@ -706,7 +734,20 @@ export default function NoticesPage() {
               <Button variant="light" onClick={closeModal}>
                 {t('cancel')}
               </Button>
-              <Button type="submit" loading={isSaving}>
+              <Button
+                variant="default"
+                loading={isSaving}
+                data-testid="notices-salva-bozza"
+                onClick={() => {
+                  // Salva come bozza: stesso submit ma con status DRAFT
+                  if (form.validate().hasErrors) return;
+                  form.setFieldValue('status', 'DRAFT');
+                  handleSaveNotice({ ...form.values, status: 'DRAFT' });
+                }}
+              >
+                Salva bozza
+              </Button>
+              <Button type="submit" loading={isSaving} data-testid="notices-salva">
                 {editingNotice ? t('update') : t('create')}
               </Button>
             </Group>

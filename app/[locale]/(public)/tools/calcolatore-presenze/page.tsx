@@ -1,25 +1,30 @@
 import type { Metadata } from 'next';
-import { faqJsonLd, type FaqItem } from '@/components/public/ToolPageShell';
+import { faqJsonLd, toolPageMetadata, type FaqItem } from '@/components/public/ToolPageShell';
 import { CalcolatorePresenzeClient } from './CalcolatorePresenzeClient';
 
-export const metadata: Metadata = {
-  title: 'Calcolatore Presenze | Strumenti Gratuiti',
-  description:
-    'Calcola gratis la percentuale di frequenza scolastica e verifica il raggiungimento del monte ore minimo (75%) previsto dal D.P.R. 122/2009. Per scuole, docenti e famiglie.',
-  keywords: [
-    'calcolatore presenze scolastiche',
-    'percentuale frequenza scuola',
-    'monte ore minimo 75%',
-    'validità anno scolastico',
-    'calcolo assenze scuola',
-  ],
-  openGraph: {
-    title: 'Calcolatore Presenze | Strumenti Gratuiti | InsegnaMi.pro',
-    description:
-      'Calcola la percentuale di frequenza scolastica e verifica il monte ore minimo per la validità dell\'anno. Gratuito, senza registrazione.',
-    type: 'website',
-  },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return {
+    ...toolPageMetadata({
+      locale,
+      slug: 'calcolatore-presenze',
+      title: 'Calcolatore Presenze | Strumenti Gratuiti',
+      description:
+        'Calcola gratis la percentuale di frequenza scolastica e verifica il raggiungimento del monte ore minimo (75%) previsto dal D.P.R. 122/2009. Per scuole, docenti e famiglie.',
+    }),
+    keywords: [
+      'calcolatore presenze scolastiche',
+      'percentuale frequenza scuola',
+      'monte ore minimo 75%',
+      'validità anno scolastico',
+      'calcolo assenze scuola',
+    ],
+  };
+}
 
 const faqs: FaqItem[] = [
   {

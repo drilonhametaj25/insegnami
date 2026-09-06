@@ -320,12 +320,18 @@ export async function findPlanByStripePriceId(prisma: PrismaClient, priceId: str
   });
 }
 
-/** Sincronizza i 4 add-on su Stripe e aggiorna AddonCatalog. */
+/**
+ * Sincronizza i 4 add-on su Stripe e aggiorna AddonCatalog.
+ * Ogni add-on ha DUE prezzi (mensile + annuale = mensile×10): Stripe rifiuta
+ * interval misti nella stessa subscription, quindi gli abbonamenti annuali
+ * devono agganciare gli add-on al prezzo annuale.
+ */
 export async function syncAddonsToStripe(prisma: PrismaClient): Promise<SyncResult[]> {
   const results: SyncResult[] = [];
 
   for (const def of Object.values(ADDON_CATALOG)) {
     const row = await prisma.addonCatalog.findUnique({ where: { type: def.type } });
+    const metadata = { addonType: def.type };
 
     const { productId, priceId, action } = await ensureProductAndPrice({
       existingProductId: row?.stripeProductId,
@@ -333,9 +339,17 @@ export async function syncAddonsToStripe(prisma: PrismaClient): Promise<SyncResu
       name: `InsegnaMi Add-on: ${def.name}`,
       description: def.description,
       spec: { amountCents: Math.round(def.unitPrice * 100), interval: 'month' },
-      metadata: { addonType: def.type },
+      metadata,
       searchKey: 'addonType',
       searchValue: def.type,
+    });
+
+    // Prezzo annuale sullo stesso prodotto (stessa regola dei piani)
+    const yearly = await ensurePrice({
+      productId,
+      existingPriceId: row?.stripeYearlyPriceId,
+      spec: { amountCents: Math.round(yearlyPriceOf(def.unitPrice) * 100), interval: 'year' },
+      metadata,
     });
 
     await prisma.addonCatalog.upsert({
@@ -344,18 +358,30 @@ export async function syncAddonsToStripe(prisma: PrismaClient): Promise<SyncResu
         type: def.type,
         stripeProductId: productId,
         stripePriceId: priceId,
+        stripeYearlyPriceId: yearly.priceId,
         priceAmount: def.unitPrice,
         syncedAt: new Date(),
       },
       update: {
         stripeProductId: productId,
         stripePriceId: priceId,
+        stripeYearlyPriceId: yearly.priceId,
         priceAmount: def.unitPrice,
         syncedAt: new Date(),
       },
     });
 
-    results.push({ kind: 'addon', key: def.type, productId, priceId, action });
+    const combinedAction: SyncAction =
+      action === 'unchanged' && yearly.rotated ? 'price_rotated' : action;
+
+    results.push({
+      kind: 'addon',
+      key: def.type,
+      productId,
+      priceId,
+      yearlyPriceId: yearly.priceId,
+      action: combinedAction,
+    });
   }
 
   return results;
@@ -374,10 +400,15 @@ export async function syncAllToStripe(prisma: PrismaClient): Promise<SyncResult[
   return [...planResults, ...addonResults];
 }
 
-/** Mappa stripePriceId → AddonType, usata dal webhook per riconoscere gli item add-on. */
+/** Mappa stripePriceId → AddonType (mensile E annuale), usata dal webhook per riconoscere gli item add-on. */
 export async function getAddonPriceMap(prisma: PrismaClient): Promise<Map<string, AddonType>> {
   const rows = await prisma.addonCatalog.findMany({
     where: { stripePriceId: { not: null } },
   });
-  return new Map(rows.map((r) => [r.stripePriceId as string, r.type]));
+  const map = new Map<string, AddonType>();
+  for (const r of rows) {
+    if (r.stripePriceId) map.set(r.stripePriceId, r.type);
+    if (r.stripeYearlyPriceId) map.set(r.stripeYearlyPriceId, r.type);
+  }
+  return map;
 }

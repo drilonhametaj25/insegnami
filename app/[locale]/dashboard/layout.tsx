@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { IconSchool } from '@tabler/icons-react';
 import { BRAND } from '@/lib/theme';
 import TrialBanner from '@/components/billing/TrialBanner';
+import { MaintenanceBanner, DunningBanner } from '@/components/billing/PlatformBanners';
 
 // Protezione delle route sensibili per ruolo (difesa in profondità lato
 // client; l'enforcement autorevole resta a livello API). I prefissi sono
@@ -166,6 +167,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </AppShell.Navbar>
 
       <AppShell.Main>
+        {/* Manutenzione piattaforma: avviso per tutti (SUPERADMIN inclusi) */}
+        <MaintenanceBanner />
         {accessVerdict && !accessVerdict.ok && !['ADMIN', 'DIRECTOR'].includes(session.user.role) ? (
           <Center style={{ minHeight: '60vh' }}>
             <Stack align="center" gap="md" maw={480}>
@@ -183,6 +186,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </Center>
         ) : (
           <>
+            {/* Dunning: pagamento fallito con periodo di grazia ancora aperto */}
+            <DunningBanner />
             <TrialBanner />
             {children}
           </>

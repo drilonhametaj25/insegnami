@@ -59,6 +59,8 @@ export default function RegisterPage() {
   const locale = useLocale();
   const searchParams = useSearchParams();
   const planId = searchParams.get('plan');
+  // Intervallo di fatturazione scelto sulla pagina pricing (monthly/yearly)
+  const billingInterval = searchParams.get('interval') === 'yearly' ? 'yearly' : 'monthly';
 
   // Fetch selected plan details if planId is provided
   useEffect(() => {
@@ -134,6 +136,9 @@ export default function RegisterPage() {
           schoolName: values.schoolName,
           role: values.role,
           planId: selectedPlan?.id || planId || undefined,
+          // Propagati nel link di verifica email → checkout post-verifica
+          interval: billingInterval,
+          locale,
         }),
       });
 

@@ -20,18 +20,27 @@ interface RouteParams {
  */
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'read', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'invoice' }, feature: 'einvoicing' });
     const { id } = await params;
 
     const where: any = tenantScope(ctx, { id });
     if (ctx.role === 'PARENT') {
-      where.customerProfile = { student: { parentUserId: ctx.userId } };
+      // Guardian-aware: StudentGuardian + fallback legacy parentUserId
+      where.customerProfile = {
+        student: {
+          OR: [
+            { parentUserId: ctx.userId },
+            { guardians: { some: { userId: ctx.userId } } },
+          ],
+        },
+      };
     }
 
     const invoice = await prisma.invoice.findFirst({
       where,
       select: {
         id: true,
+        tenantId: true,
         xmlContent: true,
         number: true,
         year: true,
@@ -46,7 +55,19 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const filename = `IT_${invoice.sdiIdentifier ?? invoice.id}.xml`;
+    // Convenzione SDI: IT<P.IVA cedente>_<progressivo alfanumerico>.xml.
+    // Progressivo base36 a 5 char, deterministico su (anno, numero).
+    const settings = await prisma.invoiceSettings.findUnique({
+      where: { tenantId: invoice.tenantId },
+      select: { partitaIva: true },
+    });
+    const piva = (settings?.partitaIva ?? '').replace(/^IT/i, '').trim();
+    const progressivo = (invoice.year * 10000 + invoice.number)
+      .toString(36)
+      .toUpperCase()
+      .padStart(5, '0')
+      .slice(-5);
+    const filename = `IT${piva}_${progressivo}.xml`;
     return new NextResponse(invoice.xmlContent, {
       status: 200,
       headers: {

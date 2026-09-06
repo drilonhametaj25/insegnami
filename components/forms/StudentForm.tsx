@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from '@mantine/form';
 import {
   Modal,
@@ -12,9 +12,25 @@ import {
   Stack,
   Grid,
   Switch,
+  ActionIcon,
+  Badge,
+  Text,
+  Paper,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
+import { IconTrash, IconUserPlus } from '@tabler/icons-react';
+
+interface GuardianEntry {
+  userId: string;
+  relationship?: string | null;
+  isPrimary: boolean;
+  user?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+}
 
 interface Student {
   id?: string;
@@ -32,13 +48,14 @@ interface Student {
   medicalNotes?: string;
   specialNeeds?: string;
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  guardians?: GuardianEntry[];
 }
 
 interface StudentFormProps {
   opened: boolean;
   onClose: () => void;
   student?: Student;
-  onSave: (student: Student) => Promise<void>;
+  onSave: (student: Student & { guardians?: GuardianEntry[] }) => Promise<void>;
   loading?: boolean;
 }
 
@@ -50,6 +67,26 @@ export function StudentForm({
   loading = false,
 }: StudentFormProps) {
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [guardians, setGuardians] = useState<GuardianEntry[]>([]);
+  const [guardianEmail, setGuardianEmail] = useState('');
+  const [guardianLookupLoading, setGuardianLookupLoading] = useState(false);
+
+  const isEdit = Boolean(student?.id);
+
+  // Riallinea la lista tutori a ogni apertura del modal
+  useEffect(() => {
+    if (opened) {
+      setGuardians(
+        (student?.guardians || []).map((g) => ({
+          userId: g.userId,
+          relationship: g.relationship ?? '',
+          isPrimary: g.isPrimary,
+          user: g.user,
+        }))
+      );
+      setGuardianEmail('');
+    }
+  }, [opened, student]);
 
   const form = useForm<Student>({
     initialValues: {
@@ -85,10 +122,114 @@ export function StudentForm({
     },
   });
 
+  // Cerca un utente PARENT esistente per email e lo aggiunge come tutore
+  const handleAddGuardian = async () => {
+    const email = guardianEmail.trim().toLowerCase();
+    if (!email || !/^\S+@\S+$/.test(email)) {
+      notifications.show({
+        title: 'Errore',
+        message: 'Inserisci una email valida',
+        color: 'red',
+      });
+      return;
+    }
+
+    if (guardians.some((g) => g.user?.email?.toLowerCase() === email)) {
+      notifications.show({
+        title: 'Attenzione',
+        message: 'Questo tutore è già presente nella lista',
+        color: 'yellow',
+      });
+      return;
+    }
+
+    setGuardianLookupLoading(true);
+    try {
+      const response = await fetch(
+        `/api/users?search=${encodeURIComponent(email)}&role=PARENT&limit=5`
+      );
+      if (!response.ok) throw new Error('Ricerca non riuscita');
+      const data = await response.json();
+      const match = (data.users || []).find(
+        (u: any) => u.email?.toLowerCase() === email
+      );
+
+      if (!match) {
+        notifications.show({
+          title: 'Non trovato',
+          message: 'Nessun utente con ruolo genitore trovato con questa email',
+          color: 'red',
+        });
+        return;
+      }
+
+      setGuardians((current) => [
+        ...current,
+        {
+          userId: match.id,
+          relationship: '',
+          isPrimary: current.length === 0,
+          user: {
+            firstName: match.firstName,
+            lastName: match.lastName,
+            email: match.email,
+          },
+        },
+      ]);
+      setGuardianEmail('');
+    } catch (error) {
+      notifications.show({
+        title: 'Errore',
+        message: 'Errore durante la ricerca del tutore',
+        color: 'red',
+      });
+    } finally {
+      setGuardianLookupLoading(false);
+    }
+  };
+
+  const handleRemoveGuardian = (userId: string) => {
+    setGuardians((current) => {
+      const next = current.filter((g) => g.userId !== userId);
+      // Se rimuovo il primario, promuovo il primo rimasto
+      if (next.length > 0 && !next.some((g) => g.isPrimary)) {
+        next[0] = { ...next[0], isPrimary: true };
+      }
+      return next;
+    });
+  };
+
+  const handleSetPrimary = (userId: string, value: boolean) => {
+    setGuardians((current) =>
+      current.map((g) =>
+        value
+          ? { ...g, isPrimary: g.userId === userId }
+          : g.userId === userId
+            ? { ...g, isPrimary: false }
+            : g
+      )
+    );
+  };
+
+  const handleRelationshipChange = (userId: string, relationship: string) => {
+    setGuardians((current) =>
+      current.map((g) => (g.userId === userId ? { ...g, relationship } : g))
+    );
+  };
+
   const handleSubmit = async (values: Student) => {
     setSubmitLoading(true);
     try {
-      await onSave(values);
+      const payload: Student & { guardians?: GuardianEntry[] } = { ...values };
+      // Solo in modifica: la creazione passa dal flusso genitore del POST
+      if (isEdit) {
+        payload.guardians = guardians.map((g) => ({
+          userId: g.userId,
+          relationship: g.relationship || null,
+          isPrimary: g.isPrimary,
+        }));
+      }
+      await onSave(payload);
       notifications.show({
         title: 'Successo',
         message: `Studente ${student ? 'aggiornato' : 'creato'} con successo`,
@@ -209,7 +350,92 @@ export function StudentForm({
             {...form.getInputProps('address')}
           />
 
-          {/* Informazioni Genitore/Tutore */}
+          {/* Tutori (StudentGuardian) — solo in modifica */}
+          {isEdit && (
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium text-gray-900 mb-3">
+                Tutori
+              </h4>
+
+              <Stack gap="sm">
+                {guardians.length === 0 && (
+                  <Text size="sm" c="dimmed">
+                    Nessun tutore collegato. Aggiungi un genitore esistente tramite email.
+                  </Text>
+                )}
+
+                {guardians.map((guardian) => (
+                  <Paper key={guardian.userId} p="sm" withBorder radius="md">
+                    <Group justify="space-between" align="center" wrap="nowrap">
+                      <div style={{ flex: 1 }}>
+                        <Group gap="xs">
+                          <Text size="sm" fw={500}>
+                            {guardian.user
+                              ? `${guardian.user.firstName} ${guardian.user.lastName}`
+                              : guardian.userId}
+                          </Text>
+                          {guardian.isPrimary && (
+                            <Badge size="xs" color="blue">Primario</Badge>
+                          )}
+                        </Group>
+                        {guardian.user?.email && (
+                          <Text size="xs" c="dimmed">{guardian.user.email}</Text>
+                        )}
+                      </div>
+                      <TextInput
+                        placeholder="Relazione (es. madre)"
+                        size="xs"
+                        w={150}
+                        value={guardian.relationship || ''}
+                        onChange={(e) =>
+                          handleRelationshipChange(guardian.userId, e.currentTarget.value)
+                        }
+                      />
+                      <Switch
+                        label="Primario"
+                        size="xs"
+                        checked={guardian.isPrimary}
+                        onChange={(e) =>
+                          handleSetPrimary(guardian.userId, e.currentTarget.checked)
+                        }
+                        data-testid="studenti-tutore-primario"
+                      />
+                      <ActionIcon
+                        color="red"
+                        variant="light"
+                        onClick={() => handleRemoveGuardian(guardian.userId)}
+                        data-testid="studenti-tutore-rimuovi"
+                        aria-label="Rimuovi tutore"
+                      >
+                        <IconTrash size={16} />
+                      </ActionIcon>
+                    </Group>
+                  </Paper>
+                ))}
+
+                <Group align="flex-end" gap="sm">
+                  <TextInput
+                    label="Email genitore esistente"
+                    placeholder="genitore@esempio.com"
+                    style={{ flex: 1 }}
+                    value={guardianEmail}
+                    onChange={(e) => setGuardianEmail(e.currentTarget.value)}
+                  />
+                  <Button
+                    variant="light"
+                    leftSection={<IconUserPlus size={16} />}
+                    loading={guardianLookupLoading}
+                    onClick={handleAddGuardian}
+                    data-testid="studenti-tutore-aggiungi"
+                  >
+                    Aggiungi Tutore
+                  </Button>
+                </Group>
+              </Stack>
+            </div>
+          )}
+
+          {/* Informazioni Genitore/Tutore (contatti di riferimento) */}
           <div className="border-t pt-4">
             <h4 className="text-sm font-medium text-gray-900 mb-3">
               Informazioni Genitore/Tutore
@@ -268,8 +494,8 @@ export function StudentForm({
           </div>
 
           <Group justify="flex-end" mt="xl">
-            <Button 
-              variant="light" 
+            <Button
+              variant="light"
               onClick={onClose}
               radius="lg"
             >
@@ -282,6 +508,7 @@ export function StudentForm({
               variant="gradient"
               gradient={{ from: 'indigo', to: 'purple', deg: 45 }}
               radius="lg"
+              data-testid="studenti-salva"
             >
               {student ? 'Aggiorna' : 'Crea'} Studente
             </Button>

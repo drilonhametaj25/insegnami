@@ -40,6 +40,20 @@ jest.mock('@/lib/api-auth', () => ({
   getTeacherIdForUser: jest.fn(),
 }))
 
+// Mock limiti piano: storage illimitato (l'enforcement quota è testato nei
+// test dedicati al billing, qui interessa solo lo scoping)
+jest.mock('@/lib/billing/limits', () => ({
+  getEffectiveLimits: jest.fn().mockResolvedValue({
+    maxStudents: null,
+    maxTeachers: null,
+    maxClasses: null,
+    storageBytes: null,
+    planSlug: null,
+    addonExtras: { students: 0, teachers: 0, classes: 0, storageGb: 0 },
+  }),
+  getStorageUsedBytes: jest.fn().mockResolvedValue(0),
+}))
+
 // Mock Prisma
 jest.mock('@/lib/db', () => ({
   prisma: {

@@ -25,12 +25,14 @@ import {
   IconMapPin,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import {
   regioni,
   getRegione,
   getProvinceByRegione,
   comuni,
 } from '@/data/italia';
+import { buildPublicMetadata } from '@/lib/seo';
 import { CtaBanner, PUB_GRADIENT } from '@/components/public/PublicUI';
 
 export async function generateStaticParams() {
@@ -53,23 +55,22 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, regione: regioneSlug } = await params;
   const regione = getRegione(regioneSlug);
+  const t = await getTranslations({ locale, namespace: 'public.cities.region' });
 
   if (!regione) {
-    return { title: 'Regione non trovata' };
+    return { title: t('notFound') };
   }
 
-  return {
-    title: `Software Gestione Scuola in ${regione.nome}`,
-    description: `InsegnaMi.pro è il software gestionale scolastico per le scuole di ${regione.nome}. Gestisci studenti, docenti, pagamenti e molto altro. Provalo gratis!`,
-    openGraph: {
-      title: `Software Gestione Scuola in ${regione.nome} | InsegnaMi.pro`,
-      description: `Il miglior software gestionale per scuole in ${regione.nome}. Supporto locale e conformità normative italiane.`,
-      type: 'website',
-    },
-    alternates: {
-      canonical: `https://insegnami.pro/${locale}/citta/${regioneSlug}`,
-    },
-  };
+  // Regioni senza province popolate nel dataset: pagina sottile → noindex
+  const hasProvince = getProvinceByRegione(regioneSlug).length > 0;
+
+  return buildPublicMetadata({
+    locale,
+    path: `/citta/${regioneSlug}`,
+    title: t('metaTitle', { region: regione.nome }),
+    description: t('metaDescription', { region: regione.nome }),
+    noindex: !hasProvince,
+  });
 }
 
 export default async function RegionePage({
@@ -84,6 +85,8 @@ export default async function RegionePage({
     notFound();
   }
 
+  const t = await getTranslations({ locale, namespace: 'public.cities.region' });
+  const tIndex = await getTranslations({ locale, namespace: 'public.cities.index' });
   const province = getProvinceByRegione(regioneSlug);
 
   // Conteggio comuni per provincia
@@ -92,12 +95,15 @@ export default async function RegionePage({
     comuniCount: comuni.filter((c) => c.provincia === prov.codice).length,
   }));
 
+  const featuresList = t.raw('featuresList') as string[];
+  const advantagesList = t.raw('advantagesList') as string[];
+
   // JSON-LD for SEO
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: `Software Gestione Scuola in ${regione.nome}`,
-    description: `InsegnaMi.pro è il software gestionale scolastico per le scuole di ${regione.nome}.`,
+    name: t('metaTitle', { region: regione.nome }),
+    description: t('metaDescription', { region: regione.nome }),
     publisher: {
       '@type': 'Organization',
       name: 'InsegnaMi.pro',
@@ -109,13 +115,13 @@ export default async function RegionePage({
         {
           '@type': 'ListItem',
           position: 1,
-          name: 'Home',
+          name: tIndex('breadcrumbHome'),
           item: `https://insegnami.pro/${locale}`,
         },
         {
           '@type': 'ListItem',
           position: 2,
-          name: 'Città',
+          name: tIndex('breadcrumbCities'),
           item: `https://insegnami.pro/${locale}/citta`,
         },
         {
@@ -141,7 +147,7 @@ export default async function RegionePage({
           <Stack gap="lg">
             <Breadcrumbs>
               <Anchor component={Link} href={`/${locale}`} size="sm" c="indigo.6" underline="hover">
-                Home
+                {tIndex('breadcrumbHome')}
               </Anchor>
               <Anchor
                 component={Link}
@@ -150,7 +156,7 @@ export default async function RegionePage({
                 c="indigo.6"
                 underline="hover"
               >
-                Città
+                {tIndex('breadcrumbCities')}
               </Anchor>
               <Text size="sm" c="dimmed">
                 {regione.nome}
@@ -163,13 +169,15 @@ export default async function RegionePage({
               </ThemeIcon>
               <Box>
                 <Badge size="lg" variant="light" color="indigo" radius="xl" mb="sm">
-                  Regione
+                  {t('badge')}
                 </Badge>
                 <Title fz={{ base: rem(28), sm: rem(34) }} fw={900} lh={1.15} c="var(--pub-ink)" mb={8}>
-                  Software Gestione Scuola in {regione.nome}
+                  {t('title', { region: regione.nome })}
                 </Title>
                 <Text size="lg" c="dimmed">
-                  {province.length} province servite dal nostro software gestionale
+                  {province.length > 0
+                    ? t('subtitleProvinces', { count: province.length })
+                    : t('subtitleNoProvinces', { region: regione.nome })}
                 </Text>
               </Box>
             </Group>
@@ -193,18 +201,21 @@ export default async function RegionePage({
             >
               <Group gap={6} wrap="nowrap">
                 <IconArrowLeft size={16} />
-                Tutte le regioni
+                {t('backLink')}
               </Group>
             </Anchor>
 
             {/* Introduzione */}
             <Box>
               <Title order={2} fz={{ base: rem(26), sm: rem(30) }} fw={800} c="var(--pub-ink)" mb="md">
-                Province in {regione.nome}
+                {provinceWithCounts.length > 0
+                  ? t('provincesTitle', { region: regione.nome })
+                  : t('noProvincesTitle', { region: regione.nome })}
               </Title>
               <Text size="lg" c="dimmed" maw={800}>
-                InsegnaMi.pro è disponibile in tutte le province della regione {regione.nome}.
-                Seleziona la tua provincia per trovare scuole e informazioni nella tua zona.
+                {provinceWithCounts.length > 0
+                  ? t('provincesIntro', { region: regione.nome })
+                  : t('noProvincesIntro', { region: regione.nome })}
               </Text>
             </Box>
 
@@ -237,17 +248,15 @@ export default async function RegionePage({
                         </Badge>
                       </Group>
                       <Text size="sm" c="dimmed">
-                        Software gestionale per scuole in provincia di {prov.nome}
+                        {t('provinceCardText', { province: prov.nome })}
                       </Text>
                       <Group justify="space-between" mt="auto">
                         {prov.comuniCount > 0 ? (
                           <Badge color="indigo" variant="light" size="sm" radius="xl">
-                            {prov.comuniCount} {prov.comuniCount === 1 ? 'comune' : 'comuni'}
+                            {t('comuniCount', { count: prov.comuniCount })}
                           </Badge>
                         ) : (
-                          <Badge color="gray" variant="light" size="sm" radius="xl">
-                            In arrivo
-                          </Badge>
+                          <span />
                         )}
                         <IconArrowRight size={18} color="var(--mantine-color-indigo-6)" />
                       </Group>
@@ -256,10 +265,25 @@ export default async function RegionePage({
                 ))}
               </SimpleGrid>
             ) : (
-              <Card withBorder padding="xl" radius="lg" ta="center">
-                <Text c="dimmed">
-                  Dati delle province in arrivo. Contattaci per informazioni sulla tua zona.
-                </Text>
+              <Card withBorder padding="xl" radius="lg">
+                <Stack gap="sm">
+                  <Title order={3} fz={rem(20)} fw={700} c="var(--pub-ink)">
+                    {t('everywhereTitle', { region: regione.nome })}
+                  </Title>
+                  <Text c="dimmed">
+                    {t('everywhereText')}
+                  </Text>
+                  <Anchor
+                    component={Link}
+                    href={`/${locale}/contact`}
+                    size="sm"
+                    c="indigo.6"
+                    fw={600}
+                    underline="hover"
+                  >
+                    {t('contactCta')}
+                  </Anchor>
+                </Stack>
               </Card>
             )}
           </Stack>
@@ -271,18 +295,15 @@ export default async function RegionePage({
         <Container size="xl">
           <Card padding="xl" radius="lg" withBorder bg="white">
             <Title order={2} fz={{ base: rem(26), sm: rem(30) }} fw={800} c="var(--pub-ink)" mb="md">
-              InsegnaMi.pro in {regione.nome}
+              {t('seoTitle', { region: regione.nome })}
             </Title>
             <Text mb="md" c="dimmed">
-              InsegnaMi.pro è il software gestionale scolastico pensato per le scuole di{' '}
-              {regione.nome}. Offriamo una soluzione completa per la gestione di scuole private,
-              accademie musicali, scuole di danza, centri di formazione e istituti educativi di
-              ogni tipo.
+              {t('seoText', { region: regione.nome })}
             </Text>
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" mt="lg">
               <Stack gap="sm">
                 <Title order={4} fz={rem(18)} fw={700} c="var(--pub-ink)">
-                  Funzionalità Principali
+                  {t('featuresTitle')}
                 </Title>
                 <List
                   spacing={8}
@@ -294,16 +315,14 @@ export default async function RegionePage({
                     </ThemeIcon>
                   }
                 >
-                  <ListItem>Gestione studenti e iscrizioni</ListItem>
-                  <ListItem>Registro presenze digitale</ListItem>
-                  <ListItem>Gestione docenti e orari</ListItem>
-                  <ListItem>Fatturazione e pagamenti</ListItem>
-                  <ListItem>Comunicazioni con famiglie</ListItem>
+                  {featuresList.map((item) => (
+                    <ListItem key={item}>{item}</ListItem>
+                  ))}
                 </List>
               </Stack>
               <Stack gap="sm">
                 <Title order={4} fz={rem(18)} fw={700} c="var(--pub-ink)">
-                  Vantaggi per le Scuole in {regione.nome}
+                  {t('advantagesTitle', { region: regione.nome })}
                 </Title>
                 <List
                   spacing={8}
@@ -315,11 +334,9 @@ export default async function RegionePage({
                     </ThemeIcon>
                   }
                 >
-                  <ListItem>Supporto in italiano dedicato</ListItem>
-                  <ListItem>Conformità GDPR e normative italiane</ListItem>
-                  <ListItem>Interfaccia semplice e intuitiva</ListItem>
-                  <ListItem>Prezzi accessibili per ogni dimensione</ListItem>
-                  <ListItem>Prova gratuita di 14 giorni</ListItem>
+                  {advantagesList.map((item) => (
+                    <ListItem key={item}>{item}</ListItem>
+                  ))}
                 </List>
               </Stack>
             </SimpleGrid>
@@ -330,8 +347,8 @@ export default async function RegionePage({
       {/* CTA finale */}
       <CtaBanner
         locale={locale}
-        title="Prova InsegnaMi.pro nella Tua Scuola"
-        subtitle={`Porta la gestione della tua scuola in ${regione.nome} nel digitale. Prova gratuita di 14 giorni, nessun impegno.`}
+        title={t('ctaTitle')}
+        subtitle={t('ctaSubtitle', { region: regione.nome })}
       />
     </>
   );

@@ -6,8 +6,10 @@
  *    (finestra Europe/Rome), raggruppato per genitore, una notifica per genitore
  */
 
+const mockCronQueueAdd = jest.fn().mockResolvedValue({ id: 'job-1' })
+
 jest.mock('bullmq', () => ({
-  Queue: jest.fn(),
+  Queue: jest.fn().mockImplementation(() => ({ add: mockCronQueueAdd })),
   Worker: jest.fn(),
 }))
 
@@ -22,7 +24,11 @@ jest.mock('@/lib/logger', () => ({
 jest.mock('@/lib/db', () => ({
   prisma: {
     attendance: { findMany: jest.fn() },
-    automationRun: { create: jest.fn(), update: jest.fn() },
+    automationRun: { create: jest.fn(), update: jest.fn(), deleteMany: jest.fn() },
+    subscription: { findMany: jest.fn(), update: jest.fn() },
+    // guardian-aware digest: [] = solo il fallback legacy parentUser
+    studentGuardian: { findMany: jest.fn().mockResolvedValue([]) },
+    user: { findMany: jest.fn().mockResolvedValue([]) },
   },
 }))
 
@@ -38,7 +44,26 @@ jest.mock('@/lib/notifications/dispatcher', () => ({
   createAndDispatch: jest.fn(),
 }))
 
-import { parentAttendanceDigest, withAuditRun } from '@/lib/workers/cron-scheduler'
+// Import dinamici dei nuovi job cron
+jest.mock('@/lib/tenant-access', () => ({
+  invalidateTenantAccessCache: jest.fn().mockResolvedValue(undefined),
+}))
+
+jest.mock('@/lib/notification-service', () => ({
+  NotificationService: { cleanupExpiredNotifications: jest.fn() },
+}))
+
+jest.mock('@/lib/email-queue', () => ({
+  EmailQueueMonitor: { cleanOldJobs: jest.fn() },
+}))
+
+import {
+  parentAttendanceDigest,
+  withAuditRun,
+  registerCronJobs,
+  retentionAutomationRuns,
+  expireStaleSubscriptions,
+} from '@/lib/workers/cron-scheduler'
 
 const { prisma } = require('@/lib/db')
 const { createAndDispatch } = require('@/lib/notifications/dispatcher')
@@ -246,5 +271,143 @@ describe('withAuditRun', () => {
       expect.stringContaining('AutomationRun bookkeeping failed'),
       expect.any(Error)
     )
+  })
+
+  it('tenantId opzionale: popolato sulla create quando il job è tenant-specifico', async () => {
+    const fn = jest.fn().mockResolvedValue({ ok: true })
+
+    await withAuditRun('daily-automation', fn, 'tenant-42')
+
+    expect(prisma.automationRun.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ tenantId: 'tenant-42' }),
+      })
+    )
+  })
+})
+
+describe('registerCronJobs — job di igiene (3C2)', () => {
+  const ORIGINAL_REDIS_URL = process.env.REDIS_URL
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    process.env.REDIS_URL = 'redis://localhost:6379'
+  })
+
+  afterAll(() => {
+    if (ORIGINAL_REDIS_URL === undefined) {
+      delete process.env.REDIS_URL
+    } else {
+      process.env.REDIS_URL = ORIGINAL_REDIS_URL
+    }
+  })
+
+  it('registra i job storici E i nuovi job di igiene con pattern e jobId stabile', async () => {
+    await registerCronJobs()
+
+    const registered = mockCronQueueAdd.mock.calls.map((c: any[]) => c[0])
+    expect(registered).toEqual(
+      expect.arrayContaining([
+        'daily-automation',
+        'mark-payments-overdue',
+        'parent-attendance-digest',
+        'deactivate-expired-tenants',
+        'auto-complete-lessons',
+        'trial-ending-reminder',
+        // nuovi job di igiene
+        'cleanup-notifications',
+        'retention-automation-runs',
+        'email-queue-clean',
+        'expire-stale-subscriptions',
+      ])
+    )
+
+    // Ogni registrazione è un repeatable job con jobId stabile cron:<name>
+    for (const call of mockCronQueueAdd.mock.calls) {
+      const [name, , opts] = call
+      expect(opts).toEqual(
+        expect.objectContaining({
+          jobId: `cron:${name}`,
+          repeat: expect.objectContaining({ pattern: expect.any(String), tz: 'Europe/Rome' }),
+        })
+      )
+    }
+  })
+})
+
+describe('retentionAutomationRuns', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    prisma.automationRun.deleteMany.mockResolvedValue({ count: 7 })
+  })
+
+  it('elimina le run più vecchie di 90 giorni', async () => {
+    const before = Date.now()
+    const result = await retentionAutomationRuns()
+
+    expect(result).toEqual({ deleted: 7 })
+    const arg = prisma.automationRun.deleteMany.mock.calls[0][0]
+    const cutoff: Date = arg.where.startedAt.lt
+    const expectedCutoff = before - 90 * 24 * 60 * 60 * 1000
+    // Il cutoff è ~90 giorni fa (tolleranza di qualche secondo)
+    expect(Math.abs(cutoff.getTime() - expectedCutoff)).toBeLessThan(10_000)
+  })
+})
+
+describe('expireStaleSubscriptions', () => {
+  const { invalidateTenantAccessCache } = require('@/lib/tenant-access')
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    prisma.subscription.update.mockResolvedValue({})
+  })
+
+  it('TRIALING con trialEnd passato → UNPAID + invalidazione cache tenant', async () => {
+    prisma.subscription.findMany.mockResolvedValue([
+      { id: 'sub-1', tenantId: 'tenant-1' },
+      { id: 'sub-2', tenantId: 'tenant-2' },
+    ])
+
+    const result = await expireStaleSubscriptions()
+
+    expect(result).toEqual({ expired: 2 })
+
+    // Query sui field reali di Subscription
+    const where = prisma.subscription.findMany.mock.calls[0][0].where
+    expect(where.status).toBe('TRIALING')
+    expect(where.trialEnd).toEqual(expect.objectContaining({ lt: expect.any(Date) }))
+
+    expect(prisma.subscription.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'sub-1' },
+        data: { status: 'UNPAID' },
+      })
+    )
+    expect(invalidateTenantAccessCache).toHaveBeenCalledWith('tenant-1')
+    expect(invalidateTenantAccessCache).toHaveBeenCalledWith('tenant-2')
+  })
+
+  it('un tenant problematico non blocca gli altri', async () => {
+    prisma.subscription.findMany.mockResolvedValue([
+      { id: 'sub-1', tenantId: 'tenant-1' },
+      { id: 'sub-2', tenantId: 'tenant-2' },
+    ])
+    prisma.subscription.update
+      .mockRejectedValueOnce(new Error('db lock'))
+      .mockResolvedValueOnce({})
+
+    const result = await expireStaleSubscriptions()
+
+    expect(result).toEqual({ expired: 1 })
+    expect(logger.warn).toHaveBeenCalled()
+  })
+
+  it('nessun trial scaduto → nessuna update', async () => {
+    prisma.subscription.findMany.mockResolvedValue([])
+
+    const result = await expireStaleSubscriptions()
+
+    expect(result).toEqual({ expired: 0 })
+    expect(prisma.subscription.update).not.toHaveBeenCalled()
   })
 })

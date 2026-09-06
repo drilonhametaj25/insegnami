@@ -43,6 +43,7 @@ import { useClasses } from '@/lib/hooks/useClasses';
 import { useAcademicYears } from '@/lib/hooks/useAcademicYears';
 import { ReportCardsList } from '@/components/report-cards/ReportCardsList';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
+import { usePermission } from '@/lib/hooks/usePermissions';
 
 export default function ReportCardsPage() {
   const { data: session } = useSession();
@@ -62,11 +63,11 @@ export default function ReportCardsPage() {
   const [generateClassId, setGenerateClassId] = useState<string | null>(null);
   const [generatePeriodId, setGeneratePeriodId] = useState<string | null>(null);
 
-  const canManage =
-    session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN';
+  // Matrice: chi genera pagelle (ADMIN, DIRECTOR, TEACHER)
+  const canManage = usePermission('create', 'reportCard');
 
   // Fetch data
-  const { data: classesData } = useClasses();
+  const { data: classesData } = useClasses(1, 20, { all: 'true' }); // lista completa per i filtri
   const classes = classesData?.classes || [];
 
   const { data: academicYearsData } = useAcademicYears();

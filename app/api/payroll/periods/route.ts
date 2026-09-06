@@ -11,7 +11,7 @@ const createSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'read', resource: 'payroll' } });
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'payroll' }, feature: 'payroll' });
     const sp = request.nextUrl.searchParams;
     const year = sp.get('year') ? parseInt(sp.get('year')!, 10) : undefined;
     const status = sp.get('status') ?? undefined;
@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
       include: {
-        _count: { select: { payrolls: true } },
+        // Per i TEACHER anche il conteggio è filtrato sui propri cedolini
+        _count: { select: { payrolls: payrollsWhere ? { where: payrollsWhere } : true } },
         payrolls: {
           where: payrollsWhere,
           orderBy: { createdAt: 'asc' },
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'create', resource: 'payroll' } });
+    const ctx = await requireAuth({ permission: { action: 'create', resource: 'payroll' }, feature: 'payroll' });
     const body = await request.json().catch(() => ({}));
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {

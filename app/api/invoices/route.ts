@@ -48,7 +48,7 @@ const createSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'read', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'invoice' }, feature: 'einvoicing' });
 
     const sp = request.nextUrl.searchParams;
     const page = Math.max(parseInt(sp.get('page') ?? '1', 10), 1);
@@ -64,10 +64,16 @@ export async function GET(request: NextRequest) {
     if (year) where.year = year;
     if (customerProfileId) where.customerProfileId = customerProfileId;
 
-    // PARENT: only invoices whose customerProfile points at one of their children.
+    // PARENT: only invoices whose customerProfile points at one of their children
+    // (guardian-aware: StudentGuardian + fallback legacy parentUserId).
     if (ctx.role === 'PARENT') {
       where.customerProfile = {
-        student: { parentUserId: ctx.userId },
+        student: {
+          OR: [
+            { parentUserId: ctx.userId },
+            { guardians: { some: { userId: ctx.userId } } },
+          ],
+        },
       };
     }
 
@@ -100,7 +106,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'create', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'create', resource: 'invoice' }, feature: 'einvoicing' });
 
     const body = await request.json().catch(() => ({}));
     const parsed = createSchema.safeParse(body);
@@ -180,6 +186,15 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     const r = authError(err);
     if (r) return r;
+    // Vincolo di unicità (tenantId, seriesId, year, number) violato: in
+    // produzione esiste un partial unique WHERE number > 0. Race sulla
+    // numerazione → 409 esplicito invece di un opaco 500.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Numero fattura già assegnato per questo sezionale/anno. Riprova: la numerazione è stata aggiornata da un\'altra operazione.' },
+        { status: 409 },
+      );
+    }
     console.error('invoices POST error', err);
     return NextResponse.json({ error: 'Errore interno' }, { status: 500 });
   }

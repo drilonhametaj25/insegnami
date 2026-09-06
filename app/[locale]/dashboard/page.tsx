@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Container, Title, Grid, Group, Text, Badge, LoadingOverlay, Skeleton, Paper } from '@mantine/core';
 import { IconDashboard, IconSparkles } from '@tabler/icons-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import DashboardStats from '@/components/cards/DashboardStats';
 import { LessonCalendar } from '@/components/calendar/LessonCalendar';
 import RecentActivity, { type Activity } from '@/components/tables/RecentActivity';
@@ -16,10 +17,52 @@ import { useCalendarLessons } from '@/lib/hooks/useLessons';
 import { useNotices } from '@/lib/hooks/useNotices';
 import { useOverviewStats } from '@/lib/hooks/useAnalytics';
 
+// Rotte dashboard dedicate per i ruoli non amministrativi.
+const ROLE_HOME: Record<string, string> = {
+  STUDENT: '/dashboard/student',
+  PARENT: '/dashboard/parent',
+  TEACHER: '/dashboard/teacher',
+};
+
 export default function DashboardPage() {
   const { data: session } = useSession();
+  const router = useRouter();
+  const locale = useLocale();
+
+  const role = session?.user?.role;
+  const roleHome = role ? ROLE_HOME[role] : undefined;
+
+  useEffect(() => {
+    if (roleHome) {
+      router.replace(`/${locale}${roleHome}`);
+    }
+  }, [roleHome, locale, router]);
+
+  // In attesa di sessione o in corso di redirect: nessun hook admin deve partire.
+  if (!session?.user || roleHome) {
+    return (
+      <Container
+        size="xl"
+        py="md"
+        style={{
+          background: 'var(--mantine-color-body)',
+          minHeight: '100vh',
+        }}
+      >
+        <LoadingOverlay visible />
+      </Container>
+    );
+  }
+
+  return <AdminDashboard />;
+}
+
+// Dashboard amministrativa (ADMIN/SUPERADMIN/DIRECTOR/SECRETARY): montata solo
+// dopo il gate sul ruolo, così gli hook dati admin non partono per gli altri ruoli.
+function AdminDashboard() {
+  const { data: session } = useSession();
   const t = useTranslations('dashboard');
-  
+
   // TanStack Query hooks for dashboard data
   const { 
     data: studentsData, 

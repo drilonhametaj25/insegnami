@@ -3,24 +3,34 @@ import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { checkClassLimit } from '@/lib/plan-limits';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import {
+  requireAuth,
+  authError,
+  getTeacherIdForUser,
+  getStudentIdForUser,
+  getChildStudentIds,
+} from '@/lib/api-auth';
+
+// Ruoli con visibilità completa: solo loro possono usare ?all=true e
+// ?include=students (elenco iscritti con email).
+const ROSTER_ROLES = ['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER'];
 
 // GET /api/classes - Get classes
 export async function GET(request: NextRequest) {
   try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Wave 2: PARENT ammesso ma filtrato sulle classi dei figli
+    const ctx = await requireAuth({
+      roles: ['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER', 'STUDENT', 'PARENT'],
+    });
 
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
+    const canSeeRoster = ROSTER_ROLES.includes(ctx.role);
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     // `?all=true` returns up to 1000 classes (used by dropdowns / pickers
     // that need the full list, e.g. /dashboard/grades). Capped to prevent
     // accidental DOS via wide selects.
-    const limit = searchParams.get('all') === 'true'
+    const limit = canSeeRoster && searchParams.get('all') === 'true'
       ? 1000
       : parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
@@ -35,9 +45,9 @@ export async function GET(request: NextRequest) {
 
     // Build where clause with tenant scoping
     const where: any = {};
-    
-    if (session.user.role !== 'SUPERADMIN') {
-      where.tenantId = session.user.tenantId;
+
+    if (!ctx.isSuperAdmin) {
+      where.tenantId = ctx.tenantId;
     }
 
     // Search filters
@@ -63,17 +73,11 @@ export async function GET(request: NextRequest) {
     }
 
     // For teachers, only show their own classes
-    if (session.user.role === 'TEACHER') {
-      // Find teacher record for current user
-      const teacher = await prisma.teacher.findFirst({
-        where: {
-          email: session.user.email!,
-          tenantId: session.user.tenantId,
-        },
-      });
+    if (ctx.role === 'TEACHER') {
+      const tid = await getTeacherIdForUser(ctx);
 
-      if (teacher) {
-        where.teacherId = teacher.id;
+      if (tid) {
+        where.teacherId = tid;
       } else {
         // If no teacher record found, return empty
         return NextResponse.json({
@@ -86,6 +90,24 @@ export async function GET(request: NextRequest) {
           },
         });
       }
+    } else if (ctx.role === 'STUDENT') {
+      // Solo le classi a cui lo studente è iscritto; profilo non risolvibile
+      // → filtro sentinella che non matcha nulla (mai dati altrui)
+      const sid = await getStudentIdForUser(ctx);
+      where.students = {
+        some: {
+          studentId: sid ?? '__no_student__',
+        },
+      };
+    } else if (ctx.role === 'PARENT') {
+      // Solo le classi dei figli (guardian + fallback parentUserId);
+      // include=students resta vietato come per STUDENT (canSeeRoster false)
+      const childIds = await getChildStudentIds(ctx);
+      where.students = {
+        some: {
+          studentId: { in: childIds.length > 0 ? childIds : ['__none__'] },
+        },
+      };
     }
 
     // Build include clause
@@ -125,9 +147,10 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    // Add detailed includes if requested
+    // Add detailed includes if requested (elenco iscritti solo per ruoli con
+    // visibilità completa: per STUDENT include=students viene ignorato)
     const includeOptions = include.split(',').filter(Boolean);
-    if (includeOptions.includes('students')) {
+    if (canSeeRoster && includeOptions.includes('students')) {
       includeClause.students = {
         where: { isActive: true },
         include: {
@@ -214,6 +237,10 @@ export async function GET(request: NextRequest) {
       id: cls.id,
       code: cls.code,
       name: cls.name,
+      description: cls.description,
+      level: cls.level,
+      room: cls.room,
+      monthlyPrice: cls.monthlyPrice,
       maxStudents: cls.maxStudents,
       startDate: cls.startDate,
       endDate: cls.endDate,
@@ -239,6 +266,8 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     console.error('Classes GET error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -287,6 +316,11 @@ export async function POST(request: NextRequest) {
       maxStudents,
       startDate,
       endDate,
+      // Dettagli operativi persistiti sul modello Class
+      description,
+      level,
+      room,
+      monthlyPrice,
     } = body;
 
     // Validation
@@ -347,6 +381,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate monthlyPrice
+    if (monthlyPrice !== undefined && monthlyPrice !== null && monthlyPrice !== '') {
+      const price = Number(monthlyPrice);
+      if (isNaN(price) || price < 0) {
+        return NextResponse.json(
+          { error: 'Monthly price must be a non-negative number' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Generate unique class code
     const tenantId = session.user.role === 'SUPERADMIN' ? course.tenantId : session.user.tenantId;
     let code: string = '';
@@ -388,6 +433,13 @@ export async function POST(request: NextRequest) {
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : undefined,
         isActive: true,
+        description: description || null,
+        level: level || null,
+        room: room || null,
+        monthlyPrice:
+          monthlyPrice !== undefined && monthlyPrice !== null && monthlyPrice !== ''
+            ? Number(monthlyPrice)
+            : null,
       },
       include: {
         course: {
@@ -428,6 +480,10 @@ export async function POST(request: NextRequest) {
       id: newClass.id,
       code: newClass.code,
       name: newClass.name,
+      description: newClass.description,
+      level: newClass.level,
+      room: newClass.room,
+      monthlyPrice: newClass.monthlyPrice,
       maxStudents: newClass.maxStudents,
       startDate: newClass.startDate,
       endDate: newClass.endDate,

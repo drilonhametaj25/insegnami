@@ -30,7 +30,9 @@ export async function getEffectiveLimits(tenantId: string): Promise<EffectiveLim
   ]);
 
   const plan = subscription?.plan ?? null;
-  const planSlug = plan?.slug ?? tenant?.plan ?? null;
+  // Normalizzato lowercase: il webhook Stripe storicamente scriveva
+  // tenant.plan in MAIUSCOLO e le mappe per slug sono minuscole.
+  const planSlug = (plan?.slug ?? tenant?.plan ?? null)?.toLowerCase() ?? null;
 
   // Somma pacchetti add-on per tipo → entità extra
   const extraUnits = (type: AddonType) =>
@@ -47,7 +49,10 @@ export async function getEffectiveLimits(tenantId: string): Promise<EffectiveLim
   const withExtra = (base: number | null | undefined, extra: number) =>
     base == null ? null : base + extra;
 
-  const baseStorageGb = planSlug ? PLAN_BASE_STORAGE_GB[planSlug] ?? 1 : 1;
+  // ATTENZIONE: null = illimitato (Enterprise). Niente `?? 1`, che lo
+  // trasformerebbe in 1 GB: si usa il check di presenza della chiave.
+  const baseStorageGb =
+    planSlug && planSlug in PLAN_BASE_STORAGE_GB ? PLAN_BASE_STORAGE_GB[planSlug] : 1;
   const storageBytes =
     baseStorageGb == null ? null : (baseStorageGb + extraStorageGb) * GB;
 

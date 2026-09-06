@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
@@ -41,12 +40,13 @@ import {
   DisciplinaryNote,
 } from '@/lib/hooks/useDisciplinaryNotes';
 import { useClasses } from '@/lib/hooks/useClasses';
+import { useStudents } from '@/lib/hooks/useStudents';
+import { usePermission } from '@/lib/hooks/usePermissions';
 import { DisciplinaryNoteForm } from '@/components/forms/DisciplinaryNoteForm';
 import { NotesList, NotesStats } from '@/components/disciplinary/NotesList';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 
 export default function DisciplinaryNotesPage() {
-  const { data: session } = useSession();
   const params = useParams();
   // BUG-052 fix: Safe cast with fallback for useParams
   const locale = typeof params?.locale === 'string' ? params.locale : 'it';
@@ -58,18 +58,27 @@ export default function DisciplinaryNotesPage() {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string | null>(null);
   const [filterResolved, setFilterResolved] = useState<string>('all');
+  // Classe scelta nel form di creazione (guida la lista studenti)
+  const [newNoteClassId, setNewNoteClassId] = useState<string | null>(null);
 
-  const canManage =
-    session?.user?.role === 'ADMIN' ||
-    session?.user?.role === 'SUPERADMIN' ||
-    session?.user?.role === 'TEACHER';
+  // Gating via matrice permessi (niente confronti ruolo hardcoded)
+  const canCreate = usePermission('create', 'disciplinaryNote');
+  const canManage = usePermission('update', 'disciplinaryNote');
+  const canDelete = usePermission('delete', 'disciplinaryNote');
+  const canNotify = usePermission('update', 'disciplinaryNote');
 
-  const canDelete =
-    session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN';
-
-  // Fetch classes for filter
-  const { data: classesData } = useClasses();
+  // Fetch classes for filter (lista completa per i filtri)
+  const { data: classesData } = useClasses(1, 20, { all: 'true' });
   const classes = classesData?.classes || [];
+
+  // Studenti della classe scelta nel form di creazione (lista completa)
+  const { data: newNoteStudentsData } = useStudents(1, 100, {
+    classId: newNoteClassId || undefined,
+    all: 'true',
+  });
+  const newNoteStudents = newNoteClassId
+    ? newNoteStudentsData?.students || []
+    : [];
 
   // Fetch disciplinary notes
   const {
@@ -91,7 +100,36 @@ export default function DisciplinaryNotesPage() {
 
   const handleAddNote = () => {
     setEditingNote(null);
+    setNewNoteClassId(null);
     open();
+  };
+
+  const handleNotifyParent = async (note: DisciplinaryNote) => {
+    try {
+      const response = await fetch(
+        `/api/disciplinary-notes/${note.id}/notify-parent`,
+        { method: 'POST' }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Errore nella notifica al genitore');
+      }
+      notifications.show({
+        title: tCommon('success'),
+        message: data.message || 'Genitore notificato',
+        color: 'green',
+        icon: <IconCheck />,
+      });
+      refetch();
+    } catch (error) {
+      notifications.show({
+        title: tCommon('error'),
+        message:
+          error instanceof Error ? error.message : 'Errore nella notifica',
+        color: 'red',
+        icon: <IconX />,
+      });
+    }
   };
 
   const handleEditNote = (note: DisciplinaryNote) => {
@@ -140,12 +178,12 @@ export default function DisciplinaryNotesPage() {
         icon: <IconCheck />,
       });
     } else {
-      // For new notes, we need studentId and classId from form
-      // This will be handled by a different flow with student selection
+      await createNote.mutateAsync(data);
       notifications.show({
-        title: tCommon('info'),
-        message: t('selectStudentFirst'),
-        color: 'blue',
+        title: tCommon('success'),
+        message: t('createSuccess'),
+        color: 'green',
+        icon: <IconCheck />,
       });
     }
   };
@@ -190,6 +228,15 @@ export default function DisciplinaryNotesPage() {
             >
               {tCommon('refresh')}
             </Button>
+            {canCreate && (
+              <Button
+                leftSection={<IconPlus size={16} />}
+                onClick={handleAddNote}
+                data-testid="disciplinary-nuova-nota"
+              >
+                {t('addNote')}
+              </Button>
+            )}
           </Group>
         </Group>
 
@@ -274,21 +321,16 @@ export default function DisciplinaryNotesPage() {
           loading={isLoading}
           onEdit={canManage ? handleEditNote : undefined}
           onDelete={canDelete ? handleDeleteNote : undefined}
+          onNotifyParent={canNotify ? handleNotifyParent : undefined}
           showStudent={true}
           showClass={true}
           canEdit={canManage}
           canDelete={canDelete}
+          canNotify={canNotify}
         />
-
-        {/* Info for adding notes */}
-        {canManage && (
-          <Alert icon={<IconInfoCircle />} color="blue" variant="light">
-            {t('addNoteInfo')}
-          </Alert>
-        )}
       </Stack>
 
-      {/* Edit Form Modal */}
+      {/* Create/Edit Form Modal */}
       <DisciplinaryNoteForm
         opened={opened}
         onClose={close}
@@ -300,7 +342,13 @@ export default function DisciplinaryNotesPage() {
         }
         className={editingNote?.class?.name}
         onSave={handleSaveNote}
-        loading={updateNote.isPending}
+        loading={updateNote.isPending || createNote.isPending}
+        classOptions={classes.map((c: any) => ({ value: c.id, label: c.name }))}
+        studentOptions={newNoteStudents.map((s: any) => ({
+          value: s.id,
+          label: `${s.lastName} ${s.firstName}`,
+        }))}
+        onClassChange={setNewNoteClassId}
       />
     </Container>
   );

@@ -2,26 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
-import {
-  createNewPrice,
-  deactivatePrice,
-  getStripePrice,
-  updateStripeProduct
-} from '@/lib/stripe';
+import { deactivatePrice, getStripePrice } from '@/lib/stripe';
+import { yearlyPriceOf } from '@/lib/billing/plans-catalog';
 
+// Il catalogo piani (nome, prezzo, limiti, features) è definito nel codice
+// (lib/billing/plans-catalog.ts) e sincronizzato da seed/sync Stripe: via API
+// sono modificabili SOLO i campi di presentazione.
 const updatePlanSchema = z.object({
-  name: z.string().min(2).optional(),
-  description: z.string().nullable().optional(),
-  price: z.number().min(0).optional(),
-  maxStudents: z.number().int().positive().nullable().optional(),
-  maxTeachers: z.number().int().positive().nullable().optional(),
-  maxClasses: z.number().int().positive().nullable().optional(),
-  features: z.record(z.any()).optional(),
   isPopular: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
-  isActive: z.boolean().optional(),
-  syncToStripe: z.boolean().optional().default(true),
 });
+
+// Campi di catalogo il cui aggiornamento via API è esplicitamente rifiutato.
+const CATALOG_ONLY_FIELDS = [
+  'name',
+  'slug',
+  'description',
+  'price',
+  'interval',
+  'maxStudents',
+  'maxTeachers',
+  'maxClasses',
+  'features',
+  'isActive',
+  'stripePriceId',
+  'syncToStripe',
+] as const;
 
 // GET /api/superadmin/plans/[id] - Get plan details
 export async function GET(
@@ -85,8 +91,11 @@ export async function GET(
       }
     }
 
-    // Calculate revenue from this plan
-    const revenueStats = await prisma.subscription.aggregate({
+    // Calculate revenue from this plan, split per intervallo di fatturazione
+    // della SUBSCRIPTION: le annuali contribuiscono al ricavo mensile con il
+    // prezzo annuale (12 mesi al prezzo di 10) spalmato su 12 mesi.
+    const activeByInterval = await prisma.subscription.groupBy({
+      by: ['interval'],
       where: {
         planId: id,
         status: 'ACTIVE',
@@ -94,7 +103,17 @@ export async function GET(
       _count: { id: true },
     });
 
-    const monthlyRevenue = parseFloat(plan.price.toString()) * revenueStats._count.id;
+    const planPrice = parseFloat(plan.price.toString());
+    const monthlyCount =
+      activeByInterval.find((g) => g.interval === 'MONTHLY')?._count.id ?? 0;
+    const yearlyCount =
+      activeByInterval.find((g) => g.interval === 'YEARLY')?._count.id ?? 0;
+    const activeCount = monthlyCount + yearlyCount;
+
+    const monthlyRevenue =
+      plan.interval === 'YEARLY'
+        ? (planPrice / 12) * activeCount
+        : monthlyCount * planPrice + yearlyCount * (yearlyPriceOf(planPrice) / 12);
 
     return NextResponse.json({
       plan: {
@@ -117,7 +136,7 @@ export async function GET(
 
         // Computed fields
         totalSubscriptions: plan._count.subscriptions,
-        activeSubscriptions: revenueStats._count.id,
+        activeSubscriptions: activeCount,
         monthlyRevenue,
         annualRevenue: monthlyRevenue * 12,
 
@@ -157,85 +176,41 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
+
+    // Catalogo read-only: qualsiasi tentativo di modificare campi di catalogo
+    // via API viene rifiutato con 405 (la fonte di verità è il codice).
+    const rejectedFields = CATALOG_ONLY_FIELDS.filter((field) => field in body);
+    if (rejectedFields.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Il catalogo piani è definito nel codice (lib/billing/plans-catalog.ts)',
+          rejectedFields,
+        },
+        { status: 405 }
+      );
+    }
+
     const validatedData = updatePlanSchema.parse(body);
 
     // Check plan exists
     const existing = await prisma.plan.findUnique({
       where: { id },
-      include: {
-        _count: { select: { subscriptions: true } },
-      },
     });
 
     if (!existing) {
       return NextResponse.json({ error: 'Piano non trovato' }, { status: 404 });
     }
 
-    // Handle Stripe sync
-    let newStripePriceId = existing.stripePriceId;
-    const priceChanged = validatedData.price !== undefined &&
-      validatedData.price !== parseFloat(existing.price.toString());
-
-    if (validatedData.syncToStripe && !existing.stripePriceId.startsWith('manual_')) {
-      try {
-        // If price changed, create new price and deactivate old one
-        if (priceChanged) {
-          const stripePrice = await getStripePrice(existing.stripePriceId);
-          const productId = typeof stripePrice.product === 'string'
-            ? stripePrice.product
-            : stripePrice.product?.id;
-
-          if (productId) {
-            // Create new price
-            const newPrice = await createNewPrice({
-              productId,
-              priceAmount: Math.round(validatedData.price! * 100),
-              interval: existing.interval === 'MONTHLY' ? 'month' : 'year',
-              metadata: { planSlug: existing.slug },
-            });
-
-            newStripePriceId = newPrice.id;
-
-            // Deactivate old price (but don't delete - there might be active subscriptions)
-            await deactivatePrice(existing.stripePriceId);
-          }
-        }
-
-        // Update product name/description if changed
-        if (validatedData.name || validatedData.description !== undefined) {
-          const stripePrice = await getStripePrice(existing.stripePriceId);
-          const productId = typeof stripePrice.product === 'string'
-            ? stripePrice.product
-            : stripePrice.product?.id;
-
-          if (productId) {
-            await updateStripeProduct({
-              productId,
-              name: validatedData.name,
-              description: validatedData.description || undefined,
-            });
-          }
-        }
-      } catch (stripeError) {
-        console.error('Stripe sync error:', stripeError);
-        // Don't fail the update, just log the error
-      }
-    }
-
-    // Build update data
-    const updateData: any = {};
-    if (validatedData.name !== undefined) updateData.name = validatedData.name;
-    if (validatedData.description !== undefined) updateData.description = validatedData.description;
-    if (validatedData.price !== undefined) updateData.price = validatedData.price;
-    if (validatedData.maxStudents !== undefined) updateData.maxStudents = validatedData.maxStudents;
-    if (validatedData.maxTeachers !== undefined) updateData.maxTeachers = validatedData.maxTeachers;
-    if (validatedData.maxClasses !== undefined) updateData.maxClasses = validatedData.maxClasses;
-    if (validatedData.features !== undefined) updateData.features = validatedData.features;
+    // Solo campi di presentazione
+    const updateData: { isPopular?: boolean; sortOrder?: number } = {};
     if (validatedData.isPopular !== undefined) updateData.isPopular = validatedData.isPopular;
     if (validatedData.sortOrder !== undefined) updateData.sortOrder = validatedData.sortOrder;
-    if (validatedData.isActive !== undefined) updateData.isActive = validatedData.isActive;
-    if (newStripePriceId !== existing.stripePriceId) {
-      updateData.stripePriceId = newStripePriceId;
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: 'Nessun campo aggiornabile fornito (ammessi: isPopular, sortOrder)' },
+        { status: 400 }
+      );
     }
 
     const plan = await prisma.plan.update({
@@ -246,7 +221,6 @@ export async function PUT(
     return NextResponse.json({
       message: 'Piano aggiornato con successo',
       plan,
-      stripePriceChanged: priceChanged,
     });
   } catch (error) {
     console.error('SuperAdmin plan PUT error:', error);

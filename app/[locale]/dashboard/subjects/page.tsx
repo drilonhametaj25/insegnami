@@ -48,6 +48,7 @@ import {
   Subject,
   CreateSubjectData,
 } from '@/lib/hooks/useSubjects';
+import { usePermission } from '@/lib/hooks/usePermissions';
 
 export default function SubjectsPage() {
   const { data: session } = useSession();
@@ -78,9 +79,9 @@ export default function SubjectsPage() {
   const updateSubject = useUpdateSubject();
   const deleteSubject = useDeleteSubject();
 
-  // Check permissions
-  const canManageSubjects =
-    session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN';
+  // Check permissions (matrice: risorsa 'subject')
+  const canManageSubjects = usePermission('manage', 'subject');
+  const canViewSubjects = usePermission('read', 'subject');
 
   // Navigate to subject detail
   const handleViewSubject = (subjectId: string) => {
@@ -269,7 +270,7 @@ export default function SubjectsPage() {
     },
   ];
 
-  if (!canManageSubjects && session?.user?.role !== 'TEACHER') {
+  if (!canViewSubjects) {
     return (
       <Container size="lg" py="xl">
         <Alert icon={<IconInfoCircle />} color="red">

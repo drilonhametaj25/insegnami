@@ -1,209 +1,161 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { requireAuth, authError, getChildStudentIds } from '@/lib/api-auth';
 
-// GET /api/dashboard/parent - Get parent dashboard data
+// GET /api/dashboard/parent - Dashboard del genitore/tutore (multi-figlio)
 export async function GET(request: NextRequest) {
   try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const ctx = await requireAuth({ roles: ['PARENT'] });
 
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
+    // Figli: StudentGuardian + fallback legacy Student.parentUserId
+    const childIds = await getChildStudentIds(ctx);
 
-    // Only PARENT role can access parent dashboard
-    if (session.user.role !== 'PARENT') {
-      return NextResponse.json({ error: 'Forbidden - Parent access only' }, { status: 403 });
-    }
-
-    // Get all children for this parent
-    const children = await prisma.student.findMany({
-      where: {
-        parentUserId: session.user.id,
-        tenantId: session.user.tenantId,
-      } as any,
-      include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
+    const children = childIds.length
+      ? await prisma.student.findMany({
+          where: {
+            id: { in: childIds },
+            tenantId: ctx.tenantId,
           },
-        },
-        // Include student classes and lessons
-        StudentClass: {
           include: {
-            class: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+              },
+            },
+            classes: {
               include: {
-                course: true,
-                teacher: {
+                class: {
                   include: {
-                    user: true,
+                    course: true,
+                    teacher: {
+                      select: { id: true, firstName: true, lastName: true, email: true },
+                    },
                   },
                 },
               },
             },
           },
-        },
-      } as any,
-    });
+          orderBy: { lastName: 'asc' },
+        })
+      : [];
 
-    if (children.length === 0) {
-      return NextResponse.json({ error: 'No children found for this parent' }, { status: 404 });
-    }
-
-    const childrenIds = children.map(child => child.id);
-
-    // Get upcoming lessons for all children (next 7 days)
+    const childrenIds = children.map((child) => child.id);
     const now = new Date();
     const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    
-    const upcomingLessons = await prisma.lesson.findMany({
-      where: {
-        tenantId: session.user.tenantId,
-        startTime: {
-          gte: now,
-          lte: weekFromNow,
-        },
-        class: {
-          StudentClass: {
-            some: {
-              studentId: {
-                in: childrenIds,
-              },
-            },
-          },
-        },
-      },
-      include: {
-        teacher: {
-          include: {
-            user: true,
-          },
-        },
-        class: {
-          include: {
-            course: true,
-            StudentClass: {
-              where: {
-                studentId: {
-                  in: childrenIds,
-                },
-              },
-              include: {
-                student: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        startTime: 'asc',
-      },
-      take: 20,
-    } as any);
-
-    // Get attendance records for all children (last 30 days)
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    
-    const attendanceRecords = await prisma.attendance.findMany({
-      where: {
-        tenantId: session.user.tenantId,
-        studentId: {
-          in: childrenIds,
-        },
-        recordedAt: {
-          gte: monthAgo,
-        },
-      },
-      include: {
-        student: true,
-        lesson: {
+
+    // Prossime lezioni di tutti i figli (7 giorni)
+    const upcomingLessons = childrenIds.length
+      ? await prisma.lesson.findMany({
+          where: {
+            tenantId: ctx.tenantId,
+            startTime: { gte: now, lte: weekFromNow },
+            class: {
+              students: { some: { studentId: { in: childrenIds } } },
+            },
+          },
           include: {
             teacher: {
-              include: {
-                user: true,
-              },
+              select: { id: true, firstName: true, lastName: true, email: true },
             },
             class: {
               include: {
                 course: true,
+                students: {
+                  where: { studentId: { in: childrenIds } },
+                  include: { student: true },
+                },
               },
             },
           },
-        },
-      },
-      orderBy: {
-        recordedAt: 'desc',
-      },
-      take: 50,
-    } as any);
+          orderBy: { startTime: 'asc' },
+          take: 20,
+        })
+      : [];
 
-    // Get payments for all children
-    const payments = await prisma.payment.findMany({
-      where: {
-        tenantId: session.user.tenantId,
-        studentId: {
-          in: childrenIds,
-        },
-      },
-      include: {
-        student: true,
-      },
-      orderBy: {
-        dueDate: 'desc',
-      },
-      take: 30,
-    } as any);
+    // Presenze ultimi 30 giorni: Attendance non ha tenantId, scoping via lesson
+    const attendanceRecords = childrenIds.length
+      ? await prisma.attendance.findMany({
+          where: {
+            studentId: { in: childrenIds },
+            lesson: {
+              tenantId: ctx.tenantId,
+              startTime: { gte: monthAgo },
+            },
+          },
+          include: {
+            student: true,
+            lesson: {
+              include: {
+                teacher: {
+                  select: { id: true, firstName: true, lastName: true },
+                },
+                class: { include: { course: true } },
+              },
+            },
+          },
+          orderBy: { lesson: { startTime: 'desc' } },
+          take: 50,
+        })
+      : [];
 
-    // Get notices for parents
+    const payments = childrenIds.length
+      ? await prisma.payment.findMany({
+          where: {
+            tenantId: ctx.tenantId,
+            studentId: { in: childrenIds },
+          },
+          include: { student: true },
+          orderBy: { dueDate: 'desc' },
+          take: 30,
+        })
+      : [];
+
+    // Avvisi pubblicati e non scaduti destinati ai genitori
     const notices = await prisma.notice.findMany({
       where: {
-        tenantId: session.user.tenantId,
+        tenantId: ctx.tenantId,
         isPublic: true,
-        targetRoles: {
-          has: 'PARENT',
-        },
+        targetRoles: { has: 'PARENT' },
+        publishAt: { lte: now },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
-      orderBy: {
-        publishAt: 'desc',
-      },
+      orderBy: [{ isPinned: 'desc' }, { isUrgent: 'desc' }, { publishAt: 'desc' }],
       take: 15,
     });
 
-    // Calculate stats for each child
-    const childrenWithStats = children.map((child: any) => {
-      // Get attendance for this child
-      const childAttendance = attendanceRecords.filter(record => record.studentId === child.id);
+    // Statistiche per figlio
+    const childrenWithStats = children.map((child) => {
+      const childAttendance = attendanceRecords.filter((r) => r.studentId === child.id);
       const totalAttendanceRecords = childAttendance.length;
-      const presentRecords = childAttendance.filter(record => record.status === 'PRESENT').length;
-      const attendanceRate = totalAttendanceRecords > 0 ? Math.round((presentRecords / totalAttendanceRecords) * 100) : 0;
+      const presentRecords = childAttendance.filter((r) => r.status === 'PRESENT').length;
+      const attendanceRate =
+        totalAttendanceRecords > 0
+          ? Math.round((presentRecords / totalAttendanceRecords) * 100)
+          : 0;
 
-      // Get next lesson for this child
-      const childUpcomingLessons = upcomingLessons.filter((lesson: any) => 
-        lesson.class.StudentClass.some((sc: any) => sc.studentId === child.id)
+      const childUpcomingLessons = upcomingLessons.filter((lesson) =>
+        lesson.class.students.some((sc) => sc.studentId === child.id)
       );
       const nextLesson = childUpcomingLessons[0] || null;
 
-      // Get classes for this child
-      const childClasses = child.StudentClass?.map((sc: any) => ({
+      const childClasses = child.classes.map((sc) => ({
         id: sc.class.id,
         name: sc.class.name,
-        description: sc.class.description,
-        schedule: sc.class.schedule,
         course: sc.class.course,
         teacher: {
           id: sc.class.teacher.id,
-          name: `${sc.class.teacher.user.firstName} ${sc.class.teacher.user.lastName}`,
-          email: sc.class.teacher.user.email,
+          name: `${sc.class.teacher.firstName} ${sc.class.teacher.lastName}`,
+          email: sc.class.teacher.email,
         },
         enrolledAt: sc.enrolledAt,
-      })) || [];
+      }));
+
+      const childPayments = payments.filter((p) => p.studentId === child.id);
 
       return {
         id: child.id,
@@ -217,59 +169,60 @@ export async function GET(request: NextRequest) {
         enrollmentDate: child.enrollmentDate,
         user: child.user,
 
-        // Stats for this child
         stats: {
           activeCourses: childClasses.length,
           attendanceRate,
           totalLessons: totalAttendanceRecords,
+          pendingPayments: childPayments.filter((p) => p.status === 'PENDING').length,
         },
 
-        // Data for this child
         classes: childClasses,
-        nextLesson: nextLesson ? {
-          id: nextLesson.id,
-          title: nextLesson.title,
-          startTime: nextLesson.startTime,
-          endTime: nextLesson.endTime,
-          teacher: `${(nextLesson as any).teacher.user.firstName} ${(nextLesson as any).teacher.user.lastName}`,
-          course: (nextLesson as any).class.course?.name,
-        } : null,
+        nextLesson: nextLesson
+          ? {
+              id: nextLesson.id,
+              title: nextLesson.title,
+              startTime: nextLesson.startTime,
+              endTime: nextLesson.endTime,
+              teacher: `${nextLesson.teacher.firstName} ${nextLesson.teacher.lastName}`,
+              course: nextLesson.class.course?.name,
+            }
+          : null,
       };
     });
 
-    // Overall stats for parent dashboard
-    const totalActiveCourses = childrenWithStats.reduce((sum, child) => sum + child.stats.activeCourses, 0);
-    const averageAttendanceRate = childrenWithStats.length > 0 
-      ? Math.round(childrenWithStats.reduce((sum, child) => sum + child.stats.attendanceRate, 0) / childrenWithStats.length) 
-      : 0;
-    const totalPendingPayments = payments.filter(p => p.status === 'PENDING').length;
-    const totalUpcomingLessons = upcomingLessons.length;
+    const totalActiveCourses = childrenWithStats.reduce(
+      (sum, child) => sum + child.stats.activeCourses,
+      0
+    );
+    const averageAttendanceRate =
+      childrenWithStats.length > 0
+        ? Math.round(
+            childrenWithStats.reduce((sum, child) => sum + child.stats.attendanceRate, 0) /
+              childrenWithStats.length
+          )
+        : 0;
+    const totalPendingPayments = payments.filter((p) => p.status === 'PENDING').length;
 
-    // Build dashboard data
     const dashboardData = {
       parent: {
-        id: session.user.id,
-        firstName: session.user.firstName,
-        lastName: session.user.lastName,
-        email: (session.user as any).email,
-        phone: (session.user as any).phone,
+        id: ctx.userId,
+        firstName: ctx.session.user.firstName ?? '',
+        lastName: ctx.session.user.lastName ?? '',
+        email: ctx.email,
       },
 
-      // Overall statistics
       stats: {
         enrolledChildren: children.length,
         totalActiveCourses,
         averageAttendanceRate,
-        totalUpcomingLessons,
+        totalUpcomingLessons: upcomingLessons.length,
         totalPendingPayments,
       },
 
-      // Children with their individual stats
       children: childrenWithStats,
 
-      // All upcoming lessons (for calendar)
-      upcomingLessons: upcomingLessons.map((lesson: any) => {
-        const enrolledChildren = lesson.class.StudentClass.map((sc: any) => ({
+      upcomingLessons: upcomingLessons.map((lesson) => {
+        const enrolledChildren = lesson.class.students.map((sc) => ({
           id: sc.student.id,
           name: `${sc.student.firstName} ${sc.student.lastName}`,
         }));
@@ -282,8 +235,8 @@ export async function GET(request: NextRequest) {
           endTime: lesson.endTime,
           status: lesson.status,
           teacher: {
-            name: `${lesson.teacher.user.firstName} ${lesson.teacher.user.lastName}`,
-            email: lesson.teacher.user.email,
+            name: `${lesson.teacher.firstName} ${lesson.teacher.lastName}`,
+            email: lesson.teacher.email,
           },
           class: {
             name: lesson.class.name,
@@ -295,11 +248,10 @@ export async function GET(request: NextRequest) {
         };
       }),
 
-      // All attendance records
-      attendanceRecords: attendanceRecords.map((record: any) => ({
+      attendanceRecords: attendanceRecords.map((record) => ({
         id: record.id,
         status: record.status,
-        recordedAt: record.recordedAt,
+        recordedAt: record.createdAt,
         notes: record.notes,
         child: {
           id: record.student.id,
@@ -309,28 +261,25 @@ export async function GET(request: NextRequest) {
           id: record.lesson.id,
           title: record.lesson.title,
           date: record.lesson.startTime,
-          teacher: `${record.lesson.teacher.user.firstName} ${record.lesson.teacher.user.lastName}`,
+          teacher: `${record.lesson.teacher.firstName} ${record.lesson.teacher.lastName}`,
           course: record.lesson.class.course?.name,
         },
       })),
 
-      // All payments
-      payments: payments.map((payment: any) => ({
+      payments: payments.map((payment) => ({
         id: payment.id,
         amount: payment.amount,
         description: payment.description,
         dueDate: payment.dueDate,
         status: payment.status,
-        paidAt: payment.paidAt,
-        type: payment.type,
+        paidDate: payment.paidDate,
         child: {
           id: payment.student.id,
           name: `${payment.student.firstName} ${payment.student.lastName}`,
         },
       })),
 
-      // Notices
-      notices: notices.map(notice => ({
+      notices: notices.map((notice) => ({
         id: notice.id,
         title: notice.title,
         content: notice.content,
@@ -342,8 +291,9 @@ export async function GET(request: NextRequest) {
     };
 
     return NextResponse.json({ success: true, data: dashboardData });
-
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     console.error('Error fetching parent dashboard:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

@@ -195,19 +195,32 @@ export async function POST(
       },
     });
 
-    // Send notification to parent when published
-    if (action === 'publish' && reportCard.student.parentUserId) {
+    // Send notification to guardians when published (StudentGuardian +
+    // fallback legacy parentUserId, dedup)
+    if (action === 'publish') {
       try {
-        await prisma.notification.create({
-          data: {
-            tenantId: reportCard.tenantId,
-            userId: reportCard.student.parentUserId,
-            title: 'Nuova pagella disponibile',
-            content: `La pagella di ${reportCard.student.firstName} ${reportCard.student.lastName} per il periodo "${reportCard.period.name}" è ora disponibile.`,
-            type: 'REPORT_CARD',
-            priority: 'HIGH',
-          },
+        const guardianLinks = await prisma.studentGuardian.findMany({
+          where: { studentId: reportCard.student.id },
+          select: { userId: true },
         });
+        const recipientIds = Array.from(
+          new Set([
+            ...(reportCard.student.parentUserId ? [reportCard.student.parentUserId] : []),
+            ...guardianLinks.map((g) => g.userId),
+          ])
+        );
+        if (recipientIds.length > 0) {
+          await prisma.notification.createMany({
+            data: recipientIds.map((userId) => ({
+              tenantId: reportCard.tenantId,
+              userId,
+              title: 'Nuova pagella disponibile',
+              content: `La pagella di ${reportCard.student.firstName} ${reportCard.student.lastName} per il periodo "${reportCard.period.name}" è ora disponibile.`,
+              type: 'REPORT_CARD' as const,
+              priority: 'HIGH' as const,
+            })),
+          });
+        }
       } catch (notifError) {
         console.error('Failed to send notification:', notifError);
         // Don't fail the request if notification fails

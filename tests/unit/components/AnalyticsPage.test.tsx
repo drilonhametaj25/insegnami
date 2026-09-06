@@ -112,7 +112,7 @@ describe('Analytics Page', () => {
     })
   })
 
-  it('displays export options', async () => {
+  it('displays export options (solo CSV: excel/pdf non supportati dal server)', async () => {
     render(<AnalyticsPage />)
 
     await waitFor(() => {
@@ -120,11 +120,11 @@ describe('Analytics Page', () => {
       const exportSection = screen.queryByText(/export data/i)
       if (exportSection) {
         expect(exportSection).toBeInTheDocument()
-        
-        // Check for export buttons
+
+        // L'unico formato realmente servito da /api/analytics/export è il CSV
         expect(screen.getByRole('button', { name: /export csv/i })).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: /export excel/i })).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: /export pdf/i })).toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: /export excel/i })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: /export pdf/i })).not.toBeInTheDocument()
       }
     })
   })

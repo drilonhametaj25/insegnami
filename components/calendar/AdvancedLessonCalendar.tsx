@@ -46,6 +46,7 @@ import { modals } from '@mantine/modals';
 import { format, addWeeks, addMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { it } from 'date-fns/locale';
 import AdvancedCalendarComponent from './AdvancedCalendarComponent';
+import { buildRRuleString, parseRecurrenceRule } from '@/lib/lessons/recurrence';
 
 import {
   useLessons,
@@ -346,10 +347,10 @@ export function AdvancedLessonCalendar({
         endTime: formData.endTime.toISOString(),
         room: formData.room,
         isRecurring: formData.isRecurring,
-        recurrenceRule: formData.isRecurring ? JSON.stringify({
-          ...formData.recurrence,
-          endDate: formData.recurrence.endDate?.toISOString(),
-        }) : undefined,
+        // RRULE canonica costruita con la lib rrule (niente più JSON ad hoc)
+        recurrenceRule: formData.isRecurring
+          ? buildRRuleString(formData.recurrence, formData.startTime)
+          : undefined,
       };
 
       if (conflicts.hasConflict) {
@@ -582,13 +583,26 @@ export function AdvancedLessonCalendar({
                       endTime: new Date(selectedLesson.endTime),
                       room: selectedLesson.room || '',
                       isRecurring: selectedLesson.isRecurring,
-                      recurrence: selectedLesson.recurrenceRule 
-                        ? JSON.parse(selectedLesson.recurrenceRule)
-                        : {
-                            frequency: 'weekly',
-                            interval: 1,
-                            weekdays: [],
-                          },
+                      // parseRecurrenceRule capisce sia la RRULE canonica sia
+                      // il JSON legacy dei vecchi record
+                      recurrence: (() => {
+                        const parsed = parseRecurrenceRule(selectedLesson.recurrenceRule);
+                        return parsed
+                          ? {
+                              frequency: (parsed.frequency === 'daily'
+                                ? 'weekly'
+                                : parsed.frequency) as 'weekly' | 'monthly',
+                              interval: parsed.interval ?? 1,
+                              endDate: parsed.endDate ? new Date(parsed.endDate) : undefined,
+                              occurrences: parsed.occurrences ?? undefined,
+                              weekdays: parsed.weekdays ?? [],
+                            }
+                          : {
+                              frequency: 'weekly' as const,
+                              interval: 1,
+                              weekdays: [],
+                            };
+                      })(),
                     });
                     setEditMode(true);
                     setModalOpened(false);

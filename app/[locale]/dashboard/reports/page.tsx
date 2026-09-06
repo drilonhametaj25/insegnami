@@ -127,6 +127,24 @@ export default function ReportsPage() {
     router.push(`/${locale}/dashboard/reports/${id}`);
   };
 
+  // Export CSV via /api/analytics/export sul range del report
+  const ANALYTICS_TYPE_MAP: Record<string, string> = {
+    ATTENDANCE: 'attendance',
+    FINANCIAL: 'financial',
+    PROGRESS: 'trends',
+    OVERVIEW: 'overview',
+    CLASS_ANALYTICS: 'overview',
+    TEACHER_PERFORMANCE: 'overview',
+  };
+
+  const handleExportCsv = (report: { type: string; startDate: string; endDate: string }) => {
+    const type = ANALYTICS_TYPE_MAP[report.type] || 'overview';
+    const start = new Date(report.startDate).getTime();
+    const end = new Date(report.endDate).getTime();
+    const days = Math.max(1, Math.round((end - start) / 86400000));
+    window.open(`/api/analytics/export?format=csv&type=${type}&period=${days}`, '_blank');
+  };
+
   const getBadgeColor = (type: string) => {
     const colors: Record<string, string> = {
       ATTENDANCE: 'blue',
@@ -239,11 +257,12 @@ export default function ReportsPage() {
                           </ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
-                          <Menu.Item leftSection={<IconDownload size={14} />}>
-                            Export PDF
-                          </Menu.Item>
-                          <Menu.Item leftSection={<IconDownload size={14} />}>
-                            Export Excel
+                          <Menu.Item
+                            leftSection={<IconDownload size={14} />}
+                            onClick={() => handleExportCsv(report)}
+                            data-testid="reports-export-csv"
+                          >
+                            Esporta CSV
                           </Menu.Item>
                           <Menu.Divider />
                           <Menu.Item 

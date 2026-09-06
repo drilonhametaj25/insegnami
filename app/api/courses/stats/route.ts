@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { requireAuth, authError, tenantScope } from '@/lib/api-auth';
 
 // GET /api/courses/stats - Get courses statistics
 export async function GET(request: NextRequest) {
   try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'course' } });
 
     // Build where clause with tenant scoping
-    const where: any = {};
-    
-    if (session.user.role !== 'SUPERADMIN') {
-      where.tenantId = session.user.tenantId;
-    }
+    const where: any = tenantScope(ctx);
 
     // Get statistics
     const [
@@ -66,6 +55,8 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     console.error('Course stats error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

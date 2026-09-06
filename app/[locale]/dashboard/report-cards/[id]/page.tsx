@@ -45,6 +45,7 @@ import {
 import { ReportCardPreview } from '@/components/report-cards/ReportCardPreview';
 import { ScrutinioWorkflow } from '@/components/report-cards/ScrutinioWorkflow';
 import { ReportCardEntryForm } from '@/components/forms/ReportCardEntryForm';
+import { usePermission } from '@/lib/hooks/usePermissions';
 
 export default function ReportCardDetailPage() {
   const { data: session } = useSession();
@@ -68,9 +69,9 @@ export default function ReportCardDetailPage() {
   const updateReportCard = useUpdateReportCard();
   const updateEntries = useUpdateReportCardEntries();
 
-  const canEdit =
-    reportCard?.status === 'DRAFT' &&
-    ['ADMIN', 'SUPERADMIN', 'TEACHER'].includes(session?.user?.role || '');
+  // Matrice: chi modifica pagelle (ADMIN, DIRECTOR, TEACHER), solo in stato DRAFT
+  const canUpdateReportCard = usePermission('update', 'reportCard');
+  const canEdit = reportCard?.status === 'DRAFT' && canUpdateReportCard;
 
   const handleEditEntry = (entry: any) => {
     setEditingEntry(entry);

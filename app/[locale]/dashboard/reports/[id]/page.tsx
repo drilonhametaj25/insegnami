@@ -398,15 +398,25 @@ export default function ReportDetailPage() {
     const mapped = ANALYTICS_TYPE_MAP[report.type] || 'overview';
     setMappedType(mapped);
 
-    const start = new Date(report.startDate).getTime();
-    const end = new Date(report.endDate).getTime();
-    const days = Math.max(1, Math.round((end - start) / 86400000));
+    // Snapshot: i dati calcolati alla creazione vivono in report.data.
+    // Fallback al ricalcolo live solo per i report vecchi con data vuoto.
+    if (report.data && typeof report.data === 'object' && Object.keys(report.data).length > 0) {
+      setAnalyticsData(report.data);
+      setAnalyticsLoading(false);
+      setAnalyticsError(false);
+      return;
+    }
 
     let cancelled = false;
     setAnalyticsLoading(true);
     setAnalyticsError(false);
 
-    fetch(`/api/analytics?type=${mapped}&period=${days}`)
+    const start = new Date(report.startDate).toISOString();
+    const end = new Date(report.endDate).toISOString();
+
+    fetch(
+      `/api/analytics?type=${mapped}&startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`
+    )
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load analytics');
         return res.json();

@@ -291,31 +291,6 @@ export function useStudentAttendanceStats(
 }
 
 /**
- * Hook per ottenere il riassunto delle presenze di uno studente
- */
-export function useStudentAttendanceSummary(
-  studentId: string,
-  timeframe: 'week' | 'month' | 'semester' | 'year' = 'month'
-) {
-  const { data: session } = useSession();
-
-  return useQuery({
-    queryKey: attendanceKeys.studentSummary(studentId),
-    queryFn: async (): Promise<StudentAttendanceSummary> => {
-      const response = await fetch(`/api/attendance/summary/student/${studentId}?timeframe=${timeframe}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch student attendance summary: ${response.statusText}`);
-      }
-
-      return response.json();
-    },
-    enabled: !!session?.user && !!studentId,
-    staleTime: 5 * 60 * 1000, // 5 minutes for summaries
-  });
-}
-
-/**
  * Hook per ottenere il riassunto delle presenze di una classe
  */
 export function useClassAttendanceSummary(

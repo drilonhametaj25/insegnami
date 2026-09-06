@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useTranslations } from 'next-intl';
+import { useLocale } from 'next-intl';
+import Link from 'next/link';
 import {
   Container,
   Title,
@@ -11,14 +12,9 @@ import {
   Button,
   Group,
   Stack,
-  Tabs,
   Card,
   Text,
   Badge,
-  Avatar,
-  Progress,
-  ActionIcon,
-  Table,
   LoadingOverlay,
   Skeleton,
   Alert,
@@ -28,47 +24,65 @@ import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import {
   IconCalendar,
-  IconUsers,
   IconClipboardCheck,
   IconBook,
   IconClock,
-  IconCheck,
-  IconX,
-  IconEye,
   IconInfoCircle,
+  IconChecklist,
 } from '@tabler/icons-react';
 
 import { StatsCard } from '@/components/cards/StatsCard';
 import { useCalendarLessons } from '@/lib/hooks/useLessons';
-import { useClasses } from '@/lib/hooks/useClasses';
-import { useAttendance } from '@/lib/hooks/useAttendance';
+import { useTeacherDashboard } from '@/lib/hooks/useDashboard';
 
 const localizer = momentLocalizer(moment);
 
+/** Formatta una data come YYYY-MM-DD per i filtri dell'API lezioni. */
+function toDateParam(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  SCHEDULED: 'blue',
+  IN_PROGRESS: 'yellow',
+  COMPLETED: 'green',
+  CANCELLED: 'gray',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  SCHEDULED: 'Programmata',
+  IN_PROGRESS: 'In corso',
+  COMPLETED: 'Completata',
+  CANCELLED: 'Annullata',
+};
+
 export default function TeacherDashboard() {
   const { data: session } = useSession();
-  const t = useTranslations('teacher');
-  const tc = useTranslations('common');
-  const [activeTab, setActiveTab] = useState('overview');
+  const locale = useLocale();
 
-  // TanStack Query hooks
-  const { 
-    data: lessonsData, 
-    isLoading: lessonsLoading,
-    error: lessonsError
-  } = useCalendarLessons();
+  // Mese visualizzato nel calendario (guida startDate/endDate della query)
+  const [calendarDate, setCalendarDate] = useState<Date>(new Date());
+  const monthRange = useMemo(() => {
+    const start = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1);
+    const end = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0);
+    return { start: toDateParam(start), end: toDateParam(end) };
+  }, [calendarDate]);
 
-  const { 
-    data: classesData, 
-    isLoading: classesLoading 
-  } = useClasses(1, 10, { 
-    teacherId: session?.user?.id // Filter by current teacher
-  });
+  const {
+    data: dashboardResponse,
+    isLoading: dashboardLoading,
+    error: dashboardError,
+  } = useTeacherDashboard();
 
-  const { 
-    data: attendanceData, 
-    isLoading: attendanceLoading 
-  } = useAttendance(1, 20);
+  // Lo scoping docente è server-side: niente filtri client su teacher.id
+  const {
+    data: calendarLessons,
+    isLoading: calendarLoading,
+    error: calendarError,
+  } = useCalendarLessons(monthRange.start, monthRange.end);
 
   if (!session?.user) {
     return (
@@ -78,76 +92,44 @@ export default function TeacherDashboard() {
     );
   }
 
-  const lessons = lessonsData || [];
-  const classes = classesData?.classes || [];
-  const attendanceRecords = attendanceData?.attendance || [];
+  const dashboard = dashboardResponse?.data;
+  const todayLessons = dashboard?.todayLessons ?? [];
+  const pendingAttendance = dashboard?.pendingAttendance ?? [];
+  const upcomingHomework = dashboard?.upcomingHomework ?? [];
+  const weekLessonsCount = dashboard?.weekLessonsCount ?? 0;
 
-  // Filter lessons for current teacher
-  const teacherLessons = lessons.filter(lesson => 
-    lesson.teacher?.id === session?.user?.id
-  );
-
-  // Today's lessons
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-  
-  const todayLessons = teacherLessons.filter(lesson => 
-    lesson.startTime >= todayStart && lesson.startTime <= todayEnd
-  );
-
-  // Transform lessons for calendar
-  const calendarEvents = teacherLessons.map((lesson) => ({
+  const calendarEvents = (calendarLessons ?? []).map((lesson) => ({
     id: lesson.id,
     title: lesson.title,
-    start: lesson.startTime,
-    end: lesson.endTime,
+    start: new Date(lesson.startTime),
+    end: new Date(lesson.endTime),
     resource: lesson,
   }));
 
-  // Real total students across the teacher's classes
-  const totalStudents = classes.reduce(
-    (sum, c) => sum + (c._count?.students ?? c.students?.length ?? 0),
-    0
-  );
-
-  // Real recent attendance for this teacher's lessons (most recent first)
-  const recentAttendance = [...attendanceRecords]
-    .filter((r) => r.lesson?.teacher?.id === session?.user?.id)
-    .sort(
-      (a, b) =>
-        new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
-    )
-    .slice(0, 5);
-
   const stats = [
     {
-      title: t('stats.assignedClasses'),
-      value: classes.length,
-      icon: <IconBook size={24} />,
-      color: 'blue',
-      loading: classesLoading,
-    },
-    {
-      title: t('stats.todayLessons'),
+      title: 'Lezioni di oggi',
       value: todayLessons.length,
       icon: <IconCalendar size={24} />,
       color: 'green',
-      loading: lessonsLoading,
     },
     {
-      title: t('stats.totalStudents'),
-      value: totalStudents,
-      icon: <IconUsers size={24} />,
-      color: 'violet',
-      loading: classesLoading,
-    },
-    {
-      title: t('stats.attendanceToConfirm'),
-      value: 0, // No pending status in our enum, using 0 as placeholder
+      title: 'Presenze da registrare',
+      value: pendingAttendance.length,
       icon: <IconClipboardCheck size={24} />,
       color: 'orange',
-      loading: attendanceLoading,
+    },
+    {
+      title: 'Lezioni questa settimana',
+      value: weekLessonsCount,
+      icon: <IconBook size={24} />,
+      color: 'blue',
+    },
+    {
+      title: 'Compiti in scadenza',
+      value: upcomingHomework.length,
+      icon: <IconChecklist size={24} />,
+      color: 'violet',
     },
   ];
 
@@ -156,435 +138,213 @@ export default function TeacherDashboard() {
       <Stack gap="lg">
         <Group justify="space-between" align="center">
           <div>
-            <Title order={1}>{t('title')}</Title>
+            <Title order={1}>Dashboard Docente</Title>
             <Text c="dimmed" size="sm" mt="xs">
-              {t('welcome', { name: `${session.user?.firstName || 'N/A'} ${session.user?.lastName || 'N/A'}` })}
+              Benvenuto, {session.user?.firstName || ''} {session.user?.lastName || ''}
             </Text>
           </div>
         </Group>
 
-        <Tabs value={activeTab} onChange={(value) => setActiveTab(value || 'overview')}>
-          <Tabs.List>
-            <Tabs.Tab value="overview" leftSection={<IconBook size={16} />}>
-              {t('tabs.overview')}
-            </Tabs.Tab>
-            <Tabs.Tab value="calendar" leftSection={<IconCalendar size={16} />}>
-              {t('tabs.calendar')}
-            </Tabs.Tab>
-            <Tabs.Tab value="classes" leftSection={<IconUsers size={16} />}>
-              {t('tabs.myClasses')}
-            </Tabs.Tab>
-            <Tabs.Tab value="attendance" leftSection={<IconClipboardCheck size={16} />}>
-              {t('tabs.attendance')}
-            </Tabs.Tab>
-            <Tabs.Tab value="today" leftSection={<IconClock size={16} />}>
-              {t('tabs.today')}
-            </Tabs.Tab>
-          </Tabs.List>
+        {dashboardError ? (
+          <Alert color="red" icon={<IconInfoCircle size={16} />}>
+            Errore nel caricamento della dashboard: {(dashboardError as Error).message}
+          </Alert>
+        ) : null}
 
-          <Tabs.Panel value="overview" pt="lg">
-            <Stack gap="lg">
-              {/* Stats Cards */}
-              <Grid>
-                {stats.map((stat, index) => (
-                  <Grid.Col span={{ base: 12, sm: 6, md: 3 }} key={index}>
-                    {stat.loading ? (
-                      <Skeleton height={120} />
-                    ) : (
-                      <StatsCard {...stat} />
-                    )}
-                  </Grid.Col>
-                ))}
-              </Grid>
+        {/* Statistiche */}
+        <Grid>
+          {stats.map((stat, index) => (
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }} key={index}>
+              {dashboardLoading ? <Skeleton height={120} /> : <StatsCard {...stat} />}
+            </Grid.Col>
+          ))}
+        </Grid>
 
-              {/* Today's Schedule */}
-              <Paper p="md" withBorder>
-                <Group justify="space-between" align="center" mb="md">
-                  <Title order={3}>{t('todaySchedule')}</Title>
-                  <Badge color="blue">{todayLessons.length} {t('lessons')}</Badge>
-                </Group>
-                
-                {lessonsLoading ? (
-                  <Stack gap="sm">
-                    {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} height={80} />
-                    ))}
-                  </Stack>
-                ) : lessonsError ? (
-                  <Alert color="red" icon={<IconInfoCircle size={16} />}>
-                    {t('lessonLoadError')}: {lessonsError.message}
-                  </Alert>
-                ) : todayLessons.length === 0 ? (
-                  <Text c="dimmed" ta="center" py="xl">
-                    {t('noLessonsToday')}
-                  </Text>
-                ) : (
-                  <Stack gap="sm">
-                    {todayLessons.map((lesson) => (
-                      <Card key={lesson.id} p="sm" withBorder>
-                        <Group justify="space-between">
-                          <div>
-                            <Text fw={500}>{lesson.title}</Text>
-                            <Group gap="xs" mt="xs">
-                              <IconClock size={14} />
-                              <Text size="sm" c="dimmed">
-                                {moment(lesson.startTime).format('HH:mm')} - {moment(lesson.endTime).format('HH:mm')}
-                              </Text>
-                            </Group>
-                            <Text size="sm" c="dimmed" mt="xs">
-                              {t('class')}: {lesson.class?.name}
-                            </Text>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <Badge 
-                              color={lesson.status === 'SCHEDULED' ? 'blue' : 
-                                     lesson.status === 'IN_PROGRESS' ? 'yellow' : 
-                                     lesson.status === 'COMPLETED' ? 'green' : 'gray'}
-                              variant="light"
-                            >
-                              {t(`lessonStatuses.${lesson.status?.toLowerCase()}`)}
-                            </Badge>
-                            {lesson.status === 'SCHEDULED' && (
-                              <Group gap="xs" mt="xs">
-                                <ActionIcon color="green" variant="light" size="sm">
-                                  <IconCheck size={14} />
-                                </ActionIcon>
-                                <ActionIcon color="blue" variant="light" size="sm">
-                                  <IconEye size={14} />
-                                </ActionIcon>
-                              </Group>
-                            )}
-                          </div>
-                        </Group>
-                      </Card>
-                    ))}
-                  </Stack>
-                )}
-              </Paper>
-
-              {/* Recent Activity */}
-              <Paper p="md" withBorder>
-                <Title order={3} mb="md">{t('recentActivity')}</Title>
-                {attendanceLoading ? (
-                  <Skeleton height={120} />
-                ) : recentAttendance.length === 0 ? (
-                  <Text c="dimmed" ta="center" py="md" size="sm">
-                    {tc('noData')}
-                  </Text>
-                ) : (
-                  <Stack gap="sm">
-                    {recentAttendance.map((record) => {
-                      const studentName = `${record.student.firstName} ${record.student.lastName}`;
-                      const statusColor =
-                        record.status === 'PRESENT'
-                          ? 'green'
-                          : record.status === 'LATE'
-                          ? 'yellow'
-                          : record.status === 'EXCUSED'
-                          ? 'blue'
-                          : 'red';
-                      return (
-                        <Group key={record.id} justify="space-between">
-                          <Group gap="sm">
-                            <Avatar size="sm" color="blue">
-                              {studentName.split(' ').map((n) => n[0]).join('')}
-                            </Avatar>
-                            <div>
-                              <Text size="sm" fw={500}>{studentName}</Text>
-                              <Text size="xs" c="dimmed">
-                                {record.lesson?.class?.name || record.lesson?.title}
-                              </Text>
-                            </div>
-                          </Group>
-                          <Badge color={statusColor} variant="light" size="sm">
-                            {t(`attendanceStatuses.${record.status.toLowerCase()}`)}
-                          </Badge>
-                        </Group>
-                      );
-                    })}
-                  </Stack>
-                )}
-              </Paper>
-            </Stack>
-          </Tabs.Panel>
-
-          <Tabs.Panel value="calendar" pt="lg">
-            <Paper p="md" withBorder>
-              {lessonsLoading ? (
-                <Skeleton height={600} />
-              ) : lessonsError ? (
-                <Alert color="red" icon={<IconInfoCircle size={16} />}>
-                  {t('calendarLoadError')}: {lessonsError.message}
-                </Alert>
-              ) : (
-                <div style={{ height: '600px' }}>
-                  <Calendar
-                    localizer={localizer}
-                    events={calendarEvents}
-                    startAccessor="start"
-                    endAccessor="end"
-                    style={{ height: '100%' }}
-                    views={['month', 'week', 'day']}
-                    defaultView="week"
-                    messages={{
-                      next: t('calendar.next'),
-                      previous: t('calendar.previous'),
-                      today: t('calendar.today'),
-                      month: t('calendar.month'),
-                      week: t('calendar.week'),
-                      day: t('calendar.day'),
-                      agenda: t('calendar.agenda'),
-                      date: t('calendar.date'),
-                      time: t('calendar.time'),
-                      event: t('calendar.lesson'),
-                      noEventsInRange: t('calendar.noLessonsInRange'),
-                    }}
-                  />
-                </div>
-              )}
-            </Paper>
-          </Tabs.Panel>
-
-          <Tabs.Panel value="classes" pt="lg">
-            <Stack gap="md">
-              <Group justify="space-between">
-                <Title order={2}>{t('myClasses')}</Title>
-              </Group>
-              
-              {classesLoading ? (
-                <Grid>
-                  {[1, 2, 3, 4].map((i) => (
-                    <Grid.Col span={{ base: 12, md: 6 }} key={i}>
-                      <Skeleton height={200} />
-                    </Grid.Col>
-                  ))}
-                </Grid>
-              ) : classes.length === 0 ? (
-                <Text c="dimmed" ta="center" py="xl">
-                  {t('noClassesAssigned')}
-                </Text>
-              ) : (
-                <Grid>
-                  {classes.map((classItem) => (
-                    <Grid.Col span={{ base: 12, md: 6 }} key={classItem.id}>
-                      <Card p="md" withBorder>
-                        <Stack gap="sm">
-                          <Group justify="space-between">
-                            <div>
-                              <Text fw={500} size="lg">{classItem.name}</Text>
-                              <Badge color="blue" size="sm" mt="xs">
-                                {classItem.course?.level || 'N/A'}
-                              </Badge>
-                            </div>
-                          </Group>
-                          
-                          <Text size="sm" c="dimmed">
-                            {classItem.description || t('noDescriptionAvailable')}
-                          </Text>
-                          
-                          <Group justify="space-between">
-                            <Text size="sm" c="dimmed">
-                              {t('students')}: {classItem._count?.students ?? classItem.students?.length ?? 0}
-                            </Text>
-                          </Group>
-                          
-                          <Button variant="light" fullWidth>
-                            {t('manageClass')}
-                          </Button>
-                        </Stack>
-                      </Card>
-                    </Grid.Col>
-                  ))}
-                </Grid>
-              )}
-            </Stack>
-          </Tabs.Panel>
-
-          <Tabs.Panel value="attendance" pt="lg">
+        <Grid>
+          {/* Lezioni di oggi */}
+          <Grid.Col span={{ base: 12, md: 7 }}>
             <Paper p="md" withBorder>
               <Group justify="space-between" align="center" mb="md">
-                <Title order={2}>{t('attendanceRegistration')}</Title>
-                <Button color="green" leftSection={<IconCheck size={16} />}>
-                  {t('confirmAll')}
-                </Button>
+                <Title order={3}>Lezioni di oggi</Title>
+                <Badge color="blue">{todayLessons.length} lezioni</Badge>
               </Group>
-              
-              {attendanceLoading ? (
-                <Skeleton height={300} />
-              ) : attendanceRecords.length === 0 ? (
+
+              {dashboardLoading ? (
+                <Stack gap="sm">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} height={80} />
+                  ))}
+                </Stack>
+              ) : todayLessons.length === 0 ? (
                 <Text c="dimmed" ta="center" py="xl">
-                  {t('noAttendanceToRegister')}
+                  Nessuna lezione programmata per oggi
                 </Text>
               ) : (
-                <Table>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>{t('student')}</Table.Th>
-                      <Table.Th>{t('class')}</Table.Th>
-                      <Table.Th>{t('lesson')}</Table.Th>
-                      <Table.Th>{t('date')}</Table.Th>
-                      <Table.Th>{t('status')}</Table.Th>
-                      <Table.Th>{tc('actions')}</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {attendanceRecords.slice(0, 10).map((record) => (
-                      <Table.Tr key={record.id}>
-                        <Table.Td>
-                          <Group gap="sm">
-                            <Avatar size="sm" color="blue">
-                              {record.student?.firstName?.[0]}{record.student?.lastName?.[0]}
-                            </Avatar>
-                            <Text size="sm">
-                              {record.student?.firstName} {record.student?.lastName}
+                <Stack gap="sm">
+                  {todayLessons.map((lesson) => (
+                    <Card key={lesson.id} p="sm" withBorder>
+                      <Group justify="space-between" align="flex-start">
+                        <div>
+                          <Text fw={500}>{lesson.title}</Text>
+                          <Group gap="xs" mt="xs">
+                            <IconClock size={14} />
+                            <Text size="sm" c="dimmed">
+                              {moment(lesson.startTime).format('HH:mm')} -{' '}
+                              {moment(lesson.endTime).format('HH:mm')}
                             </Text>
                           </Group>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">{record.lesson?.class?.name || 'N/A'}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">{record.lesson?.title || 'N/A'}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">
-                            {record.recordedAt ? moment(record.recordedAt).format('DD/MM/YYYY') : 'N/A'}
+                          <Text size="sm" c="dimmed" mt="xs">
+                            Classe: {lesson.class?.name || 'N/D'}
                           </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge 
-                            color={record.status === 'PRESENT' ? 'green' : 
-                                   record.status === 'ABSENT' ? 'red' : 
-                                   record.status === 'LATE' ? 'yellow' : 'blue'}
+                        </div>
+                        <Stack gap="xs" align="flex-end">
+                          <Badge
+                            color={STATUS_COLORS[lesson.status] || 'gray'}
                             variant="light"
                           >
-                            {t(`attendanceStatuses.${record.status?.toLowerCase()}`)}
+                            {STATUS_LABELS[lesson.status] || lesson.status}
                           </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap="xs">
-                            <ActionIcon color="green" variant="light" size="sm">
-                              <IconCheck size={14} />
-                            </ActionIcon>
-                            <ActionIcon color="red" variant="light" size="sm">
-                              <IconX size={14} />
-                            </ActionIcon>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
+                          {(lesson._count?.attendance ?? 0) > 0 && (
+                            <Badge color="green" variant="outline" size="sm">
+                              {lesson._count?.attendance} presenze registrate
+                            </Badge>
+                          )}
+                          <Button
+                            component={Link}
+                            href={`/${locale}/dashboard/lessons/${lesson.id}`}
+                            size="xs"
+                            variant="light"
+                            data-testid="teacher-registro"
+                          >
+                            Registro
+                          </Button>
+                        </Stack>
+                      </Group>
+                    </Card>
+                  ))}
+                </Stack>
               )}
             </Paper>
-          </Tabs.Panel>
+          </Grid.Col>
 
-          <Tabs.Panel value="today" pt="lg">
-            <Grid>
-              <Grid.Col span={{ base: 12, md: 8 }}>
-                <Paper p="md" withBorder>
-                  <Title order={3} mb="md">{t('todayLessons')}</Title>
-                  {lessonsLoading ? (
-                    <Stack gap="sm">
-                      {[1, 2, 3].map((i) => (
-                        <Skeleton key={i} height={100} />
-                      ))}
-                    </Stack>
-                  ) : todayLessons.length === 0 ? (
-                    <Text c="dimmed" ta="center" py="xl">
-                      {t('noLessonsToday')}
-                    </Text>
-                  ) : (
-                    <Stack gap="md">
-                      {todayLessons.map((lesson) => (
-                        <Card key={lesson.id} p="md" withBorder>
-                          <Group justify="space-between" align="flex-start">
-                            <div>
-                              <Text fw={500} size="lg">{lesson.title}</Text>
-                              <Group gap="xs" mt="xs">
-                                <IconClock size={16} />
-                                <Text>
-                                  {moment(lesson.startTime).format('HH:mm')} - {moment(lesson.endTime).format('HH:mm')}
-                                </Text>
-                              </Group>
-                              <Text size="sm" c="dimmed" mt="xs">
-                                {t('class')}: {lesson.class?.name}
-                              </Text>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                              <Badge 
-                                color={lesson.status === 'SCHEDULED' ? 'blue' : 
-                                       lesson.status === 'IN_PROGRESS' ? 'yellow' : 
-                                       lesson.status === 'COMPLETED' ? 'green' : 'gray'}
-                              >
-                                {t(`lessonStatuses.${lesson.status?.toLowerCase()}`)}
-                              </Badge>
-                              <Group gap="xs" mt="md">
-                                <Button size="xs" variant="light">
-                                  {t('startLesson')}
-                                </Button>
-                                <Button size="xs" variant="outline">
-                                  {t('details')}
-                                </Button>
-                              </Group>
-                            </div>
-                          </Group>
-                        </Card>
-                      ))}
-                    </Stack>
-                  )}
-                </Paper>
-              </Grid.Col>
+          {/* Presenze da registrare */}
+          <Grid.Col span={{ base: 12, md: 5 }}>
+            <Paper p="md" withBorder>
+              <Group justify="space-between" align="center" mb="md">
+                <Title order={3}>Presenze da registrare</Title>
+                <Badge color="orange">{pendingAttendance.length}</Badge>
+              </Group>
 
-              <Grid.Col span={{ base: 12, md: 4 }}>
-                <Stack gap="md">
-                  <Paper p="md" withBorder>
-                    <Title order={4} mb="md">{t('dailySummary')}</Title>
-                    <Stack gap="sm">
-                      <Group justify="space-between">
-                        <Text size="sm">{t('totalLessons')}</Text>
-                        <Text size="sm" fw={500}>{todayLessons.length}</Text>
-                      </Group>
-                      <Group justify="space-between">
-                        <Text size="sm">{t('completed')}</Text>
-                        <Text size="sm" fw={500}>
-                          {todayLessons.filter(l => l.status === 'COMPLETED').length}
+              {dashboardLoading ? (
+                <Skeleton height={200} />
+              ) : pendingAttendance.length === 0 ? (
+                <Text c="dimmed" ta="center" py="xl">
+                  Nessun appello in sospeso nelle ultime 2 settimane
+                </Text>
+              ) : (
+                <Stack gap="sm">
+                  {pendingAttendance.map((lesson) => (
+                    <Group key={lesson.id} justify="space-between" wrap="nowrap">
+                      <div style={{ minWidth: 0 }}>
+                        <Text size="sm" fw={500} truncate>
+                          {lesson.title}
                         </Text>
-                      </Group>
-                      <Group justify="space-between">
-                        <Text size="sm">{t('scheduled')}</Text>
-                        <Text size="sm" fw={500}>
-                          {todayLessons.filter(l => l.status === 'SCHEDULED').length}
+                        <Text size="xs" c="dimmed">
+                          {lesson.class?.name || 'N/D'} ·{' '}
+                          {moment(lesson.startTime).format('DD/MM/YYYY HH:mm')}
                         </Text>
-                      </Group>
-                      <Progress 
-                        value={(todayLessons.filter(l => l.status === 'COMPLETED').length / Math.max(todayLessons.length, 1)) * 100}
-                        color="green"
-                        mt="md"
-                      />
-                    </Stack>
-                  </Paper>
-
-                  <Paper p="md" withBorder>
-                    <Title order={4} mb="md">{t('reminders')}</Title>
-                    <Stack gap="sm">
-                      <Alert color="blue" variant="light">
-                        <Text size="sm">
-                          {t('reminderAttendance')}
-                        </Text>
-                      </Alert>
-                      <Alert color="yellow" variant="light">
-                        <Text size="sm">
-                          {t('reminderMaterial')}
-                        </Text>
-                      </Alert>
-                    </Stack>
-                  </Paper>
+                      </div>
+                      <Button
+                        component={Link}
+                        href={`/${locale}/dashboard/lessons/${lesson.id}`}
+                        size="xs"
+                        variant="light"
+                        color="orange"
+                        data-testid="teacher-registra-presenze"
+                      >
+                        Registro
+                      </Button>
+                    </Group>
+                  ))}
                 </Stack>
-              </Grid.Col>
-            </Grid>
-          </Tabs.Panel>
-        </Tabs>
+              )}
+            </Paper>
+
+            {/* Compiti in scadenza */}
+            <Paper p="md" withBorder mt="md">
+              <Title order={4} mb="md">
+                Compiti in scadenza
+              </Title>
+              {dashboardLoading ? (
+                <Skeleton height={120} />
+              ) : upcomingHomework.length === 0 ? (
+                <Text c="dimmed" ta="center" py="md" size="sm">
+                  Nessun compito con scadenza futura
+                </Text>
+              ) : (
+                <Stack gap="xs">
+                  {upcomingHomework.map((hw) => (
+                    <Group key={hw.id} justify="space-between" wrap="nowrap">
+                      <div style={{ minWidth: 0 }}>
+                        <Text size="sm" fw={500} truncate>
+                          {hw.title}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {hw.class?.name || 'N/D'}
+                          {hw.subject?.name ? ` · ${hw.subject.name}` : ''}
+                        </Text>
+                      </div>
+                      <Badge color="violet" variant="light">
+                        {moment(hw.dueDate).format('DD/MM')}
+                      </Badge>
+                    </Group>
+                  ))}
+                </Stack>
+              )}
+            </Paper>
+          </Grid.Col>
+        </Grid>
+
+        {/* Calendario mensile */}
+        <Paper p="md" withBorder>
+          <Title order={3} mb="md">
+            Calendario
+          </Title>
+          {calendarLoading ? (
+            <Skeleton height={600} />
+          ) : calendarError ? (
+            <Alert color="red" icon={<IconInfoCircle size={16} />}>
+              Errore nel caricamento del calendario: {(calendarError as Error).message}
+            </Alert>
+          ) : (
+            <div style={{ height: '600px' }}>
+              <Calendar
+                localizer={localizer}
+                events={calendarEvents}
+                startAccessor="start"
+                endAccessor="end"
+                style={{ height: '100%' }}
+                views={['month', 'week', 'day']}
+                defaultView="week"
+                date={calendarDate}
+                onNavigate={(date) => setCalendarDate(date)}
+                messages={{
+                  next: 'Avanti',
+                  previous: 'Indietro',
+                  today: 'Oggi',
+                  month: 'Mese',
+                  week: 'Settimana',
+                  day: 'Giorno',
+                  agenda: 'Agenda',
+                  date: 'Data',
+                  time: 'Ora',
+                  event: 'Lezione',
+                  noEventsInRange: 'Nessuna lezione nel periodo',
+                }}
+              />
+            </div>
+          )}
+        </Paper>
       </Stack>
     </Container>
   );

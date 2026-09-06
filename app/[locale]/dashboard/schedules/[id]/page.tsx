@@ -42,6 +42,7 @@ import {
   IconChartBar,
   IconDownload,
 } from '@tabler/icons-react';
+import { usePermission } from '@/lib/hooks/usePermissions';
 
 interface ScheduleSlot {
   id: string;
@@ -138,10 +139,8 @@ export default function ScheduleDetailPage() {
   const [viewMode, setViewMode] = useState<'class' | 'teacher'>('class');
   const [filterValue, setFilterValue] = useState<string | null>(null);
 
-  const canManage =
-    session?.user?.role === 'ADMIN' ||
-    session?.user?.role === 'DIRECTOR' ||
-    session?.user?.role === 'SUPERADMIN';
+  // Matrice: generazione/applicazione orario = manage su 'schedule'
+  const canManage = usePermission('manage', 'schedule');
 
   // Fetch schedule
   const fetchSchedule = async () => {

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth, authOptions, isAdminRole } from '@/lib/auth';
-import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { requireAuth, authError } from '@/lib/api-auth';
 import { AutomationService } from '@/lib/automation-service';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/db';
@@ -9,19 +8,8 @@ import { triggerCronJob, type CronJobName } from '@/lib/workers/cron-scheduler';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getAuth();
-    
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
-    }
-
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
-
-    // Only admins can trigger automation
-    if (!isAdminRole(session.user.role)) {
-      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
-    }
+    // Solo SUPERADMIN: le azioni operano su code/job di piattaforma, non scoped per tenant
+    await requireAuth({ roles: ['SUPERADMIN'] });
 
     const body = await request.json();
     const { action, data } = body;
@@ -95,29 +83,12 @@ export async function POST(request: NextRequest) {
           message: 'Controllo capacità classe eseguito' 
         });
 
-      case 'generate-recurring-lesson':
-        if (!data.templateLessonId || !data.nextDate) {
-          return NextResponse.json({ 
-            error: 'templateLessonId e nextDate sono obbligatori' 
-          }, { status: 400 });
-        }
-        
-        const newLesson = await AutomationService.generateRecurringLesson(
-          data.templateLessonId,
-          new Date(data.nextDate)
-        );
-        return NextResponse.json({ 
-          success: true, 
-          message: 'Lezione ricorrente generata',
-          lesson: newLesson
-        });
+      // 'generate-recurring-lesson' rimosso: la generazione delle ricorrenze
+      // è eager nell'endpoint POST /api/lessons/recurring.
 
       case 'trigger-cron': {
-        // SUPERADMIN-only: enqueue an immediate run of a recurring cron job.
+        // Enqueue an immediate run of a recurring cron job.
         // Useful for ops dashboards and post-incident catch-up.
-        if (session.user.role !== 'SUPERADMIN') {
-          return NextResponse.json({ error: 'Solo SUPERADMIN' }, { status: 403 });
-        }
         if (!data?.jobName) {
           return NextResponse.json({ error: 'jobName richiesto' }, { status: 400 });
         }
@@ -134,6 +105,8 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
     }
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     logger.error('Automation API error:', error);
     return NextResponse.json({ 
       error: 'Errore interno del server' 
@@ -143,19 +116,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getAuth();
-    
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
-    }
-
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
-
-    // Only admins can view automation status
-    if (!isAdminRole(session.user.role)) {
-      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
-    }
+    // Solo SUPERADMIN (contratto RBAC): stato di piattaforma non filtrato.
+    // La vista ADMIN filtrata per tenant vive in GET /api/automation/runs.
+    await requireAuth({ roles: ['SUPERADMIN'] });
 
     // Look up the most recent successful daily-automation run.
     const lastDailyRun = await prisma.automationRun.findFirst({
@@ -167,8 +130,12 @@ export async function GET(request: NextRequest) {
     const recentRuns = await prisma.automationRun.findMany({
       orderBy: { startedAt: 'desc' },
       take: 20,
-      select: { id: true, jobName: true, startedAt: true, finishedAt: true, status: true, error: true },
+      select: { id: true, jobName: true, tenantId: true, startedAt: true, finishedAt: true, status: true, error: true },
     });
+
+    // Heartbeat del container worker (badge salute in dashboard)
+    const { readWorkerHeartbeat } = await import('@/lib/workers/heartbeat-status');
+    const workerHeartbeat = await readWorkerHeartbeat();
 
     // Live counts from BullMQ — best-effort. If Redis is down we return zeros
     // rather than failing the dashboard.
@@ -190,9 +157,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       automationEnabled: true,
+      scope: 'platform',
       lastDailyRun,
       recentRuns,
       activeJobs,
+      workerHeartbeat,
       configuration: {
         attendanceReminderTimes: {
           beforeClass: 30,
@@ -206,6 +175,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     logger.error('Automation status API error:', error);
     return NextResponse.json({ 
       error: 'Errore interno del server' 

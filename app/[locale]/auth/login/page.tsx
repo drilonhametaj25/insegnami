@@ -58,18 +58,40 @@ function LoginForm() {
   const callbackUrl = searchParams.get('callbackUrl') || `/${locale}/dashboard`;
   const verified = searchParams.get('verified');
   const errorParam = searchParams.get('error');
-  const showDemo = searchParams.get('demo') === 'true';
+  // Bottone demo: visibile solo con ?demo=true E con la password demo
+  // pubblica configurata (NEXT_PUBLIC_DEMO_PASSWORD, vedi .env.example).
+  // Nessuna credenziale viene mai mostrata in chiaro a schermo.
+  const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
+  const showDemo = searchParams.get('demo') === 'true' && Boolean(demoPassword);
+  const [demoLoading, setDemoLoading] = useState(false);
 
-  // Demo credentials
-  const DEMO_EMAIL = 'demo@insegnami.pro';
-  const DEMO_PASSWORD = 'Demo123!';
+  const handleDemoLogin = async () => {
+    if (!demoPassword) return;
+    setDemoLoading(true);
+    setError('');
+    try {
+      const result = await signIn('credentials', {
+        email: 'demo@insegnami.pro',
+        password: demoPassword,
+        redirect: false,
+      });
 
-  const fillDemoCredentials = () => {
-    form.setValues({
-      ...form.values,
-      email: DEMO_EMAIL,
-      password: DEMO_PASSWORD,
-    });
+      if (result?.error) {
+        setError('Demo non disponibile al momento. Riprova più tardi.');
+      } else if (result?.ok) {
+        notifications.show({
+          title: 'Benvenuto nella demo!',
+          message: 'Stai esplorando un ambiente dimostrativo con dati fittizi.',
+          color: 'blue',
+        });
+        router.push(`/${locale}/dashboard`);
+      }
+    } catch (err) {
+      console.error('Demo login error:', err);
+      setError('Demo non disponibile al momento. Riprova più tardi.');
+    } finally {
+      setDemoLoading(false);
+    }
   };
 
   const form = useForm<LoginForm>({
@@ -236,7 +258,7 @@ function LoginForm() {
                   </Text>
                 </div>
 
-                {/* Demo Credentials Box */}
+                {/* Accesso demo con un click (niente credenziali in chiaro) */}
                 {showDemo && (
                   <Paper p="md" radius="md" bg="blue.0" withBorder style={{ borderColor: 'var(--mantine-color-blue-3)' }}>
                     <Group gap="md" wrap="nowrap">
@@ -245,19 +267,22 @@ function LoginForm() {
                       </ThemeIcon>
                       <div style={{ flex: 1 }}>
                         <Text fw={600} size="sm">Prova la Demo</Text>
-                        <Text size="xs" c="dimmed">Email: {DEMO_EMAIL}</Text>
-                        <Text size="xs" c="dimmed">Password: {DEMO_PASSWORD}</Text>
+                        <Text size="xs" c="dimmed">
+                          Ambiente dimostrativo con dati fittizi, ripristinato ogni notte.
+                        </Text>
                       </div>
                     </Group>
                     <Button
                       variant="light"
                       color="blue"
-                      size="xs"
+                      size="sm"
                       mt="sm"
                       fullWidth
-                      onClick={fillDemoCredentials}
+                      loading={demoLoading}
+                      onClick={handleDemoLogin}
+                      data-testid="login-demo-button"
                     >
-                      Usa credenziali demo
+                      Entra nella demo
                     </Button>
                   </Paper>
                 )}

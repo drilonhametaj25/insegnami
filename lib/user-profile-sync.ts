@@ -312,27 +312,33 @@ export async function repairOrphanedProfiles(tenantId: string | null): Promise<{
 
 // ---- Code generators (per-tenant, monotonic + collision-safe) ----
 //
-// Schema declares `studentCode @unique` and `teacherCode @unique` GLOBALLY
-// (not per-tenant). Two tenants both starting at 1 would collide. We
-// generate a sequence based on the per-tenant count and verify uniqueness;
-// on collision we append a short random suffix and retry up to 5 times.
+// I codici sono univoci PER TENANT (@@unique([tenantId, code])): la sequenza
+// parte dal conteggio del tenant e la collisione (cancellazioni che fanno
+// regredire il count) viene gestita con retry + suffisso random.
 
-async function generateStudentCode(tx: Tx, tenantId: string): Promise<string> {
+// Esportato per il bulk import CSV (app/api/students/bulk)
+export async function generateStudentCode(tx: Tx, tenantId: string): Promise<string> {
   const base = `S${String((await tx.student.count({ where: { tenantId } })) + 1).padStart(4, '0')}`;
   for (let attempt = 0; attempt < 5; attempt++) {
     const candidate = attempt === 0 ? base : `${base}-${randomSuffix(3)}`;
-    const exists = await tx.student.findUnique({ where: { studentCode: candidate }, select: { id: true } });
+    const exists = await tx.student.findUnique({
+      where: { tenantId_studentCode: { tenantId, studentCode: candidate } },
+      select: { id: true },
+    });
     if (!exists) return candidate;
   }
   // Last resort: fully random.
   return `S-${randomSuffix(8)}`;
 }
 
-async function generateTeacherCode(tx: Tx, tenantId: string): Promise<string> {
+export async function generateTeacherCode(tx: Tx, tenantId: string): Promise<string> {
   const base = `T${String((await tx.teacher.count({ where: { tenantId } })) + 1).padStart(4, '0')}`;
   for (let attempt = 0; attempt < 5; attempt++) {
     const candidate = attempt === 0 ? base : `${base}-${randomSuffix(3)}`;
-    const exists = await tx.teacher.findUnique({ where: { teacherCode: candidate }, select: { id: true } });
+    const exists = await tx.teacher.findUnique({
+      where: { tenantId_teacherCode: { tenantId, teacherCode: candidate } },
+      select: { id: true },
+    });
     if (!exists) return candidate;
   }
   return `T-${randomSuffix(8)}`;

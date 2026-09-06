@@ -1186,9 +1186,9 @@ async function main() {
     },
   });
 
-  // Docente del secondo tenant (teacherCode è unico globalmente → upsert)
+  // Docente del secondo tenant (codice univoco per tenant → upsert)
   const teacher2nd = await prisma.teacher.upsert({
-    where: { teacherCode: 'T-SS-001' },
+    where: { tenantId_teacherCode: { tenantId: tenant2.id, teacherCode: 'T-SS-001' } },
     update: {},
     create: {
       firstName: 'Paola',
@@ -1240,9 +1240,9 @@ async function main() {
     },
   });
 
-  // studentCode è unico globalmente → upsert idempotente
+  // studentCode univoco per tenant → upsert idempotente
   const student2nd = await prisma.student.upsert({
-    where: { studentCode: 'S-SS-001' },
+    where: { tenantId_studentCode: { tenantId: tenant2.id, studentCode: 'S-SS-001' } },
     update: {},
     create: {
       firstName: 'Aldo',
@@ -1258,9 +1258,9 @@ async function main() {
     },
   });
 
-  // Corso e classe (code unici globalmente → upsert)
+  // Corso e classe (code univoci per tenant → upsert)
   const course2nd = await prisma.course.upsert({
-    where: { code: 'GE-SS' },
+    where: { tenantId_code: { tenantId: tenant2.id, code: 'GE-SS' } },
     update: {},
     create: {
       name: 'General English - Second School',
@@ -1278,7 +1278,7 @@ async function main() {
   });
 
   const class2nd = await prisma.class.upsert({
-    where: { code: 'SS-2024-01' },
+    where: { tenantId_code: { tenantId: tenant2.id, code: 'SS-2024-01' } },
     update: {},
     create: {
       name: 'Second School Morning Class',
@@ -1363,6 +1363,206 @@ async function main() {
   }
 
   console.log('✅ Created second tenant: admin2@secondschool.it / password');
+
+  // ========================================
+  // 👥 WAVE 2 — DIRECTOR/SECRETARY, secondo figlio e StudentGuardian
+  // Aggiunte IDEMPOTENTI (upsert) sul tenant demo.
+  // ========================================
+
+  // (a) Utenti DIRECTOR e SECRETARY (stessa password degli altri account seed)
+  const directorUser = await prisma.user.upsert({
+    where: { email: 'director@englishplus.it' },
+    update: {},
+    create: {
+      email: 'director@englishplus.it',
+      password: hashedPassword,
+      firstName: 'Elena',
+      lastName: 'Moretti',
+      phone: '+39 331 4567890',
+      status: UserStatus.ACTIVE,
+      emailVerified: new Date(),
+    },
+  });
+
+  await prisma.userTenant.upsert({
+    where: {
+      userId_tenantId: {
+        userId: directorUser.id,
+        tenantId: tenant.id,
+      },
+    },
+    update: { role: Role.DIRECTOR },
+    create: {
+      userId: directorUser.id,
+      tenantId: tenant.id,
+      role: Role.DIRECTOR,
+      permissions: JSON.stringify({}),
+    },
+  });
+
+  const secretaryUser = await prisma.user.upsert({
+    where: { email: 'secretary@englishplus.it' },
+    update: {},
+    create: {
+      email: 'secretary@englishplus.it',
+      password: hashedPassword,
+      firstName: 'Paolo',
+      lastName: 'Greco',
+      phone: '+39 331 5678901',
+      status: UserStatus.ACTIVE,
+      emailVerified: new Date(),
+    },
+  });
+
+  await prisma.userTenant.upsert({
+    where: {
+      userId_tenantId: {
+        userId: secretaryUser.id,
+        tenantId: tenant.id,
+      },
+    },
+    update: { role: Role.SECRETARY },
+    create: {
+      userId: secretaryUser.id,
+      tenantId: tenant.id,
+      role: Role.SECRETARY,
+      permissions: JSON.stringify({}),
+    },
+  });
+
+  console.log('✅ Created director@englishplus.it and secretary@englishplus.it / password');
+
+  // (b) Secondo figlio per parent@englishplus.it (Student.userId è obbligatorio)
+  const child2User = await prisma.user.upsert({
+    where: { email: 'student2@englishplus.it' },
+    update: {},
+    create: {
+      email: 'student2@englishplus.it',
+      password: hashedPassword,
+      firstName: 'Sara',
+      lastName: 'Bianchi',
+      phone: '+39 333 3333333',
+      status: UserStatus.ACTIVE,
+      emailVerified: new Date(),
+    },
+  });
+
+  await prisma.userTenant.upsert({
+    where: {
+      userId_tenantId: {
+        userId: child2User.id,
+        tenantId: tenant.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: child2User.id,
+      tenantId: tenant.id,
+      role: Role.STUDENT,
+      permissions: JSON.stringify({
+        classes: { read: true },
+        lessons: { read: true },
+        attendance: { read: true },
+        payments: { read: true },
+        notices: { read: true },
+      }),
+    },
+  });
+
+  // studentCode univoco per tenant → upsert idempotente
+  const child2 = await prisma.student.upsert({
+    where: { tenantId_studentCode: { tenantId: tenant.id, studentCode: 'S007' } },
+    update: { parentUserId: parentUser.id } as any,
+    create: {
+      firstName: 'Sara',
+      lastName: 'Bianchi',
+      email: 'student2@englishplus.it',
+      phone: '+39 333 3333333',
+      dateOfBirth: new Date('1998-09-22'),
+      studentCode: 'S007',
+      address: 'Via Roma 123, Milano',
+      tenantId: tenant.id,
+      status: UserStatus.ACTIVE,
+      userId: child2User.id,
+      parentUserId: parentUser.id,
+    } as any,
+  });
+
+  // Iscrizione del secondo figlio alla classe intermedia
+  await prisma.studentClass.upsert({
+    where: {
+      studentId_classId: {
+        studentId: child2.id,
+        classId: class2.id,
+      },
+    },
+    update: {},
+    create: {
+      studentId: child2.id,
+      classId: class2.id,
+      isActive: true,
+    },
+  });
+
+  // StudentGuardian espliciti per entrambi i figli del genitore demo
+  for (const childId of [student.id, child2.id]) {
+    await prisma.studentGuardian.upsert({
+      where: {
+        studentId_userId: {
+          studentId: childId,
+          userId: parentUser.id,
+        },
+      },
+      update: { isPrimary: true },
+      create: {
+        tenantId: tenant.id,
+        studentId: childId,
+        userId: parentUser.id,
+        relationship: 'genitore',
+        isPrimary: true,
+      },
+    });
+  }
+
+  console.log('✅ Created second child (S007) + StudentGuardian links for parent@englishplus.it');
+
+  // (c) Backfill StudentGuardian per TUTTI gli studenti con parentUserId
+  const studentsWithParent = await prisma.student.findMany({
+    where: { parentUserId: { not: null } } as any,
+    select: { id: true, tenantId: true, parentUserId: true } as any,
+  });
+  for (const s of studentsWithParent as any[]) {
+    await prisma.studentGuardian.upsert({
+      where: {
+        studentId_userId: {
+          studentId: s.id,
+          userId: s.parentUserId,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: s.tenantId,
+        studentId: s.id,
+        userId: s.parentUserId,
+        relationship: 'genitore',
+        isPrimary: true,
+      },
+    });
+  }
+
+  console.log(`✅ Backfilled StudentGuardian for ${studentsWithParent.length} students with parentUserId`);
+
+  // (d) Teacher.userId valorizzato per i docenti seed (match con gli User creati)
+  await prisma.teacher.updateMany({
+    where: { tenantId: tenant.id, email: 'teacher@englishplus.it' },
+    data: { userId: teacherUser.id },
+  });
+  await prisma.teacher.updateMany({
+    where: { tenantId: tenant.id, email: 'teacher2@englishplus.it' },
+    data: { userId: teacher2User.id },
+  });
+
+  console.log('✅ Linked Teacher.userId for seed teachers');
 
   console.log('');
   console.log('🌱 Database seeding completed successfully!');

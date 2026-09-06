@@ -23,6 +23,7 @@ import { IconCheck, IconX, IconInfoCircle, IconEye } from '@tabler/icons-react';
 import { DataTable, TableRenderers } from '@/components/tables/DataTable';
 import { UserForm, UserFormData } from '@/components/forms/UserForm';
 import { Role } from '@prisma/client';
+import { usePermission } from '@/lib/hooks/usePermissions';
 
 interface User {
   id: string;
@@ -72,8 +73,8 @@ export default function UsersManagementPage() {
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  // Check if user has permission to manage users
-  const canManageUsers = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN';
+  // Check if user has permission to manage users (matrice: risorsa 'user')
+  const canManageUsers = usePermission('manage', 'user');
 
   // Navigate to user detail
   const handleViewUser = (userId: string) => {

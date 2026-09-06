@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { redis } from '@/lib/redis';
+import { invalidateFeatureCache } from '@/lib/billing/features';
 
 export type TenantAccessVerdict =
   | { ok: true }
@@ -11,9 +12,9 @@ export type TenantAccessVerdict =
  * Rules (most permissive wins):
  *   - Tenant.isActive = false        → blocked
  *   - Subscription ACTIVE / TRIALING → allowed
- *   - Subscription PAST_DUE          → blocked (Stripe will retry; while it
- *                                      retries the customer should contact
- *                                      support, NOT keep operating)
+ *   - Subscription PAST_DUE          → allowed only while gracePeriodEnd is in
+ *                                      the future (dunning banner warns);
+ *                                      otherwise blocked
  *   - Subscription CANCELLED/UNPAID  → blocked
  *   - No Subscription + Trial active → allowed
  *   - No Subscription + Trial expired→ blocked
@@ -29,7 +30,7 @@ export async function checkTenantAccess(tenantId: string): Promise<TenantAccessV
       isActive: true,
       trialUntil: true,
       subscription: {
-        select: { status: true, currentPeriodEnd: true },
+        select: { status: true, currentPeriodEnd: true, trialEnd: true, gracePeriodEnd: true },
       },
     },
   });
@@ -39,8 +40,34 @@ export async function checkTenantAccess(tenantId: string): Promise<TenantAccessV
 
   const sub = tenant.subscription;
   if (sub) {
-    if (sub.status === 'ACTIVE' || sub.status === 'TRIALING') return { ok: true };
-    if (sub.status === 'PAST_DUE') return { ok: false, reason: 'subscription-past-due' };
+    const now = Date.now();
+    if (sub.status === 'TRIALING') {
+      // Difesa in profondità: senza webhook (o in dev-billing) nessuno
+      // transiziona TRIALING → il trial deve scadere comunque.
+      const trialCutoff = sub.trialEnd ?? sub.currentPeriodEnd;
+      if (trialCutoff && trialCutoff.getTime() <= now) {
+        return { ok: false, reason: 'trial-expired' };
+      }
+      return { ok: true };
+    }
+    if (sub.status === 'ACTIVE') {
+      // Tolleranza 3 giorni sul rinnovo: i webhook Stripe possono arrivare
+      // in ritardo, ma un periodo scaduto da giorni non deve restare attivo.
+      const RENEWAL_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
+      if (sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() + RENEWAL_GRACE_MS <= now) {
+        return { ok: false, reason: 'subscription-past-due' };
+      }
+      return { ok: true };
+    }
+    if (sub.status === 'PAST_DUE') {
+      // Grace period (dunning): impostato dal webhook su invoice.payment_failed.
+      // Finché non scade il tenant resta operativo (il banner avvisa); senza
+      // gracePeriodEnd o a grace scaduto il blocco resta immediato come prima.
+      if (sub.gracePeriodEnd && sub.gracePeriodEnd.getTime() > now) {
+        return { ok: true };
+      }
+      return { ok: false, reason: 'subscription-past-due' };
+    }
     return { ok: false, reason: 'subscription-cancelled' };
   }
 
@@ -67,6 +94,9 @@ export async function getTenantAccessCached(tenantId: string): Promise<TenantAcc
 
 export async function invalidateTenantAccessCache(tenantId: string): Promise<void> {
   await redis.del(accessCacheKey(tenantId));
+  // Le feature effettive dipendono dagli stessi eventi (cambio piano,
+  // webhook, azioni superadmin): si invalidano insieme.
+  await invalidateFeatureCache(tenantId);
 }
 
 /**

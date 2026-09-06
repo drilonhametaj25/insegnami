@@ -13,11 +13,8 @@ import {
   Table,
   ActionIcon,
   Modal,
-  TextInput,
   NumberInput,
-  Select,
   Switch,
-  Textarea,
   Loader,
   Alert,
   Menu,
@@ -26,7 +23,6 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { useForm } from '@mantine/form';
 import {
-  IconPlus,
   IconEdit,
   IconTrash,
   IconDotsVertical,
@@ -66,25 +62,12 @@ export default function PlansPage() {
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [planToDelete, setPlanToDelete] = useState<Plan | null>(null);
 
+  // Catalogo read-only: via UI si modificano solo isPopular e sortOrder
+  // (il resto vive in lib/billing/plans-catalog.ts)
   const form = useForm({
     initialValues: {
-      name: '',
-      slug: '',
-      description: '',
-      price: 0,
-      interval: 'MONTHLY' as 'MONTHLY' | 'YEARLY',
-      maxStudents: null as number | null,
-      maxTeachers: null as number | null,
-      maxClasses: null as number | null,
       isPopular: false,
       sortOrder: 0,
-      syncToStripe: true,
-    },
-    validate: {
-      name: (value) => (value.length < 2 ? 'Nome troppo corto' : null),
-      slug: (value) =>
-        !/^[a-z0-9-]+$/.test(value) ? 'Slug non valido (solo lettere minuscole, numeri e trattini)' : null,
-      price: (value) => (value < 0 ? 'Prezzo non valido' : null),
     },
   });
 
@@ -113,43 +96,22 @@ export default function PlansPage() {
     loadPlans();
   }, []);
 
-  const handleOpenCreate = () => {
-    setEditingPlan(null);
-    form.reset();
-    openModal();
-  };
-
   const handleOpenEdit = (plan: Plan) => {
     setEditingPlan(plan);
     form.setValues({
-      name: plan.name,
-      slug: plan.slug,
-      description: plan.description || '',
-      price: plan.price,
-      interval: plan.interval,
-      maxStudents: plan.maxStudents,
-      maxTeachers: plan.maxTeachers,
-      maxClasses: plan.maxClasses,
       isPopular: plan.isPopular,
       sortOrder: plan.sortOrder,
-      syncToStripe: true,
     });
     openModal();
   };
 
   const handleSave = async () => {
-    const validation = form.validate();
-    if (validation.hasErrors) return;
+    if (!editingPlan) return;
 
     setSaving(true);
     try {
-      const url = editingPlan
-        ? `/api/superadmin/plans/${editingPlan.id}`
-        : '/api/superadmin/plans';
-      const method = editingPlan ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
+      const response = await fetch(`/api/superadmin/plans/${editingPlan.id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form.values),
       });
@@ -161,7 +123,7 @@ export default function PlansPage() {
 
       notifications.show({
         title: 'Successo',
-        message: editingPlan ? 'Piano aggiornato' : 'Piano creato',
+        message: 'Piano aggiornato',
         color: 'green',
       });
 
@@ -226,20 +188,21 @@ export default function PlansPage() {
           <div>
             <Title order={1}>Gestione Piani</Title>
             <Text c="dimmed" size="sm">
-              Configura i piani di abbonamento e sincronizza con Stripe
+              Catalogo piani e stato di sincronizzazione Stripe
             </Text>
           </div>
-          <Group>
-            <Tooltip label="Aggiorna">
-              <ActionIcon variant="light" onClick={loadPlans}>
-                <IconRefresh size={18} />
-              </ActionIcon>
-            </Tooltip>
-            <Button leftSection={<IconPlus size={16} />} onClick={handleOpenCreate}>
-              Nuovo Piano
-            </Button>
-          </Group>
+          <Tooltip label="Aggiorna">
+            <ActionIcon variant="light" onClick={loadPlans}>
+              <IconRefresh size={18} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
+
+        <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light">
+          Il catalogo piani (nome, prezzo, limiti, funzionalità) è definito nel codice
+          (lib/billing/plans-catalog.ts) e sincronizzato con Stripe dalla sync dedicata. Da qui
+          puoi modificare solo l&apos;ordine di visualizzazione e il badge &quot;popolare&quot;.
+        </Alert>
 
         <Paper withBorder radius="md">
           {loading ? (
@@ -348,93 +311,38 @@ export default function PlansPage() {
         </Paper>
       </Stack>
 
-      {/* Create/Edit Modal */}
+      {/* Edit Modal — solo campi di presentazione */}
       <Modal
         opened={modalOpened}
         onClose={closeModal}
-        title={editingPlan ? 'Modifica Piano' : 'Nuovo Piano'}
-        size="lg"
+        title={`Modifica Piano${editingPlan ? ` — ${editingPlan.name}` : ''}`}
+        size="md"
       >
         <Stack>
-          <TextInput
-            label="Nome"
-            placeholder="Piano Pro"
-            required
-            {...form.getInputProps('name')}
-          />
-          <TextInput
-            label="Slug"
-            placeholder="piano-pro"
-            required
-            disabled={!!editingPlan}
-            {...form.getInputProps('slug')}
-          />
-          <Textarea
-            label="Descrizione"
-            placeholder="Descrizione del piano..."
-            {...form.getInputProps('description')}
-          />
-          <Group grow>
-            <NumberInput
-              label="Prezzo (€)"
-              placeholder="29.99"
-              required
-              min={0}
-              decimalScale={2}
-              {...form.getInputProps('price')}
-            />
-            <Select
-              label="Intervallo"
-              data={[
-                { value: 'MONTHLY', label: 'Mensile' },
-                { value: 'YEARLY', label: 'Annuale' },
-              ]}
-              {...form.getInputProps('interval')}
-            />
-          </Group>
-          <Group grow>
-            <NumberInput
-              label="Max Studenti"
-              placeholder="Illimitato"
-              min={1}
-              {...form.getInputProps('maxStudents')}
-            />
-            <NumberInput
-              label="Max Docenti"
-              placeholder="Illimitato"
-              min={1}
-              {...form.getInputProps('maxTeachers')}
-            />
-            <NumberInput
-              label="Max Classi"
-              placeholder="Illimitato"
-              min={1}
-              {...form.getInputProps('maxClasses')}
-            />
-          </Group>
+          <Text size="sm" c="dimmed">
+            Nome, prezzo, limiti e funzionalità del piano sono definiti nel codice
+            (lib/billing/plans-catalog.ts): qui puoi cambiare solo la presentazione.
+          </Text>
           <Group grow>
             <NumberInput
               label="Ordine visualizzazione"
               min={0}
               {...form.getInputProps('sortOrder')}
+              data-testid="plan-edit-sort-order"
             />
             <Switch
               label="Piano popolare"
               {...form.getInputProps('isPopular', { type: 'checkbox' })}
               mt="md"
+              data-testid="plan-edit-is-popular"
             />
           </Group>
-          <Switch
-            label="Sincronizza con Stripe"
-            description="Crea o aggiorna il prodotto/prezzo in Stripe"
-            {...form.getInputProps('syncToStripe', { type: 'checkbox' })}
-          />
           <Group justify="flex-end" mt="md">
             <Button variant="light" onClick={closeModal}>
               Annulla
             </Button>
-            <Button onClick={handleSave} loading={saving}>
-              {editingPlan ? 'Salva' : 'Crea'}
+            <Button onClick={handleSave} loading={saving} data-testid="plan-edit-save">
+              Salva
             </Button>
           </Group>
         </Stack>

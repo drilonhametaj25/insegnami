@@ -403,6 +403,66 @@ export function useCreateMessageTemplate() {
 }
 
 /**
+ * Hook per aggiornare un template di messaggio
+ */
+export function useUpdateMessageTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...data }: {
+      id: string;
+      name?: string;
+      description?: string;
+      subject?: string;
+      content?: string;
+      type?: string;
+      variables?: string[];
+    }): Promise<MessageTemplate> => {
+      const response = await fetch(`/api/messages/templates/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update template');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messagesKeys.templates() });
+    },
+  });
+}
+
+/**
+ * Hook per eliminare un template di messaggio
+ */
+export function useDeleteMessageTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const response = await fetch(`/api/messages/templates/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete template');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messagesKeys.templates() });
+    },
+  });
+}
+
+/**
  * Hook per creare un gruppo di comunicazione
  */
 export function useCreateCommunicationGroup() {
@@ -431,6 +491,63 @@ export function useCreateCommunicationGroup() {
       }
 
       return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messagesKeys.groups() });
+    },
+  });
+}
+
+/**
+ * Hook per aggiornare un gruppo di comunicazione custom
+ */
+export function useUpdateCommunicationGroup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...data }: {
+      id: string;
+      name?: string;
+      description?: string;
+      memberIds?: string[];
+    }): Promise<{ group: CommunicationGroup }> => {
+      const response = await fetch(`/api/messages/groups/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update group');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: messagesKeys.groups() });
+    },
+  });
+}
+
+/**
+ * Hook per eliminare un gruppo di comunicazione custom
+ */
+export function useDeleteCommunicationGroup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const response = await fetch(`/api/messages/groups/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete group');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: messagesKeys.groups() });

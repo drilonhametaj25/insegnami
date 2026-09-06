@@ -21,13 +21,35 @@ import {
 } from '@mantine/core';
 import { IconArrowLeft, IconArrowRight, IconCheck } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import type { Metadata } from 'next';
 import type { ComponentType, ReactNode } from 'react';
+import { buildPublicMetadata } from '@/lib/seo';
 import { PUB_GRADIENT } from './PublicUI';
 
 /**
  * Scheletro condiviso delle pagine /tools/*: hero, layout main+sidebar,
  * card sezione, CTA sidebar, strumenti correlati e FAQ hanno un solo stile.
  */
+
+/**
+ * Metadata SEO condivisi per i page.tsx server dei tool: canonical
+ * self-referente + hreflang + OG/Twitter in un punto solo (lib/seo.ts).
+ * `slug` è il segmento dopo /tools/.
+ */
+export function toolPageMetadata({
+  locale,
+  slug,
+  title,
+  description,
+}: {
+  locale: string;
+  slug: string;
+  title: string;
+  description: string;
+}): Metadata {
+  return buildPublicMetadata({ locale, path: `/tools/${slug}`, title, description });
+}
 
 /** Anno scolastico di default per i tool: da giugno in poi propone quello che inizia a settembre. */
 export function getDefaultSchoolYear(today = new Date()): { start: Date; end: Date; label: string } {
@@ -50,6 +72,9 @@ export function ToolHero({
   title: string;
   description: string;
 }) {
+  // Chrome condiviso tradotto (i contenuti interni dei singoli tool restano
+  // in italiano per ora). useTranslations funziona anche nei Server Component.
+  const t = useTranslations('public.tools.shell');
   return (
     <Box className="pub-hero" py={{ base: 40, sm: 56 }}>
       <Container size="xl">
@@ -65,7 +90,7 @@ export function ToolHero({
         >
           <Group gap={6} wrap="nowrap">
             <IconArrowLeft size={16} />
-            Tutti gli strumenti
+            {t('allTools')}
           </Group>
         </Anchor>
         <Group gap="lg" wrap="nowrap" align="flex-start">
@@ -120,17 +145,18 @@ export function ToolSection({ title, children }: { title?: string; children: Rea
 
 /** CTA sidebar verso la registrazione, identica per tutti gli strumenti. */
 export function ToolCtaCard({ locale }: { locale: string }) {
+  const t = useTranslations('public.tools.shell');
   return (
     <Card padding="xl" radius="lg" style={{ background: 'var(--pub-brand-gradient)' }}>
       <Stack gap="sm">
         <Title order={3} fz={rem(20)} fw={700} c="white">
-          Gestisci tutto con InsegnaMi.pro
+          {t('ctaTitle')}
         </Title>
         <Text size="sm" c="white" opacity={0.9}>
-          Registro elettronico, presenze, pagamenti e comunicazioni in un&apos;unica piattaforma.
+          {t('ctaText')}
         </Text>
         <Stack gap={6} my={4}>
-          {['Prova gratis 14 giorni', 'Nessuna carta richiesta', 'Supporto in italiano'].map((item) => (
+          {(t.raw('ctaBullets') as string[]).map((item) => (
             <Group key={item} gap={6} wrap="nowrap">
               <IconCheck size={14} color="white" />
               <Text size="sm" c="white" opacity={0.92}>
@@ -149,7 +175,7 @@ export function ToolCtaCard({ locale }: { locale: string }) {
           fullWidth
           rightSection={<IconArrowRight size={16} />}
         >
-          Prova gratis
+          {t('ctaButton')}
         </Button>
       </Stack>
     </Card>
@@ -176,10 +202,11 @@ export function RelatedToolsCard({
   locale: string;
   tools: { slug: string; title: string }[];
 }) {
+  const t = useTranslations('public.tools.shell');
   return (
     <Card padding="xl" radius="lg" withBorder bg="white">
       <Title order={3} fz={rem(16)} fw={700} c="var(--pub-ink)" mb="sm">
-        Strumenti correlati
+        {t('related')}
       </Title>
       <Stack gap={10}>
         {tools.map((tool) => (
@@ -207,10 +234,11 @@ export type FaqItem = { question: string; answer: string };
 
 /** FAQ in Accordion, stile unico per tutti gli strumenti. */
 export function ToolFaq({ items }: { items: FaqItem[] }) {
+  const t = useTranslations('public.tools.shell');
   return (
     <Card padding="xl" radius="lg" withBorder bg="white">
       <Title order={2} fz={rem(22)} fw={700} c="var(--pub-ink)" mb="md">
-        Domande frequenti
+        {t('faqTitle')}
       </Title>
       <Accordion variant="separated" radius="md">
         {items.map((faq) => (

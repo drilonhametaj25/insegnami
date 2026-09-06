@@ -144,15 +144,25 @@ export async function POST(
     // failed notification doesn't roll back the enrollment, only logs.
     let notificationsSent = 0;
     if (sendNotification && allEnrolledIds.length > 0) {
-      const enrolledStudents = await prisma.student.findMany({
-        where: { id: { in: allEnrolledIds } },
-        select: { id: true, userId: true, parentUserId: true, firstName: true, lastName: true } as any,
-      });
-      const recipients: Array<{ userId: string; tenantId: string }> = [];
+      const [enrolledStudents, guardianLinks] = await Promise.all([
+        prisma.student.findMany({
+          where: { id: { in: allEnrolledIds } },
+          select: { id: true, userId: true, parentUserId: true, firstName: true, lastName: true } as any,
+        }),
+        // Guardian-aware: anche i tutori collegati via StudentGuardian
+        prisma.studentGuardian.findMany({
+          where: { studentId: { in: allEnrolledIds }, tenantId },
+          select: { userId: true },
+        }),
+      ]);
+      const recipientIds = new Set<string>();
       for (const s of enrolledStudents as any[]) {
-        if (s.userId) recipients.push({ userId: s.userId, tenantId });
-        if (s.parentUserId) recipients.push({ userId: s.parentUserId, tenantId });
+        if (s.userId) recipientIds.add(s.userId);
+        if (s.parentUserId) recipientIds.add(s.parentUserId);
       }
+      for (const g of guardianLinks) recipientIds.add(g.userId);
+      const recipients: Array<{ userId: string; tenantId: string }> =
+        Array.from(recipientIds).map((userId) => ({ userId, tenantId }));
       if (recipients.length > 0) {
         try {
           await prisma.notification.createMany({

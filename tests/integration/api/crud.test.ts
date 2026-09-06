@@ -13,6 +13,12 @@ jest.mock('@/lib/tenant-guard', () => ({
   blockIfTenantInaccessible: jest.fn().mockResolvedValue(null),
 }))
 
+// Le route migrate a requireAuth passano da tenant-access, non da tenant-guard
+jest.mock('@/lib/tenant-access', () => ({
+  getTenantAccessCached: jest.fn().mockResolvedValue({ ok: true }),
+  invalidateTenantAccessCache: jest.fn(),
+}))
+
 // Mock plan limits
 jest.mock('@/lib/plan-limits', () => ({
   checkStudentLimit: jest.fn(() => Promise.resolve({ allowed: true })),
@@ -33,11 +39,13 @@ jest.mock('@/lib/db', () => ({
   prisma: {
     student: {
       findMany: jest.fn(),
+      findUnique: jest.fn(), // lookup anti-collisione del generatore codici
       count: jest.fn(),
       create: jest.fn(),
     },
     teacher: {
       findMany: jest.fn(),
+      findUnique: jest.fn(),
       count: jest.fn(),
       create: jest.fn(),
     },
@@ -172,7 +180,7 @@ describe('CRUD - Students API', () => {
       const response = await postStudent(req)
       const data = await response.json()
 
-      expect(response.status).toBe(200)
+      expect(response.status).toBe(201)
       expect(data.success).toBe(true)
       expect(data.student).toBeDefined()
     })

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { faqJsonLd, type FaqItem } from '@/components/public/ToolPageShell';
+import { faqJsonLd, toolPageMetadata, type FaqItem } from '@/components/public/ToolPageShell';
 import { CalcolatoreCostoStudenteClient } from './CalcolatoreCostoStudenteClient';
 
 // FAQ condivise tra JSON-LD e accordion in pagina (testi invariati).
@@ -32,21 +32,13 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const title = 'Calcolatore Costo per Studente | Strumenti Gratuiti';
-  const description =
-    'Calcola gratis il costo annuale e mensile per studente della tua scuola: inserisci le voci di spesa e ottieni ripartizione dei costi e retta consigliata. Nessuna registrazione.';
-
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      type: 'website',
-      url: `https://insegnami.pro/${locale}/tools/calcolatore-costo-studente`,
-      siteName: 'InsegnaMi.pro',
-    },
-  };
+  return toolPageMetadata({
+    locale,
+    slug: 'calcolatore-costo-studente',
+    title: 'Calcolatore Costo per Studente | Strumenti Gratuiti',
+    description:
+      'Calcola gratis il costo annuale e mensile per studente della tua scuola: inserisci le voci di spesa e ottieni ripartizione dei costi e retta consigliata. Nessuna registrazione.',
+  });
 }
 
 export default async function CalcolatoreCostoStudentePage({

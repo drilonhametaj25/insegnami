@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { faqJsonLd, type FaqItem } from '@/components/public/ToolPageShell';
+import { faqJsonLd, toolPageMetadata, type FaqItem } from '@/components/public/ToolPageShell';
 import { GeneratoreCalendarioClient } from './GeneratoreCalendarioClient';
 
 // FAQ condivise tra JSON-LD e accordion in pagina (testi invariati).
@@ -32,21 +32,13 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const title = 'Generatore Calendario Scolastico | Strumenti Gratuiti';
-  const description =
-    'Genera gratis il calendario scolastico con festività nazionali, vacanze di Natale e Pasqua e conteggio dei giorni di lezione. Verifica subito il requisito dei 200 giorni.';
-
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      type: 'website',
-      url: `https://insegnami.pro/${locale}/tools/generatore-calendario-scolastico`,
-      siteName: 'InsegnaMi.pro',
-    },
-  };
+  return toolPageMetadata({
+    locale,
+    slug: 'generatore-calendario-scolastico',
+    title: 'Generatore Calendario Scolastico | Strumenti Gratuiti',
+    description:
+      'Genera gratis il calendario scolastico con festività nazionali, vacanze di Natale e Pasqua e conteggio dei giorni di lezione. Verifica subito il requisito dei 200 giorni.',
+  });
 }
 
 export default async function GeneratoreCalendarioPage({

@@ -3,6 +3,21 @@ import type { AddonType, Plan } from '@prisma/client';
 import { TRIAL_DAYS } from './billing-mode';
 import { getAddonDefinition } from './addons';
 import { invalidateTenantAccessCache } from '@/lib/tenant-access';
+import { logger } from '@/lib/logger';
+
+// Il dev-billing NON addebita nulla: ogni uso va reso rumoroso nei log,
+// così un ambiente di produzione con chiavi placeholder non passa inosservato
+// (env-validation lo blocca già, questo è il secondo livello di difesa).
+let devBillingWarned = false;
+function warnDevBilling(op: string): void {
+  if (!devBillingWarned) {
+    logger.warn(
+      `DEV BILLING ATTIVO (${op}): nessun addebito reale verrà effettuato. ` +
+        'Se questo è un ambiente di produzione, configurare le chiavi Stripe.'
+    );
+    devBillingWarned = true;
+  }
+}
 
 /**
  * Implementazione interna del billing (dev billing mode) che simula
@@ -33,9 +48,13 @@ export async function devActivateSubscription({
   /** Fatturazione annuale scelta al checkout (12 mesi al prezzo di 10). */
   yearly?: boolean;
 }) {
+  warnDevBilling('activate-subscription');
   const now = new Date();
-  const periodEnd = addMonths(now, yearly || plan.interval === 'YEARLY' ? 12 : 1);
+  const isYearly = yearly || plan.interval === 'YEARLY';
+  const periodEnd = addMonths(now, isYearly ? 12 : 1);
   const trialEnd = withTrial ? new Date(now.getTime() + TRIAL_DAYS * 86400000) : null;
+  // Intervallo di fatturazione persistito come farebbe il webhook Stripe
+  const interval = isYearly ? ('YEARLY' as const) : ('MONTHLY' as const);
 
   const subscription = await prisma.subscription.upsert({
     where: { tenantId },
@@ -45,6 +64,7 @@ export async function devActivateSubscription({
       stripeSubscriptionId: `dev_sub_${tenantId}`,
       stripeCustomerId: `dev_cus_${tenantId}`,
       status: withTrial ? 'TRIALING' : 'ACTIVE',
+      interval,
       currentPeriodStart: now,
       currentPeriodEnd: withTrial ? trialEnd! : periodEnd,
       trialStart: withTrial ? now : null,
@@ -54,6 +74,7 @@ export async function devActivateSubscription({
     update: {
       planId: plan.id,
       status: withTrial ? 'TRIALING' : 'ACTIVE',
+      interval,
       currentPeriodStart: now,
       currentPeriodEnd: withTrial ? trialEnd! : periodEnd,
       cancelAtPeriodEnd: false,
@@ -75,14 +96,17 @@ export async function devActivateSubscription({
 export async function devChangePlan({
   tenantId,
   plan,
+  yearly,
 }: {
   tenantId: string;
   plan: Plan;
+  /** Se definito, aggiorna anche l'intervallo di fatturazione (MONTHLY/YEARLY). */
+  yearly?: boolean;
 }) {
   const existing = await prisma.subscription.findUnique({ where: { tenantId } });
   if (!existing) {
     // Nessun abbonamento: equivale ad attivarne uno (senza nuovo trial).
-    return devActivateSubscription({ tenantId, plan, withTrial: false });
+    return devActivateSubscription({ tenantId, plan, withTrial: false, yearly });
   }
 
   const subscription = await prisma.subscription.update({
@@ -90,7 +114,9 @@ export async function devChangePlan({
     data: {
       planId: plan.id,
       // l'upgrade/downgrade mantiene il periodo corrente; lo stato resta invariato
-      // (TRIALING → resta in prova, ACTIVE → resta attivo)
+      // (TRIALING → resta in prova, ACTIVE → resta attivo). L'intervallo cambia
+      // solo se richiesto esplicitamente dal chiamante.
+      ...(yearly !== undefined ? { interval: yearly ? ('YEARLY' as const) : ('MONTHLY' as const) } : {}),
     },
     include: { plan: true },
   });
@@ -144,6 +170,13 @@ export async function devPurchaseAddon({
   type: AddonType;
   quantity?: number;
 }) {
+  warnDevBilling('purchase-addon');
+  // Parità con Stripe (stripe-addons.ts): niente add-on senza abbonamento
+  const subscription = await prisma.subscription.findUnique({ where: { tenantId } });
+  if (!subscription || !['ACTIVE', 'TRIALING'].includes(subscription.status)) {
+    throw new Error('Nessun abbonamento attivo: gli add-on richiedono un piano attivo');
+  }
+
   const def = getAddonDefinition(type);
   const existing = await prisma.tenantAddon.findFirst({
     where: { tenantId, type, status: 'ACTIVE' },

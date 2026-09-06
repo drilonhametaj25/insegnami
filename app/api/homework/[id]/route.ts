@@ -114,11 +114,15 @@ export async function GET(
     }
 
     // For parents, only show their children's submissions
+    // Guardian-aware: StudentGuardian + fallback legacy parentUserId
     if (session.user.role === 'PARENT') {
       const children = await prisma.student.findMany({
         where: {
-          parentUserId: session.user.id,
           tenantId: session.user.tenantId,
+          OR: [
+            { parentUserId: session.user.id },
+            { guardians: { some: { userId: session.user.id } } },
+          ],
         },
         select: { id: true },
       });
@@ -177,14 +181,17 @@ export async function PUT(
     }
 
     // If teacher, verify they created this homework
-    if (session.user.role === 'TEACHER' && session.user.email) {
-      const teacher = await prisma.teacher.findFirst({
-        where: {
-          email: session.user.email,
-          tenantId: session.user.tenantId,
-        },
-      });
-      if (teacher && existingHomework.teacherId !== teacher.id) {
+    if (session.user.role === 'TEACHER') {
+      const teacher = session.user.email
+        ? await prisma.teacher.findFirst({
+            where: {
+              email: session.user.email,
+              tenantId: session.user.tenantId,
+            },
+          })
+        : null;
+      // Deny esplicito: profilo non risolvibile o compito di un altro docente → 403
+      if (!teacher || existingHomework.teacherId !== teacher.id) {
         return NextResponse.json(
           { error: 'Non puoi modificare compiti di altri docenti' },
           { status: 403 }
@@ -276,14 +283,17 @@ export async function DELETE(
     }
 
     // If teacher, verify they created this homework
-    if (session.user.role === 'TEACHER' && session.user.email) {
-      const teacher = await prisma.teacher.findFirst({
-        where: {
-          email: session.user.email,
-          tenantId: session.user.tenantId,
-        },
-      });
-      if (teacher && homework.teacherId !== teacher.id) {
+    if (session.user.role === 'TEACHER') {
+      const teacher = session.user.email
+        ? await prisma.teacher.findFirst({
+            where: {
+              email: session.user.email,
+              tenantId: session.user.tenantId,
+            },
+          })
+        : null;
+      // Deny esplicito: profilo non risolvibile o compito di un altro docente → 403
+      if (!teacher || homework.teacherId !== teacher.id) {
         return NextResponse.json(
           { error: 'Non puoi eliminare compiti di altri docenti' },
           { status: 403 }

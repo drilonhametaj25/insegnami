@@ -14,6 +14,49 @@ const attendanceSchema = z.object({
   leftAt: z.string().datetime().optional(),
 });
 
+/**
+ * Notifica assenze registrate (best-effort): genitori/tutori + docente via
+ * NotificationService → dispatcher. Chiamata SEMPRE dentro try/catch dal
+ * POST: un errore di notifica non deve far fallire la registrazione.
+ */
+async function notifyAbsences(
+  lesson: { id: string; tenantId: string; title: string; startTime: Date; teacherId: string },
+  entries: Array<{ attendanceId: string; studentId: string }>,
+) {
+  if (entries.length === 0) return;
+  const { NotificationService } = await import('@/lib/notification-service');
+  const teacher = await prisma.teacher.findUnique({
+    where: { id: lesson.teacherId },
+    select: { userId: true },
+  });
+  for (const entry of entries) {
+    const student = await prisma.student.findUnique({
+      where: { id: entry.studentId },
+      select: {
+        firstName: true,
+        lastName: true,
+        parentUserId: true,
+        guardians: { select: { userId: true } },
+      },
+    });
+    if (!student) continue;
+    // Guardian-aware: StudentGuardian + fallback legacy parentUserId
+    const parentIds = Array.from(new Set([
+      ...student.guardians.map((g) => g.userId),
+      ...(student.parentUserId ? [student.parentUserId] : []),
+    ]));
+    await NotificationService.notifyStudentAbsence(
+      lesson.tenantId,
+      entry.attendanceId,
+      `${student.firstName} ${student.lastName}`,
+      lesson.title,
+      lesson.startTime,
+      parentIds,
+      teacher?.userId ?? '',
+    );
+  }
+}
+
 const bulkAttendanceSchema = z.object({
   lessonId: z.string().cuid(),
   attendance: z.array(z.object({
@@ -95,9 +138,12 @@ export async function GET(request: NextRequest) {
       where.studentId = studentId ?? '__no_student__';
     } else if (session.user.role === 'PARENT') {
       // Parents can only see their children's attendance
-      // SECURITY: Use parentUserId instead of parentEmail to prevent email substring attacks
+      // Guardian-aware: StudentGuardian + fallback legacy parentUserId
       where.student = {
-        parentUserId: session.user.id,
+        OR: [
+          { parentUserId: session.user.id },
+          { guardians: { some: { userId: session.user.id } } },
+        ],
       };
     }
 
@@ -178,8 +224,8 @@ export async function POST(request: NextRequest) {
     const blocked = await blockIfTenantInaccessible(session);
     if (blocked) return blocked;
 
-    // Only teachers and admins can mark attendance
-    if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
+    // Registrazione presenze: admin, direzione, segreteria e docenti
+    if (!['ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 
@@ -273,6 +319,18 @@ export async function POST(request: NextRequest) {
         })
       );
 
+      // Notifica assenze (in try/catch: non blocca la risposta)
+      try {
+        await notifyAbsences(
+          lesson,
+          attendanceRecords
+            .filter((r) => r.status === 'ABSENT')
+            .map((r) => ({ attendanceId: r.id, studentId: r.studentId })),
+        );
+      } catch (notifyError) {
+        console.error('Errore notifica assenze (bulk):', notifyError);
+      }
+
       return NextResponse.json(attendanceRecords, { status: 201 });
     } else {
       // Single attendance record
@@ -346,6 +404,17 @@ export async function POST(request: NextRequest) {
           },
         },
       });
+
+      // Notifica assenza (in try/catch: non blocca la risposta)
+      if (validatedData.status === 'ABSENT') {
+        try {
+          await notifyAbsences(lesson, [
+            { attendanceId: attendance.id, studentId: validatedData.studentId },
+          ]);
+        } catch (notifyError) {
+          console.error('Errore notifica assenza:', notifyError);
+        }
+      }
 
       return NextResponse.json(attendance, { status: 201 });
     }

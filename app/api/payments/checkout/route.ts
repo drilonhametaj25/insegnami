@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { createCheckoutSession } from '@/lib/stripe';
@@ -19,14 +19,6 @@ export async function POST(request: NextRequest) {
     const blocked = await blockIfTenantInaccessible(session);
     if (blocked) return blocked;
 
-    // Verify Stripe is configured
-    if (!process.env.STRIPE_SECRET_KEY) {
-      return NextResponse.json(
-        { error: 'Stripe non configurato' },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
     const { paymentId } = checkoutSchema.parse(body);
 
@@ -40,6 +32,8 @@ export async function POST(request: NextRequest) {
         student: {
           select: {
             id: true,
+            userId: true,
+            parentUserId: true,
             firstName: true,
             lastName: true,
             email: true,
@@ -54,11 +48,27 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (!payment) {
+    if (!payment || !payment.student) {
       return NextResponse.json(
         { error: 'Pagamento non trovato' },
         { status: 404 }
       );
+    }
+
+    // Ownership: solo admin, lo studente titolare della rata o il suo genitore
+    let isOwner =
+      (session.user.role === 'STUDENT' && payment.student.userId === session.user.id) ||
+      (session.user.role === 'PARENT' && payment.student.parentUserId === session.user.id);
+    // Guardian-aware: anche i tutori collegati via StudentGuardian
+    if (!isOwner && session.user.role === 'PARENT') {
+      const link = await prisma.studentGuardian.findFirst({
+        where: { studentId: payment.student.id, userId: session.user.id },
+        select: { id: true },
+      });
+      isOwner = !!link;
+    }
+    if (!isAdminRole(session.user.role) && !isOwner) {
+      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
 
     // Don't allow checkout for already paid or cancelled payments
@@ -73,6 +83,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Pagamento annullato' },
         { status: 400 }
+      );
+    }
+
+    // Verify Stripe is configured (dopo i check di autorizzazione)
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json(
+        { error: 'Stripe non configurato' },
+        { status: 500 }
       );
     }
 

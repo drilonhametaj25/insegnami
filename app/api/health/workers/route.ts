@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAuth, isAdminRole } from '@/lib/auth';
+import { requireAuth, authError } from '@/lib/api-auth';
 import { getAllQueueHealth } from '@/lib/queue/health';
 import { prisma } from '@/lib/db';
 import { redis } from '@/lib/redis';
@@ -9,13 +9,15 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/health/workers — detailed worker / queue status for ops dashboards.
- * ADMIN+ only because it exposes per-queue counts and recent failure history,
- * which we don't want indexed by external monitors.
+ * SUPERADMIN only: expone code e run di piattaforma non filtrati per tenant.
  */
 export async function GET() {
-  const session = await getAuth();
-  if (!session?.user || !isAdminRole(session.user.role)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    await requireAuth({ roles: ['SUPERADMIN'] });
+  } catch (e) {
+    const r = authError(e);
+    if (r) return r;
+    throw e;
   }
 
   const [queues, lastRuns, failedRuns, heartbeatRaw] = await Promise.all([

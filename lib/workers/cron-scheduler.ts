@@ -19,7 +19,12 @@ export type CronJobName =
   | 'parent-attendance-digest'
   | 'deactivate-expired-tenants'
   | 'auto-complete-lessons'
-  | 'trial-ending-reminder';
+  | 'trial-ending-reminder'
+  | 'cleanup-notifications'
+  | 'retention-automation-runs'
+  | 'email-queue-clean'
+  | 'expire-stale-subscriptions'
+  | 'reset-demo-tenant';
 
 let _cronQueue: Queue | null = null;
 
@@ -50,13 +55,16 @@ export const cronQueue = { get: getCronQueue };
 export async function withAuditRun<T>(
   jobName: CronJobName,
   fn: () => Promise<T>,
+  // Popolato quando il job è tenant-specifico: abilita la vista ADMIN
+  // filtrata di GET /api/automation.
+  tenantId?: string,
 ): Promise<T> {
   const startedAt = new Date();
   let runId: string | null = null;
 
   try {
     const created = await prisma.automationRun.create({
-      data: { jobName, startedAt, status: 'RUNNING' },
+      data: { jobName, startedAt, status: 'RUNNING', tenantId: tenantId ?? null },
       select: { id: true },
     });
     runId = created?.id ?? null;
@@ -193,14 +201,31 @@ export async function parentAttendanceDigest(): Promise<{
     },
   });
 
+  // Destinatari guardian-aware: StudentGuardian + fallback legacy parentUserId
+  const digestStudentIds = Array.from(new Set(records.map((r) => r.studentId)));
+  const guardianLinks = digestStudentIds.length
+    ? await prisma.studentGuardian.findMany({
+        where: { studentId: { in: digestStudentIds } },
+        select: { studentId: true, userId: true },
+      })
+    : [];
+  const guardiansByStudent = new Map<string, Set<string>>();
+  for (const link of guardianLinks) {
+    const set = guardiansByStudent.get(link.studentId) ?? new Set<string>();
+    set.add(link.userId);
+    guardiansByStudent.set(link.studentId, set);
+  }
+
   // Raggruppa per genitore — skip per chi non ha un account genitore collegato
   const byParent = new Map<string, typeof records>();
   for (const rec of records) {
-    const parentUserId = rec.student.parentUserId;
-    if (!parentUserId) continue;
-    const list = byParent.get(parentUserId) ?? [];
-    list.push(rec);
-    byParent.set(parentUserId, list);
+    const recipientIds = new Set<string>(guardiansByStudent.get(rec.studentId) ?? []);
+    if (rec.student.parentUserId) recipientIds.add(rec.student.parentUserId);
+    for (const parentUserId of recipientIds) {
+      const list = byParent.get(parentUserId) ?? [];
+      list.push(rec);
+      byParent.set(parentUserId, list);
+    }
   }
 
   let emailsEnqueued = 0;
@@ -307,6 +332,55 @@ export async function runTrialEndingReminder(): Promise<{
 }
 
 /**
+ * Retention del registro AutomationRun: elimina le run più vecchie di 90
+ * giorni. Idempotente. Ritorna il numero di righe eliminate.
+ */
+export async function retentionAutomationRuns(): Promise<{ deleted: number }> {
+  const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const result = await prisma.automationRun.deleteMany({
+    where: { startedAt: { lt: cutoff } },
+  });
+  logger.info(`retentionAutomationRuns: ${result.count} run oltre i 90 giorni eliminate`);
+  return { deleted: result.count };
+}
+
+/**
+ * Trial scaduti mai convertiti: le Subscription TRIALING con trialEnd
+ * passato (nessun pagamento arrivato — il webhook Stripe le avrebbe portate
+ * ad ACTIVE) diventano UNPAID e la cache di accesso del tenant viene
+ * invalidata così il blocco commerciale scatta subito.
+ */
+export async function expireStaleSubscriptions(): Promise<{ expired: number }> {
+  const now = new Date();
+  const stale = await prisma.subscription.findMany({
+    where: {
+      status: 'TRIALING',
+      trialEnd: { lt: now },
+    },
+    select: { id: true, tenantId: true },
+  });
+
+  let expired = 0;
+  for (const sub of stale) {
+    try {
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: 'UNPAID' },
+      });
+      const { invalidateTenantAccessCache } = await import('@/lib/tenant-access');
+      await invalidateTenantAccessCache(sub.tenantId);
+      expired++;
+    } catch (err) {
+      // Un tenant problematico non blocca il giro degli altri
+      logger.warn(`expireStaleSubscriptions: update fallita per subscription ${sub.id}`, err);
+    }
+  }
+
+  logger.info(`expireStaleSubscriptions: ${expired}/${stale.length} trial scaduti → UNPAID`);
+  return { expired };
+}
+
+/**
  * Process cron jobs as they fire. The processor itself is short — most work
  * lives in dedicated services (AutomationService.runDailyAutomation etc).
  */
@@ -329,6 +403,29 @@ async function cronProcessor(job: Job): Promise<unknown> {
     }
     case 'trial-ending-reminder':
       return withAuditRun(name, () => runTrialEndingReminder());
+    case 'cleanup-notifications': {
+      const { NotificationService } = await import('@/lib/notification-service');
+      return withAuditRun(name, async () => ({
+        deleted: await NotificationService.cleanupExpiredNotifications(),
+      }));
+    }
+    case 'retention-automation-runs':
+      return withAuditRun(name, () => retentionAutomationRuns());
+    case 'email-queue-clean': {
+      const { EmailQueueMonitor } = await import('@/lib/email-queue');
+      return withAuditRun(name, async () => {
+        await EmailQueueMonitor.cleanOldJobs();
+        return { cleaned: true };
+      });
+    }
+    case 'expire-stale-subscriptions':
+      return withAuditRun(name, () => expireStaleSubscriptions());
+    case 'reset-demo-tenant': {
+      // Wipe + ri-seed del tenant demo pubblico (slug 'demo'):
+      // dati sempre freschi per chi prova la piattaforma.
+      const { resetDemoTenant } = await import('@/lib/demo/seed-demo-tenant');
+      return withAuditRun(name, () => resetDemoTenant());
+    }
     default:
       logger.warn(`Unknown cron job: ${name}`);
       return null;
@@ -371,6 +468,11 @@ export async function registerCronJobs(): Promise<void> {
     { name: 'deactivate-expired-tenants', cron: '15 3 * * *' },// daily 03:15 (after most subs renew)
     { name: 'auto-complete-lessons',      cron: '30 6 * * *' }, // daily 06:30 — past SCHEDULED → COMPLETED + consume hours
     { name: 'trial-ending-reminder',      cron: '0 10 * * *' }, // daily 10:00 — promemoria fine prova agli admin
+    { name: 'cleanup-notifications',      cron: '0 4 * * *' },  // daily 04:00 — elimina notifiche scadute (expiresAt)
+    { name: 'retention-automation-runs',  cron: '30 4 * * *' }, // daily 04:30 — retention 90gg del registro run
+    { name: 'email-queue-clean',          cron: '0 5 * * *' },  // daily 05:00 — pulizia job completati/falliti coda email
+    { name: 'expire-stale-subscriptions', cron: '45 3 * * *' }, // daily 03:45 — TRIALING scaduti → UNPAID + invalidazione cache
+    { name: 'reset-demo-tenant',          cron: '0 3 * * *' },  // daily 03:00 — wipe + ri-seed del tenant demo pubblico
   ];
 
   for (const s of schedules) {

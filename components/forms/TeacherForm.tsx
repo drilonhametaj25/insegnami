@@ -12,6 +12,8 @@ import {
   Stack,
   Grid,
   NumberInput,
+  PasswordInput,
+  Switch,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
@@ -31,6 +33,8 @@ interface Teacher {
   biography?: string;
   hourlyRate?: number;
   contractType?: string;
+  createAccount?: boolean;
+  password?: string;
 }
 
 interface TeacherFormProps {
@@ -64,6 +68,8 @@ export function TeacherForm({
       biography: teacher?.biography || '',
       hourlyRate: teacher?.hourlyRate || 0,
       contractType: teacher?.contractType || 'Full-time',
+      createAccount: false,
+      password: '',
     },
     validate: {
       firstName: (value) => (value.length < 2 ? 'Nome troppo corto' : null),
@@ -75,6 +81,12 @@ export function TeacherForm({
       },
       hourlyRate: (value) => {
         if (value !== undefined && value < 0) return 'Tariffa non può essere negativa';
+        return null;
+      },
+      password: (value, values) => {
+        if (values.createAccount && value && value.length < 8) {
+          return 'La password deve avere almeno 8 caratteri';
+        }
         return null;
       },
     },
@@ -236,6 +248,30 @@ export function TeacherForm({
               </Grid.Col>
             </Grid>
           </div>
+
+          {/* Account di accesso (solo in creazione) */}
+          {!teacher && (
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium text-gray-900 mb-3">
+                Account di Accesso
+              </h4>
+              <Switch
+                label="Crea account di accesso"
+                description="Crea un utente collegato con ruolo Docente per l'accesso alla piattaforma"
+                data-testid="teacher-crea-account"
+                {...form.getInputProps('createAccount', { type: 'checkbox' })}
+              />
+              {form.values.createAccount && (
+                <PasswordInput
+                  label="Password"
+                  placeholder="Minimo 8 caratteri (vuota = generata automaticamente)"
+                  mt="md"
+                  data-testid="teacher-password"
+                  {...form.getInputProps('password')}
+                />
+              )}
+            </div>
+          )}
 
           {/* Qualifiche e Competenze */}
           <div className="border-t pt-4">

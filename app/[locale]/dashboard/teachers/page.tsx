@@ -24,6 +24,7 @@ import { DataTable, TableRenderers } from '@/components/tables/DataTable';
 import { TeacherForm } from '@/components/forms/TeacherForm';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { EmptyState, emptyStateConfigs } from '@/components/ui/EmptyState';
+import { usePermission, usePermissionAny } from '@/lib/hooks/usePermissions';
 
 interface Teacher {
   id: string;
@@ -83,8 +84,9 @@ export default function TeachersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
 
-  // Permission check
-  const canManageTeachers = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN';
+  // Permission check (matrice: risorsa 'teacher')
+  const canManageTeachers = usePermissionAny(['create', 'update'], 'teacher');
+  const canDeleteTeachers = usePermission('delete', 'teacher');
 
   // Fetch data
   const fetchTeachers = async (page = 1, search = '', status = '') => {
@@ -442,7 +444,7 @@ export default function TeachersPage() {
             filterLabel="Filtra per stato"
             onFilter={handleFilter}
             onEdit={handleEdit}
-            onDelete={handleDelete}
+            onDelete={canDeleteTeachers ? handleDelete : undefined}
             onView={(teacher) => handleViewTeacher(teacher.id)}
             onCreate={handleCreate}
             createButtonLabel="Nuovo Docente"

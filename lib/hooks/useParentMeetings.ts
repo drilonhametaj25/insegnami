@@ -87,6 +87,11 @@ export interface TeacherAvailability {
   slots: Record<string, TimeSlot[]>;
 }
 
+export interface ParentMeetingOptions {
+  children: { id: string; firstName: string; lastName: string }[];
+  teachers: { id: string; firstName: string; lastName: string; subjects?: string[] }[];
+}
+
 export interface CreateParentMeetingInput {
   studentId: string;
   teacherId?: string;
@@ -121,6 +126,7 @@ export const parentMeetingKeys = {
   availability: (teacherId: string, date?: string) =>
     [...parentMeetingKeys.all, 'availability', teacherId, date] as const,
   stats: () => [...parentMeetingKeys.all, 'stats'] as const,
+  myOptions: () => [...parentMeetingKeys.all, 'my-options'] as const,
 };
 
 // API functions
@@ -271,6 +277,22 @@ export function useParentMeetingStats() {
   return useQuery({
     queryKey: parentMeetingKeys.stats(),
     queryFn: fetchParentMeetingStats,
+  });
+}
+
+// Opzioni portale famiglia: figli del genitore + docenti delle loro classi
+export function useParentMeetingOptions(enabled = true) {
+  return useQuery({
+    queryKey: parentMeetingKeys.myOptions(),
+    queryFn: async (): Promise<ParentMeetingOptions> => {
+      const response = await fetch('/api/parent-meetings/my-options');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Errore nel caricamento delle opzioni');
+      }
+      return response.json();
+    },
+    enabled,
   });
 }
 

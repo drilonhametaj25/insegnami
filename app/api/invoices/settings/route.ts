@@ -27,7 +27,7 @@ const settingsSchema = z.object({
 
 export async function GET() {
   try {
-    const ctx = await requireAuth({ permission: { action: 'read', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'invoice' }, feature: 'einvoicing' });
     const settings = await prisma.invoiceSettings.findUnique({
       where: { tenantId: ctx.tenantId },
     });
@@ -53,7 +53,7 @@ export async function GET() {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'update', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'update', resource: 'invoice' }, feature: 'einvoicing' });
     const body = await request.json().catch(() => ({}));
     const parsed = settingsSchema.safeParse(body);
     if (!parsed.success) {

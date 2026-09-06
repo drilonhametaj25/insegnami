@@ -1,17 +1,29 @@
 import { createMocks } from 'node-mocks-http'
 import { GET } from '@/app/api/analytics/route'
 
-// Mock auth
-jest.mock('@/lib/auth', () => ({
-  auth: jest.fn(() => Promise.resolve({
+// Mock auth (la route usa requireAuth → getAuth + matrice + tenant-access)
+jest.mock('@/lib/auth', () => {
+  const getAuth = jest.fn(() => Promise.resolve({
     user: {
       id: '1',
+      tenantId: 'tenant-1',
       email: 'test@example.com',
       firstName: 'Test',
       lastName: 'User',
       role: 'ADMIN',
     }
   }))
+  return { getAuth, auth: getAuth }
+})
+
+jest.mock('@/lib/tenant-access', () => ({
+  getTenantAccessCached: jest.fn().mockResolvedValue({ ok: true }),
+  invalidateTenantAccessCache: jest.fn(),
+}))
+
+// La route ora è gated dalla feature di piano 'analytics'
+jest.mock('@/lib/billing/features', () => ({
+  hasFeature: jest.fn().mockResolvedValue(true),
 }))
 
 // Mock Prisma

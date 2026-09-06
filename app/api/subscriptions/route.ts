@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, ADMIN_ROLES } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { getEffectiveFeatures } from '@/lib/billing/features';
 
 // GET /api/subscriptions - Get current tenant subscription
 export async function GET(request: NextRequest) {
@@ -14,6 +15,10 @@ export async function GET(request: NextRequest) {
     if (!ADMIN_ROLES.includes(session.user.role)) {
       return NextResponse.json({ error: 'Permessi insufficienti' }, { status: 403 });
     }
+
+    // Feature effettive del tenant (piano + override): usate dalla UI per il
+    // gating (Sidebar/upsell). Fail-open: su errore infra → mappa vuota.
+    const features = await getEffectiveFeatures(session.user.tenantId).catch(() => ({}));
 
     const subscription = await prisma.subscription.findUnique({
       where: { tenantId: session.user.tenantId },
@@ -42,12 +47,17 @@ export async function GET(request: NextRequest) {
         status: tenant?.trialUntil && new Date(tenant.trialUntil) > new Date()
           ? 'trialing'
           : 'no_subscription',
+        features,
       });
     }
 
     return NextResponse.json({
       subscription,
       status: subscription.status.toLowerCase(),
+      // Campi convenience per la UI (dunning banner, prezzo per intervallo)
+      interval: subscription.interval,
+      gracePeriodEnd: subscription.gracePeriodEnd,
+      features,
     });
   } catch (error) {
     console.error('Get subscription error:', error);

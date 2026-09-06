@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '@/lib/db';
 import { requireAuth, authError, tenantScope } from '@/lib/api-auth';
+import { endOfDay } from '@/lib/dates';
 
 const createSchema = z.object({
   date: z.string(),
@@ -18,7 +19,7 @@ const createSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'read', resource: 'accounting' } });
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'accounting' }, feature: 'accounting' });
     const sp = request.nextUrl.searchParams;
 
     const where: any = tenantScope(ctx);
@@ -26,7 +27,8 @@ export async function GET(request: NextRequest) {
     if (sp.get('source')) where.source = sp.get('source');
     if (sp.get('category')) where.category = sp.get('category');
     if (sp.get('from')) where.date = { ...(where.date ?? {}), gte: new Date(sp.get('from')!) };
-    if (sp.get('to')) where.date = { ...(where.date ?? {}), lte: new Date(sp.get('to')!) };
+    // endOfDay: include l'intero ultimo giorno del range richiesto
+    if (sp.get('to')) where.date = { ...(where.date ?? {}), lte: endOfDay(new Date(sp.get('to')!)) };
 
     const page = Math.max(parseInt(sp.get('page') ?? '1', 10), 1);
     const pageSize = Math.min(Math.max(parseInt(sp.get('pageSize') ?? '50', 10), 1), 200);
@@ -59,7 +61,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'create', resource: 'accounting' } });
+    const ctx = await requireAuth({ permission: { action: 'create', resource: 'accounting' }, feature: 'accounting' });
     const body = await request.json().catch(() => ({}));
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {

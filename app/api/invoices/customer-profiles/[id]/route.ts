@@ -26,7 +26,7 @@ const patchSchema = z.object({
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'update', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'update', resource: 'invoice' }, feature: 'einvoicing' });
     const { id } = await params;
 
     const existing = await prisma.invoiceCustomerProfile.findFirst({
@@ -61,7 +61,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'delete', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'delete', resource: 'invoice' }, feature: 'einvoicing' });
     const { id } = await params;
 
     const existing = await prisma.invoiceCustomerProfile.findFirst({

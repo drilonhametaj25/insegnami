@@ -82,7 +82,7 @@ export async function GET(
     });
 
     // For teachers/admins, also show students who haven't submitted
-    if (['ADMIN', 'SUPERADMIN', 'TEACHER'].includes(session.user.role)) {
+    if (['ADMIN', 'SUPERADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER'].includes(session.user.role)) {
       const submittedStudentIds = submissions.map((s) => s.studentId);
       const allStudents = homework.class.students.map((sc) => sc.student);
       const missingStudents = allStudents.filter(
@@ -106,8 +106,38 @@ export async function GET(
       });
     }
 
-    // For students/parents, just return submissions
-    return NextResponse.json({ submissions });
+    // Vista genitore: solo le consegne dei propri figli (guardian-aware)
+    if (session.user.role === 'PARENT') {
+      const children = await prisma.student.findMany({
+        where: {
+          tenantId: session.user.tenantId,
+          OR: [
+            { parentUserId: session.user.id },
+            { guardians: { some: { userId: session.user.id } } },
+          ],
+        },
+        select: { id: true },
+      });
+      const childIds = children.map((c) => c.id);
+      return NextResponse.json({
+        submissions: submissions.filter((s) => childIds.includes(s.studentId)),
+      });
+    }
+
+    // Studente: SOLO la propria consegna (mai voti/feedback dei compagni)
+    if (session.user.role === 'STUDENT') {
+      const student = await prisma.student.findFirst({
+        where: { userId: session.user.id, tenantId: session.user.tenantId },
+        select: { id: true },
+      });
+      return NextResponse.json({
+        submissions: student
+          ? submissions.filter((s) => s.studentId === student.id)
+          : [],
+      });
+    }
+
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   } catch (error) {
     console.error('Homework submissions GET error:', error);
     return NextResponse.json(

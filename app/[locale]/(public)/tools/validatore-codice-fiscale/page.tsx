@@ -1,25 +1,30 @@
 import type { Metadata } from 'next';
-import { faqJsonLd, type FaqItem } from '@/components/public/ToolPageShell';
+import { faqJsonLd, toolPageMetadata, type FaqItem } from '@/components/public/ToolPageShell';
 import { ValidatoreCodiceFiscaleClient } from './ValidatoreCodiceFiscaleClient';
 
-export const metadata: Metadata = {
-  title: 'Validatore Codice Fiscale | Strumenti Gratuiti',
-  description:
-    'Verifica gratis la correttezza formale di un codice fiscale italiano: formato, carattere di controllo, data di nascita e sesso. Utile per segreterie scolastiche e iscrizioni.',
-  keywords: [
-    'validatore codice fiscale',
-    'verifica codice fiscale',
-    'controllo codice fiscale online',
-    'carattere di controllo codice fiscale',
-    'codice fiscale italiano',
-  ],
-  openGraph: {
-    title: 'Validatore Codice Fiscale | Strumenti Gratuiti | InsegnaMi.pro',
-    description:
-      'Verifica la correttezza formale di un codice fiscale italiano ed estrai le informazioni anagrafiche. Gratuito, senza registrazione.',
-    type: 'website',
-  },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return {
+    ...toolPageMetadata({
+      locale,
+      slug: 'validatore-codice-fiscale',
+      title: 'Validatore Codice Fiscale | Strumenti Gratuiti',
+      description:
+        'Verifica gratis la correttezza formale di un codice fiscale italiano: formato, carattere di controllo, data di nascita e sesso. Utile per segreterie scolastiche e iscrizioni.',
+    }),
+    keywords: [
+      'validatore codice fiscale',
+      'verifica codice fiscale',
+      'controllo codice fiscale online',
+      'carattere di controllo codice fiscale',
+      'codice fiscale italiano',
+    ],
+  };
+}
 
 const faqs: FaqItem[] = [
   {

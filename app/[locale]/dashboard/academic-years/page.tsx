@@ -55,6 +55,7 @@ import {
   CreateAcademicYearData,
   CreatePeriodData,
 } from '@/lib/hooks/useAcademicYears';
+import { usePermission } from '@/lib/hooks/usePermissions';
 
 export default function AcademicYearsPage() {
   const { data: session } = useSession();
@@ -77,9 +78,8 @@ export default function AcademicYearsPage() {
   const updatePeriod = useUpdatePeriod();
   const deletePeriod = useDeletePeriod();
 
-  // Check permissions
-  const canManage =
-    session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN';
+  // Check permissions (matrice: gestione completa anni accademici)
+  const canManage = usePermission('manage', 'academicYear');
 
   const academicYears = yearsData?.academicYears || [];
 

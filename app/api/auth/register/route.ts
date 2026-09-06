@@ -28,8 +28,34 @@ export async function POST(request: NextRequest) {
     });
     if (!rl.success) return rl.error!;
 
+    // Impostazioni piattaforma (singleton): blocco registrazioni e giorni di
+    // trial configurabili dal superadmin. Fail-open sul fallback (14 giorni)
+    // se il singleton non esiste o la lettura fallisce.
+    let trialDays = 14;
+    try {
+      const platformSettings = await prisma.platformSettings.findUnique({
+        where: { id: 'platform' },
+      });
+      if (platformSettings?.allowNewRegistrations === false) {
+        return NextResponse.json(
+          { error: 'Le registrazioni sono temporaneamente sospese. Riprova più tardi.' },
+          { status: 403 }
+        );
+      }
+      if (typeof platformSettings?.defaultTrialDays === 'number') {
+        trialDays = platformSettings.defaultTrialDays;
+      }
+    } catch (settingsError) {
+      console.error('PlatformSettings read failed (fallback trial 14gg):', settingsError);
+    }
+
     const body = await request.json();
-    const { firstName, lastName, email, password, schoolName, role, planId } = body;
+    const { firstName, lastName, email, password, schoolName, role, planId, interval, locale } = body;
+
+    // Sanitizzazione dei parametri opzionali propagati nel link di verifica:
+    // valori inattesi vengono semplicemente ignorati (fallback monthly/it)
+    const safeInterval = interval === 'yearly' ? 'yearly' : null;
+    const safeLocale = ['it', 'en', 'fr', 'pt'].includes(locale) ? locale : null;
 
     // Validate required fields
     if (!firstName || !lastName || !email || !password || !schoolName) {
@@ -114,7 +140,7 @@ export async function POST(request: NextRequest) {
         name: schoolName,
         slug,
         isActive: false, // Will be activated after email verification
-        trialUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 giorni trial
+        trialUntil: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000), // trial da PlatformSettings
       },
     });
 
@@ -184,9 +210,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Send verification email
-    // Include planId in verification URL if provided
+    // Include planId (+ interval/locale) in verification URL if provided
     const planParam = planId ? `&plan=${encodeURIComponent(planId)}` : '';
-    const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}${planParam}`;
+    const intervalParam = safeInterval ? `&interval=${safeInterval}` : '';
+    const localeParam = safeLocale ? `&locale=${safeLocale}` : '';
+    const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}${planParam}${intervalParam}${localeParam}`;
 
     // BUG-032 fix: Escape HTML in user-provided data to prevent XSS
     const safeFirstName = escapeHtml(firstName);

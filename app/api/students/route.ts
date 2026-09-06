@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { checkStudentLimit } from '@/lib/plan-limits';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { requireAuth, authError, tenantScope, getTeacherIdForUser } from '@/lib/api-auth';
+import { generateStudentCode } from '@/lib/user-profile-sync';
 
 // Generate temporary password
 function generateTempPassword(): string {
@@ -18,22 +20,16 @@ function generateTempPassword(): string {
 // GET /api/students - List students with pagination and filtering
 export async function GET(request: NextRequest) {
   try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
-
-    // Only ADMIN, TEACHER can list students
-    if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    // Anagrafica completa: ruoli espliciti (STUDENT/PARENT esclusi, espone dati di altri)
+    const ctx = await requireAuth({ roles: ['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER'] });
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    // `?all=true` per select/filtri che richiedono la lista completa
+    // (pattern GET /api/classes); cap a 1000 per evitare risposte enormi.
+    const limit = searchParams.get('all') === 'true'
+      ? 1000
+      : parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
     const classId = searchParams.get('classId') || '';
     const status = searchParams.get('status') || '';
@@ -41,11 +37,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build where clause with tenant scoping
-    const where: any = {};
-    
-    if (session.user.role !== 'SUPERADMIN') {
-      where.tenantId = session.user.tenantId;
-    }
+    const where: any = tenantScope(ctx);
 
     // Search filter
     if (search) {
@@ -71,6 +63,25 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    // I docenti vedono solo gli studenti delle proprie classi (deny se il
+    // profilo Teacher non risolve)
+    if (ctx.role === 'TEACHER') {
+      const teacherId = await getTeacherIdForUser(ctx);
+      if (!teacherId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      where.classes = {
+        some: {
+          ...(classId ? { classId } : {}),
+          class: { teacherId },
+        },
+      };
+    }
+
+    // Contatti (telefono studente e anagrafica genitori) riservati ai ruoli
+    // amministrativi — cfr. canSeeParentContacts in attendance/export
+    const canSeeParentContacts = isAdminRole(ctx.role);
+
     // Get students with pagination
     const [students, total] = await Promise.all([
       prisma.student.findMany({
@@ -82,20 +93,24 @@ export async function GET(request: NextRequest) {
               email: true,
               firstName: true,
               lastName: true,
-              phone: true,
+              ...(canSeeParentContacts ? { phone: true } : {}),
               status: true,
             },
           },
-          parentUser: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-              phone: true,
-              status: true,
-            },
-          },
+          ...(canSeeParentContacts
+            ? {
+                parentUser: {
+                  select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    phone: true,
+                    status: true,
+                  },
+                },
+              }
+            : {}),
           classes: {
             include: {
               class: {
@@ -164,6 +179,8 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     console.error('Students GET error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -411,11 +428,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate unique student code
-    const studentCount = await prisma.student.count({
-      where: { tenantId: session.user.tenantId },
-    });
-    const studentCode = `S${(studentCount + 1).toString().padStart(3, '0')}`;
+    // Generatore condiviso (lib/user-profile-sync): sequenza per-tenant con
+    // retry anti-collisione sul vincolo @@unique([tenantId, studentCode])
+    const studentCode = await generateStudentCode(prisma, session.user.tenantId);
 
     // Create student record
     const student = await prisma.student.create({
@@ -457,6 +472,19 @@ export async function POST(request: NextRequest) {
       } as any,
     });
 
+    // Tabella ponte tutori: parentUserId resta come denormalizzazione del
+    // tutore primario, la fonte di verità è StudentGuardian
+    if (parentUser) {
+      await prisma.studentGuardian.create({
+        data: {
+          tenantId: session.user.tenantId,
+          studentId: student.id,
+          userId: parentUser.id,
+          isPrimary: true,
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       student: {
@@ -466,8 +494,16 @@ export async function POST(request: NextRequest) {
         parentEmail: (student as any).parentUser?.email || null,
         parentPhone: (student as any).parentUser?.phone || null,
       },
-    });
-  } catch (error) {
+    }, { status: 201 });
+  } catch (error: any) {
+    // Collisione residua sul vincolo unico per-tenant (studentCode) o race
+    // su email: 409 esplicito invece di 500 generico
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Conflitto: codice studente o email già esistenti, riprova.' },
+        { status: 409 }
+      );
+    }
     console.error('Error creating student:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

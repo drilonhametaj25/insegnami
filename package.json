@@ -29,10 +29,11 @@
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration",
     "test:integration-db": "jest -c jest.config.integration.js --runInBand",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=chromium",
+    "test:e2e:smoke": "playwright test --project=chromium --grep @smoke",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
-    "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e"
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:integration-db && npm run test:e2e"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.4.2",
@@ -58,6 +59,7 @@
     "chart.js": "^4.5.0",
     "date-fns": "^3.6.0",
     "dayjs": "^1.11.18",
+    "exceljs": "^4.4.0",
     "gray-matter": "^4.0.3",
     "ioredis": "^5.4.1",
     "jose": "^5.8.0",
@@ -68,6 +70,7 @@
     "next-intl": "^4.3.9",
     "next-mdx-remote": "^6.0.0",
     "nodemailer": "^8.0.2",
+    "papaparse": "^5.7.0",
     "react": "^18.3.1",
     "react-big-calendar": "^1.19.4",
     "react-chartjs-2": "^5.3.0",
@@ -81,6 +84,7 @@
     "rehype-autolink-headings": "^7.1.0",
     "rehype-slug": "^6.0.0",
     "remark-gfm": "^4.0.1",
+    "rrule": "^2.8.1",
     "stripe": "^20.4.0",
     "uuid": "^10.0.0",
     "zod": "^3.25.76"
@@ -95,6 +99,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^22.5.4",
     "@types/nodemailer": "^6.4.15",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@types/uuid": "^10.0.0",

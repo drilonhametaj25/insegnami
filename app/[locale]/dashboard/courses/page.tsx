@@ -44,6 +44,7 @@ import {
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { ModernModal } from '@/components/modals/ModernModal';
 import { CourseForm } from '@/components/forms/CourseForm';
+import { usePermission, usePermissionAny } from '@/lib/hooks/usePermissions';
 
 interface Course {
   id: string;
@@ -131,9 +132,10 @@ export default function CoursesPage() {
   const [opened, { open, close }] = useDisclosure(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
-  // Check permissions
-  const canManageCourses = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN';
-  const canViewCourses = canManageCourses || session?.user?.role === 'TEACHER';
+  // Check permissions (matrice: risorsa 'course')
+  const canManageCourses = usePermissionAny(['create', 'update'], 'course');
+  const canDeleteCourses = usePermission('delete', 'course');
+  const canViewCourses = usePermission('read', 'course');
 
   // Fetch courses data
   const fetchCourses = async (
@@ -524,34 +526,34 @@ export default function CoursesPage() {
                         </ActionIcon>
                       </Tooltip>
                       {canManageCourses && (
-                        <>
-                          <Tooltip label="Modifica corso">
-                            <ActionIcon
-                              size="sm"
-                              variant="light"
-                              color="yellow"
-                              onClick={() => handleEdit(course)}
-                            >
-                              <IconEdit size={14} />
+                        <Tooltip label="Modifica corso">
+                          <ActionIcon
+                            size="sm"
+                            variant="light"
+                            color="yellow"
+                            onClick={() => handleEdit(course)}
+                          >
+                            <IconEdit size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                      {canDeleteCourses && (
+                        <Menu shadow="md" width={200}>
+                          <Menu.Target>
+                            <ActionIcon size="sm" variant="light">
+                              <IconDotsVertical size={14} />
                             </ActionIcon>
-                          </Tooltip>
-                          <Menu shadow="md" width={200}>
-                            <Menu.Target>
-                              <ActionIcon size="sm" variant="light">
-                                <IconDotsVertical size={14} />
-                              </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                              <Menu.Item 
-                                leftSection={<IconTrash size={14} />} 
-                                color="red"
-                                onClick={() => handleDelete(course)}
-                              >
-                                Elimina
-                              </Menu.Item>
-                            </Menu.Dropdown>
-                          </Menu>
-                        </>
+                          </Menu.Target>
+                          <Menu.Dropdown>
+                            <Menu.Item
+                              leftSection={<IconTrash size={14} />}
+                              color="red"
+                              onClick={() => handleDelete(course)}
+                            >
+                              Elimina
+                            </Menu.Item>
+                          </Menu.Dropdown>
+                        </Menu>
                       )}
                     </Group>
                   </Table.Td>

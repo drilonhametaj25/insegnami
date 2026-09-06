@@ -57,6 +57,7 @@ import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
 import { ModernModal } from '@/components/modals/ModernModal';
 import { LessonForm } from '@/components/forms/LessonForm';
 import { EmptyState, emptyStateConfigs } from '@/components/ui/EmptyState';
+import { usePermission, usePermissionAny } from '@/lib/hooks/usePermissions';
 
 moment.locale('it');
 const localizer = momentLocalizer(moment);
@@ -207,9 +208,10 @@ export default function LessonsPage() {
   const [opened, { open, close }] = useDisclosure(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
 
-  // Check permissions
-  const canManageLessons = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'TEACHER';
-  const canViewLessons = canManageLessons || session?.user?.role === 'STUDENT';
+  // Check permissions (matrice: risorsa 'lesson')
+  const canManageLessons = usePermissionAny(['create', 'update'], 'lesson');
+  const canDeleteLessons = usePermission('delete', 'lesson');
+  const canViewLessons = usePermission('read', 'lesson');
 
   // Fetch lessons
   const fetchLessons = async (
@@ -817,33 +819,34 @@ export default function LessonsPage() {
                             variant="light"
                             color="blue"
                             onClick={() => handleView(lesson)}
+                            data-testid="lessons-apri-dettaglio"
                           >
                             <IconEye size={14} />
                           </ActionIcon>
                         </Tooltip>
                         {canManageLessons && (
-                          <>
-                            <Tooltip label="Modifica lezione">
-                              <ActionIcon
-                                size="sm"
-                                variant="light"
-                                color="yellow"
-                                onClick={() => handleEdit(lesson)}
-                              >
-                                <IconEdit size={14} />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Elimina lezione">
-                              <ActionIcon
-                                size="sm"
-                                variant="light"
-                                color="red"
-                                onClick={() => handleDelete(lesson)}
-                              >
-                                <IconTrash size={14} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </>
+                          <Tooltip label="Modifica lezione">
+                            <ActionIcon
+                              size="sm"
+                              variant="light"
+                              color="yellow"
+                              onClick={() => handleEdit(lesson)}
+                            >
+                              <IconEdit size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                        {canDeleteLessons && (
+                          <Tooltip label="Elimina lezione">
+                            <ActionIcon
+                              size="sm"
+                              variant="light"
+                              color="red"
+                              onClick={() => handleDelete(lesson)}
+                            >
+                              <IconTrash size={14} />
+                            </ActionIcon>
+                          </Tooltip>
                         )}
                       </Group>
                     </Table.Td>
@@ -889,6 +892,7 @@ export default function LessonsPage() {
             classId: editingLesson.class.id,
             teacherId: editingLesson.teacher.id,
             courseId: editingLesson.course?.id || '',
+            subjectId: (editingLesson as any).subjectId || (editingLesson as any).subject?.id || '',
             startTime: editingLesson.startTime,
             endTime: editingLesson.endTime,
             room: editingLesson.room,
@@ -897,6 +901,11 @@ export default function LessonsPage() {
             isRecurring: editingLesson.isRecurring,
           } : undefined}
           onSave={handleFormSubmit}
+          onRecurringCreated={() => {
+            close();
+            fetchLessons();
+            fetchStats();
+          }}
           loading={submitting}
           teachers={teachers}
           classes={classes}

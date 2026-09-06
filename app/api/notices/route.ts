@@ -3,11 +3,15 @@ import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { requireAuth, authError } from '@/lib/api-auth';
+import { can } from '@/lib/permissions/matrix';
 
 const noticeSchema = z.object({
   title: z.string().min(1, 'Titolo richiesto'),
   content: z.string().min(1, 'Contenuto richiesto'),
   type: z.enum(['ANNOUNCEMENT', 'EVENT', 'REMINDER', 'URGENT']).default('ANNOUNCEMENT'),
+  // Ciclo di vita: le bozze restano visibili solo a chi gestisce gli avvisi
+  status: z.enum(['DRAFT', 'PUBLISHED']).default('PUBLISHED'),
   isPublic: z.boolean().default(true),
   targetRoles: z.array(z.enum(['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'])).default(['ADMIN', 'TEACHER', 'STUDENT', 'PARENT']),
   publishAt: z.string().datetime().optional(),
@@ -15,6 +19,8 @@ const noticeSchema = z.object({
   isPinned: z.boolean().default(false),
   isUrgent: z.boolean().default(false),
 });
+
+const NOTICE_STATUSES = ['DRAFT', 'PUBLISHED', 'ARCHIVED'] as const;
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,23 +38,43 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const isPinned = searchParams.get('isPinned');
     const isUrgent = searchParams.get('isUrgent');
+    const search = searchParams.get('search');
+    const statusParam = searchParams.get('status');
 
     const skip = (page - 1) * limit;
 
-    // Build where clause
+    const role = session.user.role;
+    // Chi gestisce (o crea) avvisi vede anche bozze/archiviati, senza filtro
+    // audience/publishAt, con ricerca e filtro status espliciti.
+    const isManager = can(role, 'manage', 'notice') || can(role, 'create', 'notice');
+
     const where: any = {
       tenantId: session.user.tenantId,
-      publishAt: { lte: new Date() }, // Only published notices
-      OR: [
-        { expiresAt: null },
-        { expiresAt: { gt: new Date() } }, // Not expired
-      ],
     };
 
-    // Filter by user role
-    where.targetRoles = {
-      has: session.user.role,
-    };
+    if (isManager) {
+      if (statusParam && (NOTICE_STATUSES as readonly string[]).includes(statusParam)) {
+        where.status = statusParam;
+      }
+      if (search && search.trim()) {
+        const q = search.trim();
+        where.OR = [
+          { title: { contains: q, mode: 'insensitive' } },
+          { content: { contains: q, mode: 'insensitive' } },
+        ];
+      }
+    } else {
+      // Ruoli non gestori: solo avvisi pubblicati, in finestra e per audience
+      where.status = 'PUBLISHED';
+      where.publishAt = { lte: new Date() };
+      where.OR = [
+        { expiresAt: null },
+        { expiresAt: { gt: new Date() } }, // Not expired
+      ];
+      where.targetRoles = {
+        has: role,
+      };
+    }
 
     if (type) where.type = type;
     if (isPinned === 'true') where.isPinned = true;
@@ -90,24 +116,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
-    }
-
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
-
-    // Only admins and teachers can create notices
-    if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
-    }
+    // Gate via matrice permessi: include DIRECTOR e SECRETARY (notice:create)
+    const ctx = await requireAuth({ permission: { action: 'create', resource: 'notice' } });
 
     const body = await request.json();
     const validatedData = noticeSchema.parse(body);
 
     // Teachers can only create announcements and reminders, not urgent notices
-    if (session.user.role === 'TEACHER') {
+    if (ctx.role === 'TEACHER') {
       if (validatedData.type === 'URGENT' || validatedData.isUrgent) {
         return NextResponse.json(
           { error: 'Solo gli amministratori possono creare avvisi urgenti' },
@@ -125,14 +141,37 @@ export async function POST(request: NextRequest) {
     const notice = await prisma.notice.create({
       data: {
         ...validatedData,
-        tenantId: session.user.tenantId,
+        tenantId: ctx.tenantId,
         publishAt: validatedData.publishAt ? new Date(validatedData.publishAt) : new Date(),
         expiresAt: validatedData.expiresAt ? new Date(validatedData.expiresAt) : null,
+        // publishedAt tracciato solo alla pubblicazione effettiva
+        publishedAt: validatedData.status === 'PUBLISHED' ? new Date() : null,
       },
     });
 
+    // Notifica i destinatari SOLO se l'avviso nasce pubblicato (le bozze non
+    // notificano). In try/catch: un errore di notifica non blocca la create.
+    if (notice.status === 'PUBLISHED') {
+      try {
+        const { NotificationService } = await import('@/lib/notification-service');
+        await NotificationService.notifyNewAnnouncement(
+          ctx.tenantId,
+          notice.id,
+          notice.title,
+          notice.content,
+          validatedData.targetRoles,
+          validatedData.isUrgent || validatedData.type === 'URGENT',
+        );
+      } catch (notifyError) {
+        console.error('Errore notifica nuovo avviso:', notifyError);
+      }
+    }
+
     return NextResponse.json(notice, { status: 201 });
   } catch (error) {
+    const authRes = authError(error);
+    if (authRes) return authRes;
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Dati non validi', details: error.errors },

@@ -9,6 +9,8 @@ import { reconcileAddonItems } from '@/lib/billing/stripe-addons';
 import { findPlanByStripePriceId } from '@/lib/billing/stripe-sync';
 import { invalidateTenantAccessCache } from '@/lib/tenant-access';
 import { notifyTenantAdmins, type TenantAdminNotification } from '@/lib/notifications/billing-notifications';
+import { syncPaymentMovement, reversePaymentMovement } from '@/lib/accounting/movements';
+import { sendPaymentReceipt } from '@/lib/payments/receipts';
 
 // Notifiche commerciali fire-and-forget: il webhook ritorna 500 sugli errori
 // genuini (per far ritentare Stripe), quindi un errore SMTP/notifiche NON
@@ -123,6 +125,29 @@ function findPlanPriceId(items: Array<{ price?: { id?: string; metadata?: Record
   return planItem?.price?.id;
 }
 
+// Intervallo di fatturazione dell'item piano: 'year' → YEARLY, tutto il resto
+// (month o assente) → MONTHLY. Persistito su Subscription.interval a ogni
+// create/update: guida MRR, UI billing e selezione prezzi add-on.
+function subscriptionIntervalOf(
+  items: Array<{ price?: { recurring?: { interval?: string } | null; metadata?: Record<string, string> } }>
+): 'MONTHLY' | 'YEARLY' {
+  const planItem = items.find((it) => !it.price?.metadata?.addonType) ?? items[0];
+  return planItem?.price?.recurring?.interval === 'year' ? 'YEARLY' : 'MONTHLY';
+}
+
+// Giorni di grazia su PAST_DUE dal singleton PlatformSettings (fallback 7)
+async function getGraceDays(): Promise<number> {
+  try {
+    const settings = await prisma.platformSettings.findUnique({
+      where: { id: 'platform' },
+      select: { graceDays: true },
+    });
+    return settings?.graceDays ?? 7;
+  } catch {
+    return 7;
+  }
+}
+
 // Map Stripe subscription status to our SubscriptionStatus enum
 function mapStripeStatus(stripeStatus: Stripe.Subscription.Status): SubscriptionStatus {
   switch (stripeStatus) {
@@ -218,6 +243,8 @@ export async function POST(request: NextRequest) {
             throw new Error(`Plan not found for Stripe price ID: ${priceId}. Database sync required.`);
           }
 
+          const checkoutInterval = subscriptionIntervalOf(stripeSubscription.items.data);
+
           // Create or update subscription in our database (atomic transaction)
           await prisma.$transaction(async (tx) => {
             await tx.subscription.upsert({
@@ -228,6 +255,7 @@ export async function POST(request: NextRequest) {
                 stripeSubscriptionId: subscriptionId,
                 stripeCustomerId: session.customer as string,
                 status: mapStripeStatus(stripeSubscription.status),
+                interval: checkoutInterval,
                 currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
                 currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
                 trialStart: stripeSubscription.trial_start
@@ -242,6 +270,7 @@ export async function POST(request: NextRequest) {
                 stripeSubscriptionId: subscriptionId,
                 stripeCustomerId: session.customer as string,
                 status: mapStripeStatus(stripeSubscription.status),
+                interval: checkoutInterval,
                 currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
                 currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
                 trialStart: stripeSubscription.trial_start
@@ -253,11 +282,11 @@ export async function POST(request: NextRequest) {
               },
             });
 
-            // Update tenant with plan info
+            // Update tenant with plan info (slug sempre lowercase)
             await tx.tenant.update({
               where: { id: tenantId },
               data: {
-                plan: plan.slug.toUpperCase(),
+                plan: plan.slug.toLowerCase(),
                 stripeCustomerId: session.customer as string,
               },
             });
@@ -305,6 +334,26 @@ export async function POST(request: NextRequest) {
             // un retry Stripe non risolverebbe nulla
             console.warn(`Payment ${paymentId} not found (or tenant mismatch), acking without update`);
           } else {
+            // Movimento contabile REVENUE (idempotente via lookup interno) +
+            // ricevuta C6: stessa semantica del flip a PAID via route payments
+            await syncPaymentMovement(prisma, paymentId);
+
+            const paidPayment = await prisma.payment.findUnique({
+              where: { id: paymentId },
+              select: {
+                id: true,
+                tenantId: true,
+                studentId: true,
+                amount: true,
+                description: true,
+                paidDate: true,
+              },
+            });
+            if (paidPayment) {
+              // sendPaymentReceipt non lancia mai (best-effort interno)
+              await sendPaymentReceipt(paidPayment);
+            }
+
             console.log(`Payment ${paymentId} marked as PAID via Stripe`);
           }
         }
@@ -354,6 +403,8 @@ export async function POST(request: NextRequest) {
               notes: `Rimborso elaborato. Charge ID: ${charge.id}`,
             },
           });
+          // Storno del movimento REVENUE: il P&L non deve contare un incasso rimborsato
+          await reversePaymentMovement(prisma, refundedPaymentId);
           console.log(`Payment ${refundedPaymentId} marked as CANCELLED due to refund`);
         } else {
           console.log(`Refund processed (no paymentId in metadata): ${charge.id}`);
@@ -395,6 +446,7 @@ export async function POST(request: NextRequest) {
             stripeSubscriptionId: subscription.id,
             stripeCustomerId: subscription.customer as string,
             status: mapStripeStatus(subscription.status),
+            interval: subscriptionIntervalOf(subscription.items.data),
             currentPeriodStart: new Date(subscription.current_period_start * 1000),
             currentPeriodEnd: new Date(subscription.current_period_end * 1000),
             trialStart: subscription.trial_start
@@ -407,6 +459,7 @@ export async function POST(request: NextRequest) {
           update: {
             planId: plan.id,
             status: mapStripeStatus(subscription.status),
+            interval: subscriptionIntervalOf(subscription.items.data),
             currentPeriodStart: new Date(subscription.current_period_start * 1000),
             currentPeriodEnd: new Date(subscription.current_period_end * 1000),
           },
@@ -459,6 +512,7 @@ export async function POST(request: NextRequest) {
                 stripeSubscriptionId: subscription.id,
                 stripeCustomerId: subscription.customer as string,
                 status: mapStripeStatus(subscription.status),
+                interval: subscriptionIntervalOf(subscription.items.data),
                 currentPeriodStart: new Date(subscription.current_period_start * 1000),
                 currentPeriodEnd: new Date(subscription.current_period_end * 1000),
                 trialStart: subscription.trial_start
@@ -473,6 +527,7 @@ export async function POST(request: NextRequest) {
                 stripeSubscriptionId: subscription.id,
                 stripeCustomerId: subscription.customer as string,
                 status: mapStripeStatus(subscription.status),
+                interval: subscriptionIntervalOf(subscription.items.data),
               },
             });
             console.log(`Backfilled subscription ${subscription.id} for tenant ${tenantId}`);
@@ -499,10 +554,10 @@ export async function POST(request: NextRequest) {
               changedPlanName = plan.name;
             }
 
-            // Update tenant plan if changed
+            // Update tenant plan if changed (slug sempre lowercase)
             await prisma.tenant.update({
               where: { id: existingSubscription.tenantId },
-              data: { plan: plan.slug.toUpperCase() },
+              data: { plan: plan.slug.toLowerCase() },
             });
           }
         }
@@ -513,6 +568,7 @@ export async function POST(request: NextRequest) {
           data: {
             planId,
             status: mapStripeStatus(subscription.status),
+            interval: subscriptionIntervalOf(subscription.items.data),
             currentPeriodStart: new Date(subscription.current_period_start * 1000),
             currentPeriodEnd: new Date(subscription.current_period_end * 1000),
             cancelAtPeriodEnd: subscription.cancel_at_period_end,
@@ -612,7 +668,7 @@ export async function POST(request: NextRequest) {
 
           await tx.tenant.update({
             where: { id: existingSubscription.tenantId },
-            data: { plan: 'FREE' },
+            data: { plan: 'free' },
           });
 
           // Gli add-on muoiono con l'abbonamento (solo quelli legati a Stripe;
@@ -631,6 +687,7 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case 'invoice.paid':
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as any;
         const subscriptionId = invoice.subscription as string;
@@ -648,6 +705,12 @@ export async function POST(request: NextRequest) {
           data: {
             status: 'ACTIVE',
           },
+        });
+
+        // Pagamento riuscito → il dunning si chiude: azzera il grace period
+        await prisma.subscription.updateMany({
+          where: { stripeSubscriptionId: subscriptionId },
+          data: { gracePeriodEnd: null },
         });
 
         const paidSub = await prisma.subscription.findUnique({
@@ -668,13 +731,17 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        // Mark subscription as past_due
+        // Mark subscription as past_due + finestra di grazia (dunning):
+        // finché gracePeriodEnd è nel futuro il tenant resta operativo
+        // (banner di avviso), poi scatta il blocco in tenant-access.
+        const graceDays = await getGraceDays();
         await prisma.subscription.updateMany({
           where: {
             stripeSubscriptionId: subscriptionId,
           },
           data: {
             status: 'PAST_DUE',
+            gracePeriodEnd: new Date(Date.now() + graceDays * 24 * 60 * 60 * 1000),
           },
         });
 

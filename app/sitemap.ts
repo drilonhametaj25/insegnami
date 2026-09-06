@@ -5,11 +5,34 @@ import { getBlogSlugs } from '@/lib/blog';
 const BASE_URL = 'https://insegnami.pro';
 const LOCALES = ['it', 'en', 'fr', 'pt'];
 
+/**
+ * Voce sitemap con hreflang: le 4 versioni linguistiche sono presentate come
+ * traduzioni della stessa pagina (x-default → it), non come URL indipendenti.
+ */
+function localizedEntry(
+  path: string,
+  opts: { lastModified: Date; changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency']; priority: number; locales?: string[] }
+): MetadataRoute.Sitemap {
+  const locales = opts.locales ?? LOCALES;
+  const languages: Record<string, string> = Object.fromEntries(
+    locales.map((l) => [l, `${BASE_URL}/${l}${path}`])
+  );
+  if (locales.includes('it')) languages['x-default'] = `${BASE_URL}/it${path}`;
+
+  return locales.map((locale) => ({
+    url: `${BASE_URL}/${locale}${path}`,
+    lastModified: opts.lastModified,
+    changeFrequency: opts.changeFrequency,
+    priority: opts.priority,
+    alternates: { languages },
+  }));
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [];
   const now = new Date();
 
-  // Static pages (per locale)
+  // Static pages (per locale, con hreflang)
   const staticPages = [
     '',
     '/pricing',
@@ -22,18 +45,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/citta',
   ];
 
-  for (const locale of LOCALES) {
-    for (const page of staticPages) {
-      entries.push({
-        url: `${BASE_URL}/${locale}${page}`,
+  for (const page of staticPages) {
+    entries.push(
+      ...localizedEntry(page, {
         lastModified: now,
         changeFrequency: page === '' ? 'weekly' : 'monthly',
         priority: page === '' ? 1.0 : page === '/pricing' ? 0.9 : 0.7,
-      });
-    }
+      })
+    );
   }
 
-  // Blog articles
+  // Blog articles — SOLO per i locali che hanno davvero il post
   for (const locale of LOCALES) {
     try {
       const slugs = await getBlogSlugs(locale);
@@ -50,45 +72,48 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
-  // City pages - Regions
-  for (const locale of LOCALES) {
-    for (const regione of regioni) {
-      entries.push({
-        url: `${BASE_URL}/${locale}/citta/${regione.slug}`,
+  // Pagine città: si pubblicano SOLO i livelli con contenuto reale
+  // (regioni con almeno una provincia popolata, province con almeno un
+  // comune): le pagine "In arrivo" restano fuori dall'indice.
+  const provinceWithComuni = new Set(comuni.map((c) => c.provincia));
+  const regioniWithProvince = new Set(
+    province.filter((p) => provinceWithComuni.has(p.codice)).map((p) => p.regione)
+  );
+
+  for (const regione of regioni) {
+    if (!regioniWithProvince.has(regione.codice)) continue;
+    entries.push(
+      ...localizedEntry(`/citta/${regione.slug}`, {
         lastModified: now,
         changeFrequency: 'monthly',
         priority: 0.6,
-      });
-    }
+      })
+    );
   }
 
-  // City pages - Provinces
-  for (const locale of LOCALES) {
-    for (const prov of province) {
-      const regione = regioni.find((r) => r.codice === prov.regione);
-      if (regione) {
-        entries.push({
-          url: `${BASE_URL}/${locale}/citta/${regione.slug}/${prov.slug}`,
+  for (const prov of province) {
+    if (!provinceWithComuni.has(prov.codice)) continue;
+    const regione = regioni.find((r) => r.codice === prov.regione);
+    if (regione) {
+      entries.push(
+        ...localizedEntry(`/citta/${regione.slug}/${prov.slug}`, {
           lastModified: now,
           changeFrequency: 'monthly',
           priority: 0.5,
-        });
-      }
+        })
+      );
     }
   }
 
-  // City pages - Comuni
-  for (const locale of LOCALES) {
-    for (const comune of comuni) {
-      const context = getComuneWithContext(comune.slug);
-      if (context) {
-        entries.push({
-          url: `${BASE_URL}/${locale}/citta/${context.regione.slug}/${context.provincia.slug}/${comune.slug}`,
-          lastModified: now,
-          changeFrequency: 'monthly',
-          priority: 0.4,
-        });
-      }
+  for (const comune of comuni) {
+    const context = getComuneWithContext(comune.slug);
+    if (context) {
+      entries.push(
+        ...localizedEntry(
+          `/citta/${context.regione.slug}/${context.provincia.slug}/${comune.slug}`,
+          { lastModified: now, changeFrequency: 'monthly', priority: 0.4 }
+        )
+      );
     }
   }
 
@@ -104,31 +129,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     'generatore-comunicazioni',
   ];
 
-  for (const locale of LOCALES) {
-    for (const tool of tools) {
-      entries.push({
-        url: `${BASE_URL}/${locale}/tools/${tool}`,
+  for (const tool of tools) {
+    entries.push(
+      ...localizedEntry(`/tools/${tool}`, {
         lastModified: now,
         changeFrequency: 'monthly',
         priority: 0.7,
-      });
-    }
+      })
+    );
   }
 
-  // Auth pages (locale independent)
-  entries.push({
-    url: `${BASE_URL}/auth/login`,
-    lastModified: now,
-    changeFrequency: 'yearly',
-    priority: 0.3,
-  });
-
-  entries.push({
-    url: `${BASE_URL}/auth/register`,
-    lastModified: now,
-    changeFrequency: 'yearly',
-    priority: 0.8,
-  });
+  // NB: niente URL /auth/* senza prefisso locale (il middleware li 307a):
+  // la registrazione è raggiungibile dalle CTA, non serve in sitemap.
 
   return entries;
 }

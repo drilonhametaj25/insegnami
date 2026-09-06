@@ -185,8 +185,18 @@ export function useLessons(
   });
 }
 
+/** Formatta una data come YYYY-MM-DD (locale, per i filtri dell'API). */
+function toDateParam(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 /**
- * Hook per ottenere le lezioni del calendario
+ * Hook per ottenere le lezioni del calendario.
+ * Passa startDate/endDate del mese visualizzato (default: mese corrente) —
+ * l'API filtra su startTime; lo scoping per ruolo è server-side.
  */
 export function useCalendarLessons(
   startDate?: string,
@@ -196,19 +206,29 @@ export function useCalendarLessons(
 ) {
   const { data: session } = useSession();
 
+  // Default: mese corrente
+  const now = new Date();
+  const rangeStart =
+    startDate ?? toDateParam(new Date(now.getFullYear(), now.getMonth(), 1));
+  const rangeEnd =
+    endDate ?? toDateParam(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+
   return useQuery({
-    queryKey: lessonsKeys.calendar(),
+    queryKey: [
+      ...lessonsKeys.calendar(),
+      { startDate: rangeStart, endDate: rangeEnd, teacherId, classId },
+    ],
     queryFn: async (): Promise<Lesson[]> => {
       const searchParams = new URLSearchParams({
-        calendar: 'true',
-        ...(startDate && { startDate }),
-        ...(endDate && { endDate }),
+        startDate: rangeStart,
+        endDate: rangeEnd,
+        limit: '200',
         ...(teacherId && { teacherId }),
         ...(classId && { classId }),
       });
 
       const response = await fetch(`/api/lessons?${searchParams}`);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch calendar lessons: ${response.statusText}`);
       }

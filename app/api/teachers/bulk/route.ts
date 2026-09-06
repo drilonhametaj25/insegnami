@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { getEffectiveLimits } from '@/lib/billing/limits';
 
 export async function PUT(request: NextRequest) {
   try {
@@ -30,18 +31,44 @@ export async function PUT(request: NextRequest) {
     }
 
     // Validate that all teachers belong to the current tenant
-    const teacherCount = await prisma.teacher.count({
+    // (status incluso: serve al check dei limiti piano sull'activate)
+    const targetTeachers = await prisma.teacher.findMany({
       where: {
         id: { in: teacherIds },
         tenantId
-      }
+      },
+      select: { id: true, status: true }
     });
 
-    if (teacherCount !== teacherIds.length) {
+    if (targetTeachers.length !== teacherIds.length) {
       return NextResponse.json(
         { error: 'Alcuni insegnanti non trovati o non autorizzati' },
         { status: 400 }
       );
+    }
+
+    // Anti-bypass limiti piano: l'attivazione bulk non deve superare
+    // maxTeachers (stesso guard della POST singola).
+    if (action === 'activate' && session.user.role !== 'SUPERADMIN') {
+      const limits = await getEffectiveLimits(tenantId);
+      if (limits.maxTeachers != null) {
+        const toActivate = targetTeachers.filter((t) => t.status !== 'ACTIVE').length;
+        const currentActive = await prisma.teacher.count({
+          where: { tenantId, status: 'ACTIVE' },
+        });
+        if (currentActive + toActivate > limits.maxTeachers) {
+          return NextResponse.json(
+            {
+              error: `Limite docenti del piano raggiunto (${limits.maxTeachers}): impossibile attivare ${toActivate} docenti (attivi: ${currentActive}). Effettua l'upgrade del piano o acquista un add-on.`,
+              code: 'plan-limit',
+              limit: limits.maxTeachers,
+              current: currentActive,
+              requested: toActivate,
+            },
+            { status: 403 }
+          );
+        }
+      }
     }
 
     let updateData: any = {};

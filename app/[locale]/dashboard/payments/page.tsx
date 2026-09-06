@@ -219,6 +219,11 @@ export default function PaymentsPage() {
     openModal();
   };
 
+  // Scarica il PDF della ricevuta (solo pagamenti PAID)
+  const handleDownloadReceipt = (paymentId: string) => {
+    window.open(`/api/payments/${paymentId}/receipt`, '_blank');
+  };
+
   const handleDeletePayment = (paymentId: string) => {
     if (!confirm(t('confirmDelete'))) return;
 
@@ -580,6 +585,9 @@ export default function PaymentsPage() {
                               color="gray"
                               size="sm"
                               title="Ricevuta"
+                              disabled={payment.status !== 'PAID'}
+                              onClick={() => handleDownloadReceipt(payment.id)}
+                              data-testid="download-receipt"
                             >
                               <IconReceipt size={14} />
                             </ActionIcon>

@@ -145,11 +145,16 @@ export async function generatePayrollForPeriod(periodId: string): Promise<Genera
 /**
  * Recompute totals for a Payroll DRAFT after manual edits to lineItems
  * or withholdings. Idempotent. Caller must ensure the row is still DRAFT.
+ *
+ * Le ritenute NON vengono risommate dagli `amount` persistiti (che possono
+ * arrivare dal client): si riapplicano le aliquote (applyWithholdings)
+ * sulla NUOVA base imponibile (ore + extra) e si riallineano base/amount
+ * delle righe PayrollWithholding.
  */
 export async function recomputePayrollTotals(payrollId: string, tx: Prisma.TransactionClient = prisma as any) {
   const payroll = await tx.payroll.findUnique({
     where: { id: payrollId },
-    include: { lineItems: true, withholdings: true },
+    include: { lineItems: true, withholdings: { orderBy: { id: 'asc' } } },
   });
   if (!payroll) throw new Error(`Payroll ${payrollId} not found`);
   if (payroll.status !== 'DRAFT') {
@@ -159,18 +164,41 @@ export async function recomputePayrollTotals(payrollId: string, tx: Prisma.Trans
   const hoursTotal = payroll.lineItems
     .filter((l) => l.type === 'HOURS')
     .reduce((s, l) => s + Number(l.total), 0);
-  const extrasTotal = payroll.lineItems
+  const extrasTotal = round2(payroll.lineItems
     .filter((l) => l.type !== 'HOURS')
-    .reduce((s, l) => s + Number(l.total), 0);
+    .reduce((s, l) => s + Number(l.total), 0));
   const grossBase = round2(hoursTotal);
-  const withholdingsTotal = payroll.withholdings.reduce((s, w) => s + Number(w.amount), 0);
-  const netAmount = round2(grossBase + extrasTotal - withholdingsTotal);
+  const taxableBase = round2(grossBase + extrasTotal);
+
+  // Riapplica le aliquote sulla nuova base (le righe conservano type/label/
+  // rate; base e amount sono ricalcolati qui, mai fidati dal client).
+  const configs = payroll.withholdings.map((w) => ({
+    type: w.type,
+    rate: Number(w.rate),
+    label: w.label,
+  }));
+  const wh = applyWithholdings(taxableBase, configs);
+
+  for (let i = 0; i < payroll.withholdings.length; i++) {
+    const row = payroll.withholdings[i];
+    const applied = wh.applied[i];
+    await tx.payrollWithholding.update({
+      where: { id: row.id },
+      data: {
+        base: new Decimal(applied.base),
+        amount: new Decimal(applied.amount),
+      },
+    });
+  }
+
+  const withholdingsTotal = wh.total;
+  const netAmount = round2(taxableBase - withholdingsTotal);
 
   return tx.payroll.update({
     where: { id: payrollId },
     data: {
       grossBase: new Decimal(grossBase),
-      extrasTotal: new Decimal(round2(extrasTotal)),
+      extrasTotal: new Decimal(extrasTotal),
       withholdingsTotal: new Decimal(round2(withholdingsTotal)),
       netAmount: new Decimal(netAmount),
     },

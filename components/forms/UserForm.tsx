@@ -39,6 +39,8 @@ interface UserFormProps {
 
 const defaultRoles = [
   { value: 'ADMIN' as Role, label: 'Amministratore' },
+  { value: 'DIRECTOR' as Role, label: 'Direttore' },
+  { value: 'SECRETARY' as Role, label: 'Segreteria' },
   { value: 'TEACHER' as Role, label: 'Docente' },
   { value: 'STUDENT' as Role, label: 'Studente' },
   { value: 'PARENT' as Role, label: 'Genitore' },

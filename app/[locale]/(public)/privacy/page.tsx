@@ -29,12 +29,23 @@ import {
 import Link from 'next/link';
 import { Metadata } from 'next';
 import type { ComponentType, ReactNode } from 'react';
+import { buildPublicMetadata } from '@/lib/seo';
 import { PUB_GRADIENT } from '@/components/public/PublicUI';
 
-export const metadata: Metadata = {
-  title: 'Privacy Policy',
-  description: 'Informativa sulla privacy e trattamento dei dati personali di InsegnaMi.pro. Conforme al GDPR.',
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return buildPublicMetadata({
+    locale,
+    path: '/privacy',
+    title: 'Privacy Policy',
+    description:
+      'Informativa sulla privacy e trattamento dei dati personali di InsegnaMi.pro. Conforme al GDPR.',
+  });
+}
 
 // Indice delle sezioni (anchor interni alla pagina)
 const INDICE = [

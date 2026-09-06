@@ -4,6 +4,7 @@ import { requireAuth, authError, tenantScope } from '@/lib/api-auth';
 import { buildFatturaPA } from '@/lib/billing/sdi/xml-builder';
 import { getSdiProviderForTenant } from '@/lib/billing/sdi/factory';
 import { SdiProviderError } from '@/lib/billing/sdi/provider.interface';
+import { validateInvoiceFiscalData } from '@/lib/billing/sdi/fiscal-validation';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -24,7 +25,7 @@ interface RouteParams {
  */
 export async function POST(_request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'update', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'update', resource: 'invoice' }, feature: 'einvoicing' });
     const { id } = await params;
 
     const invoice = await prisma.invoice.findFirst({
@@ -45,6 +46,19 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { error: `Fattura già trasmessa (stato SDI: ${invoice.sdiStatus})` },
         { status: 409 },
+      );
+    }
+
+    // Validazione fiscale pre-trasmissione: stessi controlli dell'emissione
+    // (il profilo cliente può essere cambiato tra issue e transmit).
+    const problems = validateInvoiceFiscalData({
+      lines: invoice.lines,
+      customer: invoice.customerProfile,
+    });
+    if (problems.length > 0) {
+      return NextResponse.json(
+        { error: 'Dati fiscali incompleti: correggi prima di trasmettere', fields: problems },
+        { status: 422 },
       );
     }
 

@@ -1,22 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
-import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { requireAuth, authError, getTeacherIdForUser } from '@/lib/api-auth';
 import { prisma } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
-
-    // Only admin, teacher, and superadmin can view attendance stats
-    if (!['ADMIN', 'TEACHER', 'SUPERADMIN'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
+    // Statistiche di scuola: ruoli espliciti (STUDENT/PARENT esclusi anche se
+    // la matrice concede loro attendance:read — qui i dati sono aggregati di altri)
+    const ctx = await requireAuth({ roles: ['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY', 'TEACHER'] });
 
     const { searchParams } = new URL(request.url);
     const classId = searchParams.get('classId');
@@ -26,7 +16,7 @@ export async function GET(request: NextRequest) {
     // Attendance non ha tenantId: lo scoping passa SEMPRE dalla lezione
     const whereConditions: any = {
       lesson: {
-        tenantId: session.user.tenantId,
+        tenantId: ctx.tenantId,
       },
     };
 
@@ -39,6 +29,16 @@ export async function GET(request: NextRequest) {
         gte: new Date(startDate),
         lte: new Date(endDate),
       };
+    }
+
+    // I docenti vedono solo le statistiche delle proprie lezioni (deny se il
+    // profilo Teacher non risolve)
+    if (ctx.role === 'TEACHER') {
+      const teacherId = await getTeacherIdForUser(ctx);
+      if (!teacherId) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      whereConditions.lesson.teacherId = teacherId;
     }
 
     // Get attendance stats
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     // Get attendance by class if no specific class is selected
     let attendanceByClass = null;
-    if (!classId && session.user.role === 'ADMIN') {
+    if (!classId && ctx.role === 'ADMIN') {
       attendanceByClass = await prisma.attendance.groupBy({
         by: ['lessonId'],
         where: whereConditions,
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
       const lessons = await prisma.lesson.findMany({
         where: {
           id: { in: lessonIds },
-          tenantId: session.user.tenantId,
+          tenantId: ctx.tenantId,
         },
         include: {
           class: {
@@ -148,6 +148,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(stats);
 
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     console.error('Error fetching attendance stats:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

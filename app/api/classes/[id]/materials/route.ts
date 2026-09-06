@@ -5,6 +5,7 @@ import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
 import { resolveSafeUploadPath } from '@/lib/uploads/safe-path';
+import { getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
 
 // GET /api/classes/[id]/materials - Get materials for a class
 export async function GET(
@@ -28,28 +29,39 @@ export async function GET(
       classWhere.tenantId = session.user.tenantId;
     }
 
-    // For students, verify they're enrolled in this class
+    // For students, verify they're enrolled in this class.
+    // Lookup per userId+tenantId: profilo non risolvibile → 403, mai bypass.
     if (session.user.role === 'STUDENT') {
-      const student = await prisma.student.findFirst({
+      const ctx = {
+        userId: session.user.id ?? '',
+        tenantId: session.user.tenantId,
+        role: session.user.role,
+        email: session.user.email ?? '',
+        isSuperAdmin: false,
+        session,
+      } as AuthContext;
+      const studentId = await getStudentIdForUser(ctx);
+
+      if (!studentId) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+
+      const enrollment = await prisma.studentClass.findFirst({
         where: {
-          email: session.user.email!,
-          tenantId: session.user.tenantId,
+          studentId,
+          classId: id,
+          isActive: true,
         },
       });
-      
-      if (student) {
-        const enrollment = await prisma.studentClass.findFirst({
-          where: {
-            studentId: student.id,
-            classId: id,
-            isActive: true,
-          },
-        });
-        
-        if (!enrollment) {
-          return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-        }
+
+      if (!enrollment) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
       }
+    }
+
+    // PARENT: 403 in Wave 1 (il filtro sui figli arriva in Wave 2)
+    if (session.user.role === 'PARENT') {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
     // For teachers, verify they teach this class
@@ -210,6 +222,27 @@ export async function POST(
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 });
+    }
+
+    // Enforcement quota storage del piano PRIMA di scrivere su disco:
+    // usato + nuovo file deve stare nel limite effettivo (null = illimitato).
+    {
+      const { getEffectiveLimits, getStorageUsedBytes } = await import('@/lib/billing/limits');
+      const limits = await getEffectiveLimits(session.user.tenantId);
+      if (limits.storageBytes != null) {
+        const usedBytes = await getStorageUsedBytes(session.user.tenantId);
+        if (usedBytes + file.size > limits.storageBytes) {
+          return NextResponse.json(
+            {
+              error: 'Spazio di archiviazione del piano esaurito. Acquista un add-on storage o effettua l\'upgrade del piano.',
+              code: 'storage-limit',
+              usedBytes,
+              limitBytes: limits.storageBytes,
+            },
+            { status: 402 }
+          );
+        }
+      }
     }
 
     // SECURITY: se viene passato un lessonId, verifichiamo PRIMA di scrivere

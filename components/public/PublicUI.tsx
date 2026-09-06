@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconArrowRight, IconCheck } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
 /**
@@ -112,22 +113,27 @@ export function PageHero({
 /** Banda CTA finale, identica su tutte le pagine pubbliche. */
 export function CtaBanner({
   locale,
-  title = 'Pronto a semplificare la gestione della tua scuola?',
-  subtitle = 'Prova InsegnaMi.pro gratis per 14 giorni. Nessuna carta di credito richiesta.',
+  title,
+  subtitle,
 }: {
   locale: string;
   title?: string;
   subtitle?: string;
 }) {
+  // useTranslations funziona sia nei Server Component sia nei client island.
+  const t = useTranslations('public.ui');
+  const trust = t.raw('trust') as string[];
+  const resolvedTitle = title ?? t('ctaTitle');
+  const resolvedSubtitle = subtitle ?? t('ctaSubtitle');
   return (
     <Box py={{ base: 64, sm: 88 }} style={{ background: 'var(--pub-brand-gradient)' }}>
       <Container size="md">
         <Stack gap="lg" align="center" ta="center">
           <Title order={2} fz={{ base: rem(30), sm: rem(40) }} fw={900} c="white" lh={1.15}>
-            {title}
+            {resolvedTitle}
           </Title>
           <Text size="lg" c="white" opacity={0.92} maw={560}>
-            {subtitle}
+            {resolvedSubtitle}
           </Text>
           <Group justify="center" gap="md">
             <Button
@@ -140,7 +146,7 @@ export function CtaBanner({
               fw={700}
               rightSection={<IconArrowRight size={18} />}
             >
-              Inizia gratis
+              {t('ctaPrimary')}
             </Button>
             <Button
               component={Link}
@@ -151,11 +157,11 @@ export function CtaBanner({
               color="white"
               style={{ borderColor: 'rgba(255,255,255,0.6)' }}
             >
-              Parla con noi
+              {t('ctaSecondary')}
             </Button>
           </Group>
           <Group justify="center" gap={28} mt={4}>
-            {['14 giorni gratis', 'Nessuna carta richiesta', 'Supporto in italiano'].map((item) => (
+            {trust.map((item) => (
               <Group key={item} gap={6}>
                 <IconCheck size={16} color="white" />
                 <Text c="white" size="sm" opacity={0.92}>

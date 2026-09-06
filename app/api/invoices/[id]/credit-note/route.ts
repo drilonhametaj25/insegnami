@@ -31,7 +31,7 @@ const bodySchema = z.object({
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'create', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'create', resource: 'invoice' }, feature: 'einvoicing' });
     const { id } = await params;
 
     const body = await request.json().catch(() => ({}));
@@ -57,6 +57,30 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
     if (partialAmount && partialAmount > Number(original.total)) {
       return NextResponse.json({ error: 'L\'importo parziale supera il totale della fattura' }, { status: 400 });
+    }
+
+    // Capienza CUMULATIVA: la somma delle note di credito già emesse su
+    // questa fattura più la nuova non può superare il totale originale.
+    const existingCreditNotes = await prisma.invoice.findMany({
+      where: {
+        tenantId: original.tenantId,
+        relatedInvoiceId: original.id,
+        documentType: 'TD04',
+        status: { not: 'CANCELLED' },
+      },
+      select: { total: true },
+    });
+    const alreadyCredited = round2(
+      existingCreditNotes.reduce((s, cn) => s + Math.abs(Number(cn.total)), 0),
+    );
+    const newCredit = partialAmount ?? Number(original.total);
+    if (alreadyCredited + newCredit > Number(original.total) + 0.005) {
+      return NextResponse.json(
+        {
+          error: `Capienza superata: già stornati € ${alreadyCredited.toFixed(2)} su un totale di € ${Number(original.total).toFixed(2)}`,
+        },
+        { status: 422 },
+      );
     }
 
     const series = await prisma.invoiceSeries.findFirst({
@@ -124,30 +148,59 @@ function buildFullCreditLines(original: { lines: Array<any> }, reason: string) {
   }));
 }
 
-function buildPartialLine(original: { lines: Array<any> }, partialAmount: number, reason: string) {
-  // Partial credit: one synthetic line with the negative amount. We use the
-  // VAT rate of the first original line as a heuristic — a partial credit
-  // crossing multiple rates is rare in school billing; flag in notes if it
-  // matters.
-  const firstLine = original.lines[0];
-  const vatRate = firstLine ? Number(firstLine.vatRate) : 0;
-  const vatNature = firstLine?.vatNature ?? null;
-  const negative = -Math.abs(partialAmount);
-  return [
-    {
-      lineNumber: 1,
+function buildPartialLine(
+  original: { lines: Array<any>; total: unknown },
+  partialAmount: number,
+  reason: string,
+) {
+  // Storno parziale: `partialAmount` è un importo LORDO (IVA inclusa) che va
+  // scorporato proporzionalmente sulle aliquote delle righe originali — una
+  // riga sintetica per ogni bucket (vatRate, vatNature), così i riepiloghi
+  // IVA della nota di credito restano coerenti con la fattura stornata.
+  type Bucket = { vatRate: number; vatNature: string | null; net: number; gross: number };
+  const buckets = new Map<string, Bucket>();
+  for (const l of original.lines) {
+    const vatRate = Number(l.vatRate);
+    const vatNature = l.vatNature ?? null;
+    const key = `${vatRate}|${vatNature ?? ''}`;
+    const net = Number(l.total);
+    const existing = buckets.get(key);
+    if (existing) {
+      existing.net += net;
+    } else {
+      buckets.set(key, { vatRate, vatNature, net, gross: 0 });
+    }
+  }
+  const list = Array.from(buckets.values());
+  for (const b of list) b.gross = b.net * (1 + b.vatRate / 100);
+  const grossTotal = list.reduce((s, b) => s + b.gross, 0);
+
+  const abs = Math.abs(partialAmount);
+  const lines: any[] = [];
+  let allocated = 0;
+  list.forEach((b, idx) => {
+    // Quota lorda del bucket; l'ultimo assorbe il resto (quadratura al cent).
+    const grossShare = idx === list.length - 1
+      ? round2(abs - allocated)
+      : round2((abs * b.gross) / grossTotal);
+    allocated = round2(allocated + grossShare);
+    const netShare = round2(grossShare / (1 + b.vatRate / 100));
+    if (netShare === 0) return;
+    lines.push({
+      lineNumber: lines.length + 1,
       description: `Storno parziale — ${reason}`,
       quantity: new Prisma.Decimal(1),
-      unitPrice: new Prisma.Decimal(negative),
-      vatRate: new Prisma.Decimal(vatRate),
-      vatNature,
+      unitPrice: new Prisma.Decimal(-netShare),
+      vatRate: new Prisma.Decimal(b.vatRate),
+      vatNature: b.vatNature,
       discountPercent: null,
-      total: new Prisma.Decimal(negative),
+      total: new Prisma.Decimal(-netShare),
       paymentId: null,
       studentId: null,
       courseId: null,
-    },
-  ];
+    });
+  });
+  return lines;
 }
 
 function round2(n: number): number {

@@ -1,6 +1,7 @@
 import { POST as cancelPost } from '@/app/api/subscriptions/cancel/route'
 import { POST as reactivatePost } from '@/app/api/subscriptions/reactivate/route'
 import { POST as checkoutPost } from '@/app/api/subscriptions/checkout/route'
+import { GET as subscriptionGet } from '@/app/api/subscriptions/route'
 
 // Mock auth
 jest.mock('@/lib/auth', () => ({
@@ -45,6 +46,12 @@ jest.mock('@/lib/tenant-access', () => ({
   invalidateTenantAccessCache: jest.fn().mockResolvedValue(undefined),
 }))
 
+// Mock feature gating (GET /api/subscriptions espone le feature effettive)
+jest.mock('@/lib/billing/features', () => ({
+  getEffectiveFeatures: jest.fn().mockResolvedValue({}),
+  hasFeature: jest.fn().mockResolvedValue(true),
+}))
+
 const { getAuth } = require('@/lib/auth')
 const { prisma } = require('@/lib/db')
 const {
@@ -59,6 +66,7 @@ const {
   devReactivateSubscription,
 } = require('@/lib/billing/dev-billing')
 const { invalidateTenantAccessCache } = require('@/lib/tenant-access')
+const { getEffectiveFeatures } = require('@/lib/billing/features')
 
 function createRequest(body?: any) {
   return {
@@ -247,6 +255,67 @@ describe('Subscription cancel/reactivate + trial abuse guard', () => {
       expect(data.success).toBe(true)
       expect(devReactivateSubscription).toHaveBeenCalledWith({ tenantId: 'tenant-1' })
       expect(reactivateSubscription).not.toHaveBeenCalled()
+    })
+  })
+
+  // ========================================
+  // GET /api/subscriptions — payload esteso (features/interval/gracePeriodEnd)
+  // ========================================
+  describe('GET /api/subscriptions', () => {
+    it('espone le feature effettive del tenant nel payload', async () => {
+      getEffectiveFeatures.mockResolvedValue({ einvoicing: true, payroll: false })
+      prisma.subscription.findUnique.mockResolvedValue({
+        ...activeSubscription,
+        interval: 'YEARLY',
+        gracePeriodEnd: null,
+      })
+
+      const response = await subscriptionGet(createRequest())
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.features).toEqual({ einvoicing: true, payroll: false })
+      expect(data.interval).toBe('YEARLY')
+      expect(data.status).toBe('active')
+      expect(getEffectiveFeatures).toHaveBeenCalledWith('tenant-1')
+    })
+
+    it('espone gracePeriodEnd per il banner di dunning su PAST_DUE', async () => {
+      const graceEnd = new Date(Date.now() + 3 * 86400000)
+      getEffectiveFeatures.mockResolvedValue({})
+      prisma.subscription.findUnique.mockResolvedValue({
+        ...activeSubscription,
+        status: 'PAST_DUE',
+        interval: 'MONTHLY',
+        gracePeriodEnd: graceEnd,
+      })
+
+      const response = await subscriptionGet(createRequest())
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.status).toBe('past_due')
+      expect(new Date(data.gracePeriodEnd).getTime()).toBe(graceEnd.getTime())
+    })
+
+    it('include features anche senza subscription (fallback tenant/trial)', async () => {
+      getEffectiveFeatures.mockResolvedValue({ paymentReminders: true })
+      prisma.subscription.findUnique.mockResolvedValue(null)
+      prisma.tenant.findUnique.mockResolvedValue({
+        id: 'tenant-1',
+        name: 'Scuola',
+        plan: 'starter',
+        trialUntil: new Date(Date.now() + 5 * 86400000),
+        isActive: true,
+        stripeCustomerId: null,
+      })
+
+      const response = await subscriptionGet(createRequest())
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.status).toBe('trialing')
+      expect(data.features).toEqual({ paymentReminders: true })
     })
   })
 

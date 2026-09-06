@@ -25,6 +25,8 @@ jest.mock('@/lib/db', () => ({
 const { getAuth } = require('@/lib/auth')
 const { getTenantAccessCached } = require('@/lib/tenant-access')
 
+export {} // modulo TS: evita collisioni di scope con altri file di test
+
 function adminSession(overrides: Record<string, any> = {}) {
   return {
     user: {

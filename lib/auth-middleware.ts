@@ -1,97 +1,46 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { isSaaSMode } from "@/lib/config";
+import { NextResponse } from 'next/server';
 
-export async function authMiddleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  
-  // Extract locale from pathname
-  const locale = pathname.split('/')[1];
-  const locales = ['it', 'en', 'fr', 'pt'];
-  const currentLocale = locales.includes(locale) ? locale : 'it';
-  
-  // Remove locale from pathname for route checking
-  const pathWithoutLocale = pathname.replace(`/${currentLocale}`, '') || '/';
+// Eseguito su edge runtime: niente DB/Prisma/auth() qui — il ruolo arriva
+// dal token JWT letto in middleware.ts.
 
-  // Public routes that don't require authentication
-  const publicRoutes = ['/auth/login', '/auth/register', '/auth/error'];
+const ADMIN_ROLES = ['SUPERADMIN', 'ADMIN', 'DIRECTOR', 'SECRETARY'];
 
-  try {
-    const session = await auth();
-    
-    // Handle root path redirect
-    if (pathWithoutLocale === '/') {
-      if (session) {
-        return NextResponse.redirect(new URL(`/${currentLocale}/dashboard`, request.url));
-      } else {
-        return NextResponse.redirect(new URL(`/${currentLocale}/auth/login`, request.url));
-      }
-    }
-    
-    // SaaS mode: disable registration in self-hosted mode
-    if (!isSaaSMode && pathWithoutLocale === '/auth/register') {
-      return NextResponse.redirect(new URL(`/${currentLocale}/auth/login`, request.url));
-    }
+// Regole per prefisso sul path SENZA locale. Primo match vince: i prefissi
+// più specifici vanno prima (es. /dashboard/teachers prima di /dashboard/teacher).
+const ROUTE_RULES: Array<{ prefix: string; roles: string[] }> = [
+  { prefix: '/dashboard/superadmin', roles: ['SUPERADMIN'] },
+  { prefix: '/dashboard/admin', roles: ADMIN_ROLES },
+  { prefix: '/dashboard/users', roles: ADMIN_ROLES },
+  { prefix: '/dashboard/settings', roles: ADMIN_ROLES },
+  { prefix: '/dashboard/accounting', roles: ADMIN_ROLES },
+  { prefix: '/dashboard/invoices', roles: ADMIN_ROLES },
+  { prefix: '/dashboard/analytics', roles: ADMIN_ROLES },
+  { prefix: '/dashboard/teachers', roles: ADMIN_ROLES },
+  // I docenti accedono ai propri cedolini
+  { prefix: '/dashboard/payroll', roles: [...ADMIN_ROLES, 'TEACHER'] },
+  { prefix: '/dashboard/teacher', roles: [...ADMIN_ROLES, 'TEACHER'] },
+  { prefix: '/dashboard/student', roles: [...ADMIN_ROLES, 'STUDENT'] },
+  { prefix: '/dashboard/parent', roles: [...ADMIN_ROLES, 'PARENT'] },
+];
 
-    // If not authenticated and trying to access protected route
-    if (!session && !publicRoutes.includes(pathWithoutLocale)) {
-      const loginUrl = new URL(`/${currentLocale}/auth/login`, request.url);
-      loginUrl.searchParams.set('callbackUrl', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
+// Match su confine di segmento: '/dashboard/teacher' non deve catturare '/dashboard/teachers'
+function matchesPrefix(path: string, prefix: string): boolean {
+  return path === prefix || path.startsWith(`${prefix}/`);
+}
 
-    // If authenticated and trying to access auth pages
-    if (session && publicRoutes.includes(pathWithoutLocale)) {
-      return NextResponse.redirect(new URL(`/${currentLocale}/dashboard`, request.url));
-    }
-
-    // Role-based route protection
-    if (session?.user?.role) {
-      const userRole = session.user.role;
-
-      // SuperAdmin routes (SaaS mode only)
-      if (pathWithoutLocale.startsWith('/superadmin')) {
-        if (!isSaaSMode || userRole !== 'SUPERADMIN') {
-          return NextResponse.redirect(new URL(`/${currentLocale}/dashboard`, request.url));
-        }
-      }
-
-      // Admin routes
-      if (pathWithoutLocale.startsWith('/dashboard/admin')) {
-        if (!['ADMIN', 'SUPERADMIN'].includes(userRole)) {
-          return NextResponse.redirect(new URL(`/${currentLocale}/dashboard`, request.url));
-        }
-      }
-
-      // Teacher routes
-      if (pathWithoutLocale.startsWith('/dashboard/teacher')) {
-        if (!['TEACHER', 'ADMIN', 'SUPERADMIN'].includes(userRole)) {
-          return NextResponse.redirect(new URL(`/${currentLocale}/dashboard`, request.url));
-        }
-      }
-
-      // Student routes
-      if (pathWithoutLocale.startsWith('/dashboard/student')) {
-        if (!['STUDENT', 'ADMIN', 'SUPERADMIN'].includes(userRole)) {
-          return NextResponse.redirect(new URL(`/${currentLocale}/dashboard`, request.url));
-        }
-      }
-
-      // Parent routes
-      if (pathWithoutLocale.startsWith('/dashboard/parent')) {
-        if (!['PARENT', 'ADMIN', 'SUPERADMIN'].includes(userRole)) {
-          return NextResponse.redirect(new URL(`/${currentLocale}/dashboard`, request.url));
-        }
-      }
-    }
-
-    return null; // Continue processing
-  } catch (error) {
-    console.error('Auth middleware error:', error);
-    // On error, redirect to login only if not on a public route
-    if (!publicRoutes.includes(pathWithoutLocale)) {
-      return NextResponse.redirect(new URL(`/${currentLocale}/auth/login`, request.url));
-    }
-    return null;
-  }
+/**
+ * Guardia ruoli per le pagine dashboard.
+ * Ritorna un redirect a /{locale}/dashboard se il ruolo non è autorizzato
+ * per il path richiesto, altrimenti null (continua).
+ */
+export function roleGuard(
+  pathWithoutLocale: string,
+  locale: string,
+  role: string | undefined,
+  requestUrl: string | URL
+): NextResponse | null {
+  const rule = ROUTE_RULES.find((r) => matchesPrefix(pathWithoutLocale, r.prefix));
+  if (!rule) return null;
+  if (role && rule.roles.includes(role)) return null;
+  return NextResponse.redirect(new URL(`/${locale}/dashboard`, requestUrl));
 }

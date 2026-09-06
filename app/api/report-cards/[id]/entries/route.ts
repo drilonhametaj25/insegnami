@@ -56,10 +56,17 @@ export async function GET(
         return NextResponse.json({ error: 'Pagella non ancora pubblicata' }, { status: 403 });
       }
     } else if (session.user.role === 'PARENT') {
+      // Guardian-aware: la pagella deve appartenere a un figlio del genitore
       const child = await prisma.student.findFirst({
-        where: { parentUserId: session.user.id },
+        where: {
+          id: reportCard.studentId,
+          OR: [
+            { parentUserId: session.user.id },
+            { guardians: { some: { userId: session.user.id } } },
+          ],
+        },
       });
-      if (!child || child.id !== reportCard.studentId) {
+      if (!child) {
         return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
       }
       if (reportCard.status !== 'PUBLISHED') {

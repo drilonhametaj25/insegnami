@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@/lib/auth';
+import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
@@ -48,10 +48,14 @@ export async function GET(request: NextRequest) {
     // Role-based filtering
     if (session.user.role === 'PARENT') {
       // Parents see homework for their children's classes
+      // Guardian-aware: StudentGuardian + fallback legacy parentUserId
       const children = await prisma.student.findMany({
         where: {
-          parentUserId: session.user.id,
           tenantId: session.user.tenantId,
+          OR: [
+            { parentUserId: session.user.id },
+            { guardians: { some: { userId: session.user.id } } },
+          ],
         },
         include: {
           classes: { select: { classId: true } },
@@ -76,23 +80,29 @@ export async function GET(request: NextRequest) {
       }
       where.classId = { in: student.classes.map((c) => c.classId) };
       where.isPublished = true;
-    } else if (session.user.role === 'TEACHER' && session.user.email) {
+    } else if (session.user.role === 'TEACHER') {
       // Teachers see homework they created
-      const teacher = await prisma.teacher.findFirst({
-        where: {
-          email: session.user.email,
-          tenantId: session.user.tenantId,
-        },
-      });
-      if (teacher && !classId) {
-        where.teacherId = teacher.id;
+      // Deny-by-default: senza profilo Teacher risolvibile niente accesso
+      const teacher = session.user.email
+        ? await prisma.teacher.findFirst({
+            where: {
+              email: session.user.email,
+              tenantId: session.user.tenantId,
+            },
+          })
+        : null;
+      if (!teacher) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
+      // Forzato sempre, anche con ?classId=
+      where.teacherId = teacher.id;
     }
 
     // Additional filters
     if (classId) where.classId = classId;
     if (subjectId) where.subjectId = subjectId;
-    if (teacherId) where.teacherId = teacherId;
+    // ?teacherId= riservato agli admin: i non-admin restano sul proprio scope
+    if (teacherId && isAdminRole(session.user.role)) where.teacherId = teacherId;
     if (lessonId) where.lessonId = lessonId;
     if (upcoming === 'true') {
       where.dueDate = { gte: new Date() };

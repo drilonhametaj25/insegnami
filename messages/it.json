@@ -878,6 +878,20 @@
     },
     "lesson": {
       "deleteConfirmation": "Sei sicuro di voler eliminare la lezione {title}? Questa azione non può essere annullata."
+    },
+    "attendance": "Presenze",
+    "classInfo": "Informazioni Classe",
+    "recurring": "Ricorrente",
+    "edit": "Modifica",
+    "delete": "Elimina",
+    "save": "Salva",
+    "duration": "Durata",
+    "actions": "Azioni",
+    "lessonStatus": {
+      "scheduled": "Programmata",
+      "in_progress": "In corso",
+      "completed": "Completata",
+      "cancelled": "Annullata"
     }
   },
   "attendance": {
@@ -1620,5 +1634,1041 @@
     }
   },
   "view": "Visualizza",
-  "recipients": "Destinatari"
+  "recipients": "Destinatari",
+  "public": {
+    "header": {
+      "features": "Funzionalità",
+      "allFeatures": "Tutte le funzionalità",
+      "pricing": "Prezzi",
+      "tools": "Strumenti",
+      "blog": "Blog",
+      "contact": "Contatti",
+      "login": "Accedi",
+      "signup": "Prova gratis",
+      "openMenu": "Apri menu",
+      "openFeaturesMenu": "Apri menu funzionalità"
+    },
+    "footer": {
+      "description": "Il gestionale all-in-one per scuole private, accademie e centri di formazione. Registro elettronico, presenze, pagamenti e comunicazioni.",
+      "productTitle": "Prodotto",
+      "featuresTitle": "Funzionalità",
+      "toolsTitle": "Strumenti gratuiti",
+      "legalTitle": "Azienda e legale",
+      "links": {
+        "features": "Funzionalità",
+        "pricing": "Prezzi",
+        "blog": "Blog",
+        "cities": "Scuole per città",
+        "allTools": "Tutti gli strumenti",
+        "gradeCalculator": "Calcolatore media voti",
+        "attendanceCalculator": "Calcolatore presenze",
+        "scheduleGenerator": "Generatore orario",
+        "contact": "Contatti",
+        "privacy": "Privacy Policy",
+        "terms": "Termini di servizio",
+        "cookies": "Cookie Policy"
+      },
+      "rights": "Tutti i diritti riservati."
+    },
+    "ui": {
+      "ctaTitle": "Pronto a semplificare la gestione della tua scuola?",
+      "ctaSubtitle": "Prova InsegnaMi.pro gratis per 14 giorni. Nessuna carta di credito richiesta.",
+      "ctaPrimary": "Inizia gratis",
+      "ctaSecondary": "Parla con noi",
+      "trust": [
+        "14 giorni gratis",
+        "Nessuna carta richiesta",
+        "Supporto in italiano"
+      ]
+    },
+    "planFeatures": {
+      "paymentReminders": "Solleciti di pagamento automatici",
+      "einvoicing": "Fatturazione elettronica (export XML SDI)",
+      "payroll": "Cedolini e compensi docenti",
+      "accounting": "Contabilità e conto economico",
+      "hoursPackages": "Pacchetti ore prepagati",
+      "analytics": "Analytics e report avanzati",
+      "scheduleGenerator": "Generatore automatico orari",
+      "bulkImport": "Import studenti e docenti da CSV/Excel",
+      "absenceJustifications": "Giustificazione assenze online",
+      "automationsConfig": "Automazioni personalizzabili",
+      "whiteLabel": "Logo scuola su PDF ed email",
+      "auditTrail": "Audit trail esteso ed export DPO"
+    },
+    "home": {
+      "meta": {
+        "title": "InsegnaMi.pro — Registro Elettronico e Gestione Scolastica",
+        "description": "Piattaforma all-in-one per scuole private, accademie e centri di formazione. Registro elettronico, presenze, pagamenti e comunicazioni."
+      },
+      "hero": {
+        "badge": "Gestionale scolastico all-in-one",
+        "titleStart": "Il gestionale completo",
+        "titleHighlight": "per la tua scuola",
+        "subtitle": "Registro, presenze, voti, pagamenti e comunicazioni in un unico posto. Pensato per scuole di corsi e accademie così come per scuole curricolari e paritarie.",
+        "ctaPrimary": "Prova gratis 14 giorni",
+        "ctaSecondary": "Guarda la demo",
+        "microTrust": [
+          "Conforme GDPR",
+          "Dati in EU",
+          "Nessuna carta richiesta"
+        ],
+        "loginPrompt": "Sei già registrato?",
+        "loginLink": "Accedi",
+        "screenshotAlt": "Dashboard amministratore di InsegnaMi.pro con statistiche della scuola"
+      },
+      "paths": {
+        "badge": "Due mondi, una piattaforma",
+        "title": "Fatto per la tua scuola,",
+        "highlight": "qualunque essa sia",
+        "subtitle": "Ogni tipo di scuola lavora in modo diverso: InsegnaMi.pro si adatta al tuo, senza moduli inutili.",
+        "cards": [
+          {
+            "title": "Scuole di corsi e accademie",
+            "description": "Lingue, musica, danza, formazione professionale: gestisci corsi e iscrizioni senza fogli Excel.",
+            "bullets": [
+              "Corsi, classi e pacchetti ore prepagati",
+              "Rate, scadenze e solleciti automatici",
+              "Calendario lezioni e presenze per corso"
+            ],
+            "linkLabel": "Scopri il gestionale per scuole di corsi"
+          },
+          {
+            "title": "Scuole curricolari e paritarie",
+            "description": "Registro elettronico completo per la didattica di ogni giorno, dalla prima campanella alle pagelle.",
+            "bullets": [
+              "Registro elettronico, voti e pagelle",
+              "Colloqui, note e giustificazioni",
+              "Comunicazioni ufficiali scuola-famiglia"
+            ],
+            "linkLabel": "Scopri il registro elettronico"
+          }
+        ]
+      },
+      "how": {
+        "badge": "Come funziona",
+        "title": "Operativo in giornata,",
+        "highlight": "senza installazioni",
+        "subtitle": "Niente progetti di migrazione infiniti: ti attivi da solo, quando vuoi.",
+        "steps": [
+          {
+            "title": "Registrati in 5 minuti",
+            "description": "Crei l'account della scuola dal browser: nessun server da configurare, nessun tecnico richiesto."
+          },
+          {
+            "title": "Importa studenti da Excel",
+            "description": "Porti dentro studenti e docenti con l'import guidato da CSV/Excel, con controllo degli errori."
+          },
+          {
+            "title": "Sei operativo",
+            "description": "Fai l'appello, registri voti e pagamenti, comunichi con le famiglie: tutto dal primo giorno."
+          }
+        ]
+      },
+      "blocks": {
+        "badge": "Il prodotto, dal vero",
+        "title": "Tutto quello che serve,",
+        "highlight": "visto da vicino",
+        "subtitle": "Schermate reali della piattaforma: quello che vedi qui è quello che usi ogni giorno.",
+        "linkLabel": "Approfondisci",
+        "items": [
+          {
+            "title": "Registro e presenze",
+            "description": "Appello digitale per ogni lezione: presenze, ritardi e assenze in pochi tocchi, con statistiche per studente e per classe sempre aggiornate.",
+            "alt": "Registro presenze di una lezione con appello compilato"
+          },
+          {
+            "title": "Voti e pagelle",
+            "description": "Registro voti per classe e materia con medie calcolate in automatico, fino alla pagella: niente più calcoli a mano a fine quadrimestre.",
+            "alt": "Registro voti con statistiche e accesso rapido alle classi"
+          },
+          {
+            "title": "Pagamenti e solleciti",
+            "description": "Rate, scadenze e incassi sotto controllo: vedi subito chi ha pagato e chi è in ritardo, e i solleciti partono in automatico.",
+            "alt": "Gestione pagamenti con stato di ogni rata e scadenze"
+          },
+          {
+            "title": "Comunicazioni scuola-famiglia",
+            "description": "Messaggi mirati a classi, corsi o singole famiglie, template riutilizzabili e notifiche email: le comunicazioni arrivano, e ne resta traccia.",
+            "alt": "Centro comunicazioni con messaggi, template e gruppi"
+          },
+          {
+            "title": "Fatturazione elettronica",
+            "description": "Predisposto per lo SDI con export XML delle fatture: incassi e fatturato collegati ai pagamenti, senza doppi inserimenti in un altro gestionale.",
+            "alt": "Dashboard con fatturato e statistiche economiche della scuola"
+          },
+          {
+            "title": "Portale genitori e studenti",
+            "description": "Ogni famiglia ha il suo accesso: presenze, prossime lezioni, pagamenti e comunicazioni dei figli, senza telefonate in segreteria.",
+            "alt": "Portale genitori con panoramica dei figli e comunicazioni"
+          }
+        ]
+      },
+      "tools": {
+        "badge": "100% gratuiti",
+        "title": "Strumenti gratuiti",
+        "highlight": "per la tua scuola",
+        "subtitle": "Calcolatori e generatori utili per la gestione quotidiana. Nessuna registrazione richiesta.",
+        "allToolsLabel": "Vedi tutti gli strumenti",
+        "items": [
+          {
+            "title": "Calcolatore Media Voti",
+            "description": "Calcola la media dei voti con pesi personalizzati."
+          },
+          {
+            "title": "Calcolatore Presenze",
+            "description": "Calcola la percentuale di frequenza e verifica il monte ore."
+          },
+          {
+            "title": "Generatore Calendario",
+            "description": "Genera un calendario scolastico con festività e vacanze."
+          },
+          {
+            "title": "Generatore Orario",
+            "description": "Crea un orario settimanale delle lezioni da stampare."
+          }
+        ]
+      },
+      "pricing": {
+        "badge": "Prezzi trasparenti",
+        "title": "Scegli il piano",
+        "highlight": "giusto per te",
+        "subtitle": "Tutte le funzioni base in ogni piano: registro, presenze, voti, pagamenti e portale famiglie. Cambi o disdici quando vuoi.",
+        "perMonth": "/mese",
+        "popular": "Più popolare",
+        "coreIncluded": "Registro, presenze, voti e pagamenti inclusi",
+        "ctaDefault": "Inizia ora",
+        "ctaEnterprise": "Contattaci",
+        "vatNote": "Prezzi IVA esclusa.",
+        "compareLabel": "Confronta tutti i piani in dettaglio",
+        "unlimitedStudents": "Studenti illimitati",
+        "studentsUpTo": "Fino a {count} studenti"
+      },
+      "faq": {
+        "badge": "FAQ",
+        "title": "Domande",
+        "highlight": "frequenti",
+        "items": [
+          {
+            "question": "I prezzi indicati sono IVA inclusa?",
+            "answer": "No, i prezzi dei piani sono IVA esclusa. Al momento del pagamento ricevi regolare fattura intestata alla scuola."
+          },
+          {
+            "question": "Posso migrare i dati che ho già in Excel?",
+            "answer": "Sì. Puoi importare studenti e docenti da file CSV/Excel con la procedura guidata, che segnala eventuali errori prima di salvare. Per situazioni particolari il nostro supporto ti accompagna nella migrazione."
+          },
+          {
+            "question": "Come vengono trattati i dati degli studenti, anche minorenni?",
+            "answer": "InsegnaMi.pro è conforme al GDPR e i dati sono ospitati su server in Unione Europea. La scuola resta titolare del trattamento e noi operiamo come responsabile: i dati non vengono venduti né usati per altri scopi."
+          },
+          {
+            "question": "Posso disdire quando voglio?",
+            "answer": "Sì, la disdetta si fa in autonomia dalla dashboard di fatturazione, senza vincoli né penali. Dopo la cancellazione i dati restano esportabili per 30 giorni."
+          },
+          {
+            "question": "Che supporto è incluso?",
+            "answer": "Tutti i piani includono supporto via email in italiano. Ti aiutiamo nella configurazione iniziale e nelle domande di ogni giorno."
+          },
+          {
+            "question": "Gestite la fatturazione elettronica?",
+            "answer": "La piattaforma è predisposta per la fatturazione elettronica verso lo SDI con export XML delle fatture, disponibile dal piano Professional."
+          },
+          {
+            "question": "Posso vedere una demo prima di registrarmi?",
+            "answer": "Sì, puoi accedere alla demo online con dati di esempio, senza registrazione. In alternativa attivi la prova gratuita di 14 giorni sulla tua scuola, senza carta di credito."
+          },
+          {
+            "question": "Che differenza c'è tra i piani?",
+            "answer": "Tutte le funzioni base (registro, presenze, voti, pagamenti, comunicazioni e portale famiglie) sono incluse in ogni piano. I piani differiscono per i limiti di studenti, docenti e classi e per le funzioni avanzate come fatturazione elettronica, contabilità, analytics e automazioni."
+          }
+        ]
+      },
+      "selfHosted": {
+        "badge": "Installazione self-hosted",
+        "title": "Preferisci i tuoi server? Si può.",
+        "description": "Per le scuole che vogliono la piattaforma nella propria infrastruttura: installazione, formazione e aggiornamenti inclusi, con pieno controllo dei dati.",
+        "bullets": [
+          "Dati sulla tua infrastruttura",
+          "Installazione e formazione incluse",
+          "Aggiornamenti e manutenzione",
+          "Personalizzazioni su richiesta"
+        ],
+        "setupLabel": "una tantum — setup, installazione e formazione",
+        "yearlyLabel": "/anno — manutenzione e aggiornamenti",
+        "cta": "Richiedi preventivo"
+      },
+      "cta": {
+        "title": "Pronto a iniziare?",
+        "subtitle": "Digitalizza la gestione della tua scuola e dedica più tempo a ciò che conta: insegnare."
+      }
+    },
+    "pricing": {
+      "meta": {
+        "title": "Prezzi gestionale scolastico — InsegnaMi.pro",
+        "description": "Piani e prezzi del gestionale scolastico InsegnaMi.pro: da €29/mese con 14 giorni di prova gratuita. Fatturazione mensile o annuale, nessuna carta richiesta."
+      },
+      "hero": {
+        "badge": "Prezzi trasparenti",
+        "title": "Scegli il piano perfetto",
+        "highlight": "per la tua scuola",
+        "subtitle": "Nessun costo nascosto. 14 giorni di prova gratuita. Cancella quando vuoi."
+      },
+      "monthly": "Mensile",
+      "yearly": "Annuale",
+      "perMonth": "/mese",
+      "perYear": "/anno",
+      "popular": "Più popolare",
+      "ctaAuth": "Inizia Ora",
+      "ctaGuest": "Prova Gratis",
+      "vatNote": "Prezzi IVA esclusa.",
+      "checkoutError": "Errore durante la creazione del checkout",
+      "unexpectedError": "Errore imprevisto",
+      "limits": {
+        "studentsUpTo": "Fino a {count} studenti",
+        "studentsUnlimited": "Studenti illimitati",
+        "teachersUpTo": "Fino a {count} docenti",
+        "teachersUnlimited": "Docenti illimitati",
+        "classesUpTo": "Fino a {count} classi",
+        "classesUnlimited": "Classi illimitate"
+      },
+      "selfHosted": {
+        "badge": "Installazione Full",
+        "title": "La tua scuola, i tuoi server, il tuo controllo totale",
+        "description": "Setup, installazione e formazione inclusi. Codice sorgente, dati tuoi, nessun limite.",
+        "bullets": [
+          "Server proprietari",
+          "Codice sorgente",
+          "No limiti",
+          "Priorità supporto"
+        ],
+        "oneTime": "una tantum",
+        "setupLabel": "Setup + installazione + formazione",
+        "maintenanceLabel": "Manutenzione + aggiornamenti",
+        "cta": "Richiedi preventivo"
+      },
+      "faqBadge": "FAQ",
+      "faqTitle": "Domande",
+      "faqHighlight": "frequenti",
+      "faqs": [
+        {
+          "question": "Posso provare prima di pagare?",
+          "answer": "Tutti i piani includono 14 giorni di prova gratuita. Non è richiesta carta di credito per iniziare."
+        },
+        {
+          "question": "Posso cambiare piano in qualsiasi momento?",
+          "answer": "Puoi fare upgrade o downgrade del tuo piano in qualsiasi momento dalla dashboard di fatturazione."
+        },
+        {
+          "question": "Cosa succede ai miei dati se cancello?",
+          "answer": "I tuoi dati rimangono disponibili per 30 giorni dopo la cancellazione. Puoi esportarli in qualsiasi momento."
+        },
+        {
+          "question": "Quali metodi di pagamento accettate?",
+          "answer": "Accettiamo tutte le principali carte di credito/debito (Visa, Mastercard, American Express) tramite Stripe."
+        }
+      ],
+      "ctaTitle": "Pronto a iniziare?"
+    },
+    "contact": {
+      "meta": {
+        "title": "Contatti — InsegnaMi.pro",
+        "description": "Contatta il team di InsegnaMi.pro: domande sul gestionale scolastico, richieste demo, preventivi per installazioni self-hosted e supporto in italiano."
+      },
+      "hero": {
+        "badge": "Contatti",
+        "title": "Siamo qui per",
+        "highlight": "aiutarti",
+        "subtitle": "Hai domande su InsegnaMi.pro? Compila il form e ti risponderemo il prima possibile."
+      },
+      "subjects": {
+        "enterprise": "Richiesta informazioni Piano Enterprise",
+        "fullInstallation": "Richiesta preventivo Installazione Full",
+        "demo": "Richiesta demo personalizzata",
+        "support": "Richiesta supporto"
+      },
+      "form": {
+        "title": "Inviaci un messaggio",
+        "name": "Nome e Cognome",
+        "namePlaceholder": "Il tuo nome",
+        "email": "Email",
+        "emailPlaceholder": "la-tua@email.com",
+        "subject": "Oggetto",
+        "subjectPlaceholder": "Di cosa vuoi parlarci?",
+        "message": "Messaggio",
+        "messagePlaceholder": "Scrivi il tuo messaggio...",
+        "nameError": "Il nome deve avere almeno 2 caratteri",
+        "emailError": "Email non valida",
+        "subjectError": "Inserisci un oggetto",
+        "messageError": "Il messaggio deve avere almeno 10 caratteri",
+        "privacyPrefix": "Inviando questo form, accetti la nostra",
+        "privacyLink": "Privacy Policy",
+        "privacySuffix": ". Non condivideremo le tue informazioni con terze parti.",
+        "submit": "Invia Messaggio",
+        "successTitle": "Messaggio inviato!",
+        "successText": "Grazie per averci contattato! Abbiamo ricevuto il tuo messaggio e ti risponderemo entro 24-48 ore lavorative.",
+        "successButton": "Invia un altro messaggio",
+        "notifySuccessTitle": "Messaggio inviato",
+        "notifySuccessMessage": "Ti risponderemo il prima possibile!",
+        "notifyErrorTitle": "Errore",
+        "notifyErrorMessage": "Si è verificato un errore. Riprova più tardi."
+      },
+      "info": {
+        "title": "Informazioni di Contatto",
+        "emailLabel": "Email",
+        "supportLabel": "Supporto",
+        "supportHours": "Lun-Ven 9:00-18:00",
+        "locationLabel": "Sede",
+        "locationValue": "Italia"
+      },
+      "support": {
+        "title": "Supporto Tecnico",
+        "text": "Per problemi tecnici o assistenza sull'utilizzo della piattaforma, i clienti attivi possono contattare il supporto dedicato."
+      },
+      "demo": {
+        "title": "Richiesta Demo",
+        "text": "Vuoi vedere InsegnaMi.pro in azione? Richiedi una demo personalizzata e ti mostreremo tutte le funzionalità."
+      },
+      "faqTitle": "Domande",
+      "faqHighlight": "Frequenti",
+      "faqs": [
+        {
+          "question": "Quanto tempo ci vuole per attivare il servizio?",
+          "answer": "Puoi iniziare subito con la prova gratuita di 14 giorni. L'attivazione è immediata."
+        },
+        {
+          "question": "Posso importare i dati da un altro sistema?",
+          "answer": "Sì, offriamo supporto per l'importazione dati da file CSV e altri formati comuni."
+        },
+        {
+          "question": "È disponibile supporto in italiano?",
+          "answer": "Assolutamente sì! Tutto il nostro team parla italiano e il supporto è completamente in italiano."
+        },
+        {
+          "question": "Posso richiedere funzionalità personalizzate?",
+          "answer": "Contattaci per discutere le tue esigenze. Valutiamo ogni richiesta per i piani Enterprise."
+        }
+      ],
+      "legal": {
+        "privacy": "Privacy Policy",
+        "terms": "Termini di Servizio",
+        "cookies": "Cookie Policy"
+      }
+    },
+    "features": {
+      "index": {
+        "metaTitle": "Funzionalità del Gestionale per Scuole Private",
+        "metaDescription": "Tutte le funzionalità di InsegnaMi.pro: registro elettronico, presenze, pagamenti e rette, comunicazioni scuola-famiglia, più i verticali per scuole di lingue, musica e danza.",
+        "badge": "Funzionalità",
+        "h1": "Tutto quello che serve alla tua",
+        "h1Highlight": "scuola",
+        "sub": "Un unico gestionale per registro, presenze, pagamenti e comunicazioni, con verticali dedicati a scuole di lingue, musica e danza.",
+        "ctaTrial": "Prova gratis 14 giorni",
+        "discoverMore": "Scopri di più"
+      },
+      "detail": {
+        "breadcrumbHome": "Home",
+        "breadcrumbFeatures": "Funzionalità",
+        "notFound": "Pagina non trovata",
+        "ctaTrial": "Prova gratis 14 giorni",
+        "ctaPricing": "Vedi i prezzi",
+        "capTitle": "Cosa puoi fare con",
+        "capHighlight": "InsegnaMi.pro",
+        "uiTitle": "L'interfaccia, dal",
+        "uiHighlight": "vivo",
+        "uiSubtitle": "Semplice per la segreteria, chiara per docenti e famiglie: nessuna formazione tecnica necessaria.",
+        "faqTitle": "Domande",
+        "faqHighlight": "frequenti",
+        "screenshotFallback": "Anteprima dell'interfaccia in caricamento"
+      },
+      "pages": {
+        "registro-elettronico": {
+          "navLabel": "Registro elettronico",
+          "metaTitle": "Registro Elettronico per Scuole Private",
+          "metaDescription": "Registro elettronico per scuole private, accademie e centri di formazione: appello digitale, voti, note, pagelle PDF e giustificazioni online. Prova gratis 14 giorni.",
+          "badge": "Registro elettronico",
+          "h1": "Registro elettronico per",
+          "h1Highlight": "scuole private",
+          "sub": "Appello, voti, note e pagelle in un unico posto. Il registro digitale pensato per scuole private, accademie e centri di formazione: niente carta, niente fogli Excel.",
+          "cardText": "Appello digitale, voti, note disciplinari, pagelle PDF e giustificazioni online per ogni classe.",
+          "screenshotAlt": "Schermata del registro elettronico di InsegnaMi.pro con voti e valutazioni",
+          "capabilities": [
+            {
+              "title": "Appello digitale",
+              "text": "Il docente fa l'appello in pochi secondi da qualsiasi dispositivo: presenti, assenti e ritardi registrati con data e ora."
+            },
+            {
+              "title": "Voti e valutazioni",
+              "text": "Registra voti numerici e giudizi per materia, con media calcolata automaticamente e storico completo per studente."
+            },
+            {
+              "title": "Note e osservazioni",
+              "text": "Annota note disciplinari e osservazioni didattiche visibili alla segreteria e, se vuoi, alle famiglie."
+            },
+            {
+              "title": "Pagelle in PDF",
+              "text": "Genera pagelle e schede di valutazione in PDF pronte da stampare o inviare via email alle famiglie."
+            },
+            {
+              "title": "Giustificazioni online",
+              "text": "I genitori giustificano le assenze direttamente dal portale famiglie: la segreteria approva con un clic."
+            },
+            {
+              "title": "Argomenti di lezione",
+              "text": "Ogni lezione tiene traccia di argomenti svolti e compiti assegnati: il programma è sempre documentato."
+            }
+          ],
+          "faqs": [
+            {
+              "question": "Il registro elettronico va bene anche per una scuola piccola?",
+              "answer": "Sì. InsegnaMi.pro è pensato per scuole private di ogni dimensione: dalla piccola accademia con una classe fino agli istituti con decine di corsi. Il piano si sceglie in base al numero di studenti."
+            },
+            {
+              "question": "I genitori possono vedere voti e assenze?",
+              "answer": "Sì, tramite il portale famiglie incluso: ogni genitore accede con le proprie credenziali e vede voti, presenze, note e comunicazioni dei propri figli. La scuola decide cosa rendere visibile."
+            },
+            {
+              "question": "Serve installare qualcosa?",
+              "answer": "No. InsegnaMi.pro è un'applicazione web: funziona da browser su computer, tablet e smartphone senza installazioni né server da gestire."
+            }
+          ]
+        },
+        "gestione-presenze": {
+          "navLabel": "Gestione presenze",
+          "metaTitle": "Software Gestione Presenze per Scuole e Corsi",
+          "metaDescription": "Presenze digitali per scuole e corsi: appello rapido, statistiche di frequenza, export dei dati e notifiche di assenza ai genitori. Prova gratis 14 giorni.",
+          "badge": "Presenze",
+          "h1": "Gestione presenze digitale per",
+          "h1Highlight": "scuole e corsi",
+          "sub": "Rileva le presenze in pochi secondi, monitora la frequenza con statistiche chiare e avvisa automaticamente i genitori in caso di assenza.",
+          "cardText": "Appello rapido, statistiche di frequenza, export dei dati e notifiche di assenza ai genitori.",
+          "screenshotAlt": "Schermata di gestione presenze e appello di una lezione in InsegnaMi.pro",
+          "capabilities": [
+            {
+              "title": "Appello in pochi secondi",
+              "text": "Presenze, assenze e ritardi registrati per lezione, con la lista studenti già pronta per ogni corso."
+            },
+            {
+              "title": "Statistiche di frequenza",
+              "text": "Percentuali di presenza per studente, classe e periodo: individui subito chi si sta assentando troppo."
+            },
+            {
+              "title": "Notifiche assenze ai genitori",
+              "text": "Quando uno studente risulta assente, la famiglia può ricevere una notifica automatica: meno telefonate per la segreteria."
+            },
+            {
+              "title": "Export dei dati",
+              "text": "Esporta i registri presenze quando ti servono: per rendicontazioni, enti finanziatori o archivio interno."
+            },
+            {
+              "title": "Ritardi e uscite anticipate",
+              "text": "Non solo presente/assente: registri anche ritardi e uscite anticipate, con il quadro fedele della frequenza reale."
+            },
+            {
+              "title": "Giustificazioni integrate",
+              "text": "Le assenze giustificate dal portale famiglie si riflettono subito su registro e statistiche."
+            }
+          ],
+          "faqs": [
+            {
+              "question": "Le presenze valgono anche per corsi con frequenza libera?",
+              "answer": "Sì. Puoi registrare le presenze per lezione su corsi settimanali, intensivi o a pacchetto ore: le statistiche si adattano al tipo di corso."
+            },
+            {
+              "question": "Posso esportare i dati di frequenza?",
+              "answer": "Sì, i registri presenze sono esportabili: utile per rendicontazioni verso enti, certificazioni di frequenza o semplice archivio della scuola."
+            },
+            {
+              "question": "I genitori vengono avvisati delle assenze?",
+              "answer": "Sì, la scuola può attivare le notifiche di assenza: quando lo studente non risulta presente all'appello, la famiglia riceve un avviso automatico."
+            }
+          ]
+        },
+        "gestione-pagamenti-scuola": {
+          "navLabel": "Pagamenti e rette",
+          "metaTitle": "Software Gestione Pagamenti e Rette Scolastiche",
+          "metaDescription": "Gestisci rette e pagamenti della tua scuola: piani a rate, solleciti automatici, ricevute PDF, pacchetti ore e predisposizione alla fatturazione elettronica. Prova gratis.",
+          "badge": "Pagamenti",
+          "h1": "Gestione pagamenti e rette per la",
+          "h1Highlight": "tua scuola",
+          "sub": "Rate, solleciti, ricevute e pacchetti ore sotto controllo. Sai sempre chi ha pagato, chi deve pagare e quanto sta incassando la scuola.",
+          "cardText": "Rate, solleciti automatici, ricevute PDF, pacchetti ore e predisposizione alla fatturazione elettronica.",
+          "screenshotAlt": "Schermata di gestione pagamenti e rette in InsegnaMi.pro",
+          "capabilities": [
+            {
+              "title": "Piani di pagamento a rate",
+              "text": "Suddividi la retta in rate con scadenze personalizzate: mensili, trimestrali o su misura per ogni famiglia."
+            },
+            {
+              "title": "Solleciti automatici",
+              "text": "Le rate in scadenza o scadute generano promemoria automatici via email: meno insoluti senza inseguire nessuno al telefono."
+            },
+            {
+              "title": "Ricevute in PDF",
+              "text": "Ogni pagamento registrato produce una ricevuta PDF numerata, pronta da inviare o stampare per la famiglia."
+            },
+            {
+              "title": "Pacchetti ore",
+              "text": "Vendi carnet di lezioni: il sistema scala automaticamente le ore usate e ti avvisa quando il pacchetto si esaurisce."
+            },
+            {
+              "title": "Predisposto per la fatturazione elettronica",
+              "text": "I dati di pagamenti e anagrafiche sono strutturati per alimentare la fatturazione elettronica del tuo commercialista o gestionale fiscale."
+            },
+            {
+              "title": "Incassi sotto controllo",
+              "text": "Riepiloghi di incassato, insoluti e previsioni: la situazione economica della scuola a colpo d'occhio."
+            }
+          ],
+          "faqs": [
+            {
+              "question": "Posso gestire rette diverse per corsi diversi?",
+              "answer": "Sì. Ogni corso o iscrizione può avere il proprio importo e il proprio piano rate: mensile, trimestrale, annuale o personalizzato."
+            },
+            {
+              "question": "InsegnaMi.pro emette fatture elettroniche?",
+              "answer": "InsegnaMi.pro registra pagamenti e genera ricevute PDF; i dati sono organizzati per essere passati al commercialista o al software di fatturazione elettronica, senza doverli ricopiare a mano."
+            },
+            {
+              "question": "Come funzionano i solleciti?",
+              "answer": "Imposti le scadenze delle rate e il sistema invia promemoria automatici via email alle famiglie con pagamenti in scadenza o in ritardo. Puoi sempre vedere lo stato di ogni rata."
+            }
+          ]
+        },
+        "comunicazioni-scuola-famiglia": {
+          "navLabel": "Comunicazioni scuola-famiglia",
+          "metaTitle": "Comunicazioni Scuola-Famiglia: Circolari e Portale Genitori",
+          "metaDescription": "Circolari, messaggi ed email alle famiglie in un unico strumento, con portale genitori incluso. Comunicazioni scuola-famiglia tracciate e ordinate. Prova gratis.",
+          "badge": "Comunicazioni",
+          "h1": "Comunicazioni",
+          "h1Highlight": "scuola-famiglia",
+          "sub": "Circolari, avvisi e messaggi che arrivano davvero a destinazione. Un canale unico e tracciato tra segreteria, docenti e genitori.",
+          "cardText": "Circolari, messaggi, email alle famiglie e portale genitori: un canale unico e tracciato.",
+          "screenshotAlt": "Schermata delle comunicazioni scuola-famiglia in InsegnaMi.pro",
+          "capabilities": [
+            {
+              "title": "Circolari e avvisi",
+              "text": "Pubblica circolari per tutta la scuola, per singole classi o gruppi: ogni famiglia vede solo ciò che la riguarda."
+            },
+            {
+              "title": "Email alle famiglie",
+              "text": "Invia email a classi o singoli destinatari direttamente dal gestionale, con lo storico di ciò che è stato inviato."
+            },
+            {
+              "title": "Portale genitori",
+              "text": "I genitori accedono a un portale dedicato con comunicazioni, presenze, voti e pagamenti dei propri figli."
+            },
+            {
+              "title": "Notifiche automatiche",
+              "text": "Assenze, nuove comunicazioni e scadenze generano avvisi automatici: niente più \"non lo sapevo\"."
+            },
+            {
+              "title": "Allegati e documenti",
+              "text": "Allega moduli, autorizzazioni e documenti alle comunicazioni: tutto archiviato e ritrovabile."
+            },
+            {
+              "title": "Tutto tracciato",
+              "text": "Ogni comunicazione resta agli atti con data e destinatari: sai cosa è stato inviato, a chi e quando."
+            }
+          ],
+          "faqs": [
+            {
+              "question": "I genitori devono installare un'app?",
+              "answer": "No. Il portale genitori è un'applicazione web accessibile da qualsiasi browser, anche da smartphone: basta il link e le credenziali di accesso."
+            },
+            {
+              "question": "Posso inviare una circolare solo ad alcune classi?",
+              "answer": "Sì. Le comunicazioni possono essere indirizzate a tutta la scuola, a una o più classi, o a destinatari selezionati singolarmente."
+            },
+            {
+              "question": "Le famiglie senza email restano escluse?",
+              "answer": "Le comunicazioni restano sempre disponibili nel portale genitori: l'email è un canale in più, non l'unico. La segreteria vede comunque chi ha ricevuto cosa."
+            }
+          ]
+        },
+        "gestionale-scuole-di-lingue": {
+          "navLabel": "Scuole di lingue",
+          "metaTitle": "Gestionale per Scuole di Lingue",
+          "metaDescription": "Software gestionale per scuole di lingue: corsi per livello, pacchetti ore, attestati, docenti a compenso orario e comunicazioni con gli studenti. Prova gratis 14 giorni.",
+          "badge": "Verticale · Lingue",
+          "h1": "Il gestionale per",
+          "h1Highlight": "scuole di lingue",
+          "sub": "Corsi organizzati per lingua e livello, pacchetti ore, attestati e docenti pagati a ore: InsegnaMi.pro parla la lingua della tua scuola.",
+          "cardText": "Corsi per lingua e livello, pacchetti ore, attestati di frequenza e docenti a compenso orario.",
+          "screenshotAlt": "Dashboard amministrativa di InsegnaMi.pro per una scuola di lingue",
+          "capabilities": [
+            {
+              "title": "Corsi per lingua e livello",
+              "text": "Organizza l'offerta per lingua e livello (A1–C2): gruppi, individuali, aziendali e conversazione, tutto in un catalogo ordinato."
+            },
+            {
+              "title": "Pacchetti ore",
+              "text": "Carnet di lezioni individuali con scalatura automatica delle ore: lo studente e la segreteria vedono sempre il saldo residuo."
+            },
+            {
+              "title": "Attestati di frequenza",
+              "text": "Genera attestati di frequenza e fine corso in PDF a partire dai dati reali di presenze e corso."
+            },
+            {
+              "title": "Docenti a compenso orario",
+              "text": "Registra le ore effettivamente svolte da ogni docente e calcola i compensi orari senza fogli di calcolo paralleli."
+            },
+            {
+              "title": "Orari e aule",
+              "text": "Pianifica lezioni di gruppo e individuali evitando sovrapposizioni di docenti e aule."
+            },
+            {
+              "title": "Iscrizioni e pagamenti",
+              "text": "Iscrizioni, rette a rate e ricevute PDF: la parte amministrativa dei corsi di lingua è già coperta."
+            }
+          ],
+          "faqs": [
+            {
+              "question": "Gestisce sia corsi di gruppo che lezioni individuali?",
+              "answer": "Sì. Puoi avere nello stesso catalogo corsi di gruppo per livello e lezioni individuali a pacchetto ore, ognuno con i propri orari, docenti e prezzi."
+            },
+            {
+              "question": "Come vengono pagati i docenti a ore?",
+              "answer": "Le lezioni svolte da ogni docente restano registrate nel sistema: da lì ottieni il conteggio delle ore per il calcolo dei compensi orari, senza registri paralleli."
+            },
+            {
+              "question": "Posso rilasciare attestati ai corsisti?",
+              "answer": "Sì, puoi generare attestati di frequenza in PDF basati sui dati reali del corso e delle presenze dello studente."
+            }
+          ]
+        },
+        "gestionale-scuole-musica-danza": {
+          "navLabel": "Scuole di musica e danza",
+          "metaTitle": "Gestionale per Scuole di Musica e Danza",
+          "metaDescription": "Software gestionale per scuole di musica e danza: lezioni individuali e collettive, gestione aule e sale, saggi, iscrizioni e pagamenti. Prova gratis 14 giorni.",
+          "badge": "Verticale · Musica e danza",
+          "h1": "Il gestionale per scuole di",
+          "h1Highlight": "musica e danza",
+          "sub": "Lezioni individuali di strumento, corsi collettivi, sale prova e saggi di fine anno: un'unica piattaforma per accademie musicali e scuole di danza.",
+          "cardText": "Lezioni individuali e collettive, gestione aule e sale, saggi di fine anno e iscrizioni.",
+          "screenshotAlt": "Portale genitori di InsegnaMi.pro per una scuola di musica o danza",
+          "capabilities": [
+            {
+              "title": "Lezioni individuali e collettive",
+              "text": "Lezioni di strumento uno-a-uno e corsi collettivi di danza o musica d'insieme convivono nello stesso calendario."
+            },
+            {
+              "title": "Aule e sale",
+              "text": "Assegna aule, sale prova e sale danza alle lezioni ed evita le sovrapposizioni di spazi e docenti."
+            },
+            {
+              "title": "Saggi ed eventi",
+              "text": "Pianifica saggi di fine anno, esibizioni e open day, e comunica date e dettagli a tutte le famiglie coinvolte."
+            },
+            {
+              "title": "Iscrizioni e anagrafiche",
+              "text": "Iscrizioni ai corsi con anagrafica completa di allievi e famiglie: documenti, contatti e storico in un unico posto."
+            },
+            {
+              "title": "Docenti e disponibilità",
+              "text": "Orari e ore svolte per ogni insegnante, anche con compenso orario: la pianificazione settimanale è sotto controllo."
+            },
+            {
+              "title": "Rette e pacchetti",
+              "text": "Rette mensili, trimestrali o pacchetti di lezioni, con ricevute PDF e solleciti automatici per le rate in ritardo."
+            }
+          ],
+          "faqs": [
+            {
+              "question": "Posso gestire insieme corsi di musica e corsi di danza?",
+              "answer": "Sì. I corsi sono completamente configurabili: strumento individuale, propedeutica, danza classica o moderna possono convivere nella stessa scuola con orari, aule e docenti propri."
+            },
+            {
+              "question": "Come gestisco le sale e le aule?",
+              "answer": "Ogni lezione può avere un'aula o sala assegnata: il calendario ti aiuta a evitare sovrapposizioni tra lezioni, prove e saggi."
+            },
+            {
+              "question": "Le famiglie vedono orari e comunicazioni?",
+              "answer": "Sì, dal portale genitori: orari delle lezioni, presenze, comunicazioni sui saggi e situazione pagamenti sono sempre consultabili online."
+            }
+          ]
+        }
+      }
+    },
+    "tools": {
+      "meta": {
+        "title": "Strumenti Gratuiti per Scuole",
+        "description": "Strumenti gratuiti per la gestione scolastica: calcolatori, generatori e validatori. Calcola medie voti, presenze, costi e molto altro."
+      },
+      "index": {
+        "badge": "100% gratuiti",
+        "title": "Strumenti gratuiti",
+        "highlight": "per la tua scuola",
+        "subtitle": "Calcolatori, generatori e validatori pensati per semplificare la gestione quotidiana della tua scuola. Nessuna registrazione richiesta.",
+        "toolCount": "{count, plural, one {# strumento} other {# strumenti}}",
+        "categories": {
+          "calculators": "Calcolatori",
+          "generators": "Generatori",
+          "validators": "Validatori"
+        },
+        "ctaTitle": "Vuoi Automatizzare Tutto Questo?",
+        "ctaSubtitle": "Con InsegnaMi.pro puoi gestire automaticamente voti, presenze, pagamenti e comunicazioni. Tutti questi strumenti integrati in un'unica piattaforma."
+      },
+      "items": {
+        "calcolatore-media-voti": {
+          "title": "Calcolatore Media Voti",
+          "description": "Calcola la media dei voti con pesi personalizzati per materia o tipologia di verifica."
+        },
+        "calcolatore-presenze": {
+          "title": "Calcolatore Presenze",
+          "description": "Calcola la percentuale di frequenza e verifica il raggiungimento del monte ore minimo."
+        },
+        "calcolatore-costo-studente": {
+          "title": "Calcolatore Costo per Studente",
+          "description": "Calcola il costo effettivo per studente considerando tutte le spese della scuola."
+        },
+        "validatore-codice-fiscale": {
+          "title": "Validatore Codice Fiscale",
+          "description": "Verifica la correttezza di un codice fiscale ed estrai le informazioni anagrafiche."
+        },
+        "generatore-calendario-scolastico": {
+          "title": "Generatore Calendario Scolastico",
+          "description": "Genera un calendario scolastico personalizzato con festività e periodi di vacanza."
+        },
+        "generatore-orario-settimanale": {
+          "title": "Generatore Orario Settimanale",
+          "description": "Crea un orario settimanale delle lezioni da stampare o esportare."
+        },
+        "calcolatore-ore-corso": {
+          "title": "Calcolatore Ore Corso",
+          "description": "Calcola il totale delle ore di un corso e pianifica le lezioni necessarie."
+        },
+        "generatore-comunicazioni": {
+          "title": "Generatore Comunicazioni",
+          "description": "Genera template per comunicazioni ai genitori, circolari e avvisi."
+        }
+      },
+      "shell": {
+        "allTools": "Tutti gli strumenti",
+        "ctaTitle": "Gestisci tutto con InsegnaMi.pro",
+        "ctaText": "Registro elettronico, presenze, pagamenti e comunicazioni in un'unica piattaforma.",
+        "ctaBullets": [
+          "Prova gratis 14 giorni",
+          "Nessuna carta richiesta",
+          "Supporto in italiano"
+        ],
+        "ctaButton": "Prova gratis",
+        "related": "Strumenti correlati",
+        "faqTitle": "Domande frequenti"
+      }
+    },
+    "cities": {
+      "index": {
+        "metaTitle": "Software Gestione Scuola per Città",
+        "metaDescription": "Trova il miglior software gestionale per scuole nella tua città. InsegnaMi.pro è disponibile in tutte le regioni italiane con supporto locale.",
+        "breadcrumbHome": "Home",
+        "breadcrumbCities": "Città",
+        "badge": "Copertura nazionale",
+        "title": "Software Gestione Scuola nella Tua Città",
+        "subtitle": "InsegnaMi.pro è il gestionale cloud per le scuole italiane: funziona da qualsiasi città, senza installazioni, con supporto in italiano via email.",
+        "stats": [
+          "Per scuole private e accademie",
+          "Cloud: funziona ovunque",
+          "Supporto in italiano via email"
+        ],
+        "regionsTitle": "Scegli la",
+        "regionsHighlight": "Tua Regione",
+        "regionsSubtitle": "Seleziona la tua regione per esplorare province e comuni e scoprire come InsegnaMi.pro può aiutare le scuole della tua zona.",
+        "provinceCount": "{count, plural, one {# provincia} other {# province}}",
+        "regionCardText": "Software gestionale per scuole in {region}",
+        "whyTitle": "Perché Scegliere InsegnaMi.pro",
+        "whyHighlight": "per la Tua Scuola?",
+        "why": [
+          {
+            "title": "Supporto in Italiano",
+            "text": "Assistenza via email in italiano per segreteria, docenti e amministratori: ti aiutiamo dalla configurazione iniziale all'uso quotidiano."
+          },
+          {
+            "title": "Conformità GDPR",
+            "text": "InsegnaMi.pro tratta i dati di studenti e famiglie nel rispetto del GDPR e delle normative italiane sulla privacy."
+          },
+          {
+            "title": "Cloud, Senza Installazioni",
+            "text": "Il software funziona interamente via browser: nessun server da gestire, nessuna installazione, accessibile da qualsiasi città italiana."
+          },
+          {
+            "title": "Prezzi Competitivi",
+            "text": "Offriamo piani flessibili adatti a scuole di ogni dimensione, dalle piccole accademie ai grandi istituti."
+          }
+        ],
+        "ctaTitle": "Prova InsegnaMi.pro Gratuitamente",
+        "ctaSubtitle": "Inizia oggi la tua prova gratuita di 14 giorni. Nessuna carta di credito richiesta, supporto incluso."
+      },
+      "region": {
+        "metaTitle": "Software Gestione Scuola in {region}",
+        "metaDescription": "InsegnaMi.pro è il software gestionale scolastico per le scuole di {region}. Gestisci studenti, docenti, pagamenti e molto altro. Provalo gratis!",
+        "notFound": "Regione non trovata",
+        "badge": "Regione",
+        "title": "Software Gestione Scuola in {region}",
+        "subtitleProvinces": "{count, plural, one {# provincia con pagine dedicate} other {# province con pagine dedicate}}",
+        "subtitleNoProvinces": "Il gestionale cloud per le scuole di {region}",
+        "backLink": "Tutte le regioni",
+        "provincesTitle": "Province in {region}",
+        "noProvincesTitle": "Un gestionale per le scuole di {region}",
+        "provincesIntro": "InsegnaMi.pro funziona in tutte le province della regione {region}. Seleziona la tua provincia per informazioni sulla tua zona.",
+        "noProvincesIntro": "InsegnaMi.pro è un gestionale cloud: funziona in qualsiasi comune della regione {region}, senza installazioni. Scopri le funzionalità o inizia subito la prova gratuita.",
+        "provinceCardText": "Software gestionale per scuole in provincia di {province}",
+        "comuniCount": "{count, plural, one {# comune} other {# comuni}}",
+        "everywhereTitle": "InsegnaMi.pro funziona ovunque in {region}",
+        "everywhereText": "Essendo un software cloud, InsegnaMi.pro non richiede installazioni: registro elettronico, presenze, pagamenti e comunicazioni con le famiglie sono accessibili da qualsiasi comune della regione. Per qualsiasi domanda sulla tua zona puoi scriverci dalla pagina contatti.",
+        "contactCta": "Contattaci via email",
+        "seoTitle": "InsegnaMi.pro in {region}",
+        "seoText": "InsegnaMi.pro è il software gestionale scolastico pensato per le scuole di {region}. Offriamo una soluzione completa per la gestione di scuole private, accademie musicali, scuole di danza, centri di formazione e istituti educativi di ogni tipo.",
+        "featuresTitle": "Funzionalità Principali",
+        "featuresList": [
+          "Gestione studenti e iscrizioni",
+          "Registro presenze digitale",
+          "Gestione docenti e orari",
+          "Fatturazione e pagamenti",
+          "Comunicazioni con famiglie"
+        ],
+        "advantagesTitle": "Vantaggi per le Scuole in {region}",
+        "advantagesList": [
+          "Supporto in italiano dedicato",
+          "Conformità GDPR e normative italiane",
+          "Interfaccia semplice e intuitiva",
+          "Prezzi accessibili per ogni dimensione",
+          "Prova gratuita di 14 giorni"
+        ],
+        "ctaTitle": "Prova InsegnaMi.pro nella Tua Scuola",
+        "ctaSubtitle": "Porta la gestione della tua scuola in {region} nel digitale. Prova gratuita di 14 giorni, nessun impegno."
+      },
+      "province": {
+        "metaTitle": "Software Gestione Scuola a {province} ({sigla})",
+        "metaDescription": "Cerchi un software gestionale per la tua scuola a {province}? InsegnaMi.pro è la soluzione per le scuole in provincia di {province}, {region}. Provalo gratis!",
+        "notFound": "Provincia non trovata",
+        "badge": "Provincia · {sigla}",
+        "title": "Software Gestione Scuola a {province}",
+        "subtitle": "Provincia di {province}, {region}",
+        "backLink": "Torna a {region}",
+        "comuniTitle": "Comuni in Provincia di {province}",
+        "noComuniTitle": "Un gestionale per le scuole della provincia di {province}",
+        "comuniIntro": "InsegnaMi.pro funziona in tutti i comuni della provincia di {province}. Trova la tua città per scoprire come il nostro software gestionale può aiutare la tua scuola.",
+        "noComuniIntro": "InsegnaMi.pro è un gestionale cloud: funziona in qualsiasi comune della provincia di {province}, senza installazioni né hardware dedicato.",
+        "capBadge": "CAP {cap}",
+        "populationBadge": "{population} ab.",
+        "everywhereTitle": "InsegnaMi.pro funziona ovunque in provincia di {province}",
+        "everywhereText": "Registro elettronico, presenze, pagamenti e comunicazioni con le famiglie: tutto accessibile via browser da qualsiasi comune della provincia di {province} ({sigla}). Per qualsiasi domanda sulla tua scuola puoi scriverci via email dalla pagina contatti.",
+        "contactCta": "Contattaci via email",
+        "seoTitle": "Un Gestionale su Misura per le Scuole di",
+        "seoSubtitle": "InsegnaMi.pro è pensato per scuole private, accademie e centri di formazione. Ecco cosa offre agli istituti della provincia di {province}:",
+        "cards": [
+          {
+            "title": "Facile da Usare",
+            "text": "Interfaccia intuitiva che non richiede formazione tecnica. I tuoi docenti e staff saranno operativi in pochi minuti."
+          },
+          {
+            "title": "Tutto in Uno",
+            "text": "Studenti, docenti, classi, pagamenti, comunicazioni. Un unico software per gestire ogni aspetto della tua scuola."
+          },
+          {
+            "title": "Supporto in Italiano",
+            "text": "Team di supporto italiano disponibile per aiutarti. Assistenza via email inclusa in tutti i piani."
+          }
+        ],
+        "ctaTitle": "La Tua Scuola a {province} Merita il Meglio",
+        "ctaSubtitle": "Porta la gestione della tua scuola a {province} nel digitale. Inizia la tua prova gratuita oggi."
+      },
+      "city": {
+        "metaTitle": "Software Gestione Scuola a {city}",
+        "metaDescription": "Cerchi un software gestionale per la tua scuola a {city}? InsegnaMi.pro è la soluzione per scuole private, accademie e centri di formazione a {city}, {province}. Prova gratis!",
+        "notFound": "Comune non trovato",
+        "badge": "Comune",
+        "title": "Software Gestione Scuola a {city}",
+        "subtitle": "Il gestionale per scuole private e accademie",
+        "populationBadge": "{population} abitanti",
+        "capBadge": "CAP {cap}",
+        "backLink": "Provincia di {province}",
+        "introTitle": "InsegnaMi.pro per le Scuole di {city}",
+        "introText1": "Stai cercando un software gestionale per la tua scuola privata, accademia musicale, scuola di danza o centro di formazione a {city}? InsegnaMi.pro è la soluzione completa e professionale che ti permette di gestire ogni aspetto della tua attività educativa.",
+        "introText2": "Con InsegnaMi.pro, le scuole di {city} e della provincia di {province} ({sigla}) possono finalmente dire addio a fogli Excel, registri cartacei e software complicati. La nostra piattaforma è stata progettata pensando alle esigenze specifiche delle scuole italiane, con conformità GDPR e supporto in italiano.",
+        "whyTitle": "Perché le scuole di {city} scelgono un gestionale",
+        "bulletPopulation": "Un bacino di circa {population} abitanti: gestire iscrizioni, presenze e rate su carta o fogli Excel diventa presto ingestibile per una scuola che cresce.",
+        "bulletNoPopulation": "Le scuole del territorio di {city} gestiscono ogni anno iscrizioni, presenze e rate che su carta o fogli Excel diventano presto ingestibili.",
+        "bulletFamilies": "Le famiglie di {city} e della provincia di {province} ({sigla}) si aspettano canali digitali: circolari, assenze e situazione pagamenti consultabili online dal portale genitori.",
+        "bulletCloud": "Con un gestionale cloud, ricevute e documenti riportano sempre i dati corretti della sede ({city}, CAP {cap}) e sono accessibili sia da scuola che da casa.",
+        "toolsPrompt": "Vuoi partire in piccolo? Prova i nostri strumenti gratuiti:",
+        "toolGradeCalculator": "Calcolatore media voti",
+        "toolAttendanceCalculator": "Calcolatore presenze",
+        "toolScheduleGenerator": "Generatore orario settimanale",
+        "featuresTitle": "Cosa Puoi Fare con InsegnaMi.pro a {city}",
+        "features": {
+          "students": {
+            "title": "Gestione Studenti",
+            "text": "Gestisci facilmente tutti gli studenti della tua scuola a {city}. Iscrizioni, anagrafica, documenti e storico in un unico posto."
+          },
+          "teachers": {
+            "title": "Gestione Docenti",
+            "text": "Organizza docenti, orari, disponibilità e compensi. Assegna classi e monitora le ore di lezione."
+          },
+          "billing": {
+            "title": "Fatturazione e Pagamenti",
+            "text": "Genera fatture, gestisci pagamenti e monitora gli incassi. Integrazione con i principali metodi di pagamento."
+          },
+          "calendar": {
+            "title": "Calendario e Presenze",
+            "text": "Calendario condiviso, gestione presenze e registro elettronico. Notifiche automatiche per genitori e studenti."
+          },
+          "communications": {
+            "title": "Comunicazioni",
+            "text": "Comunica con famiglie e studenti di {city} via email, SMS e notifiche push. Newsletter e avvisi automatici."
+          }
+        },
+        "reasonsTitle": "Perché Scegliere InsegnaMi.pro per la Tua Scuola",
+        "reasons": [
+          {
+            "title": "Prova gratuita 14 giorni",
+            "desc": "Testa tutte le funzionalità senza impegno"
+          },
+          {
+            "title": "Nessuna carta di credito",
+            "desc": "Inizia subito, paghi solo se ti piace"
+          },
+          {
+            "title": "Supporto in italiano",
+            "desc": "Assistenza dedicata via email in italiano"
+          },
+          {
+            "title": "Conforme GDPR",
+            "desc": "Dati protetti e conformità alle normative sulla privacy"
+          },
+          {
+            "title": "Aggiornamenti inclusi",
+            "desc": "Nuove funzionalità e miglioramenti costanti"
+          },
+          {
+            "title": "Import dati",
+            "desc": "Migra facilmente da Excel o altri software"
+          }
+        ],
+        "faqTitle": "Domande Frequenti dalle Scuole di {city}",
+        "faq1Question": "InsegnaMi.pro funziona per le scuole di {city}?",
+        "faq1Answer": "Sì. InsegnaMi.pro è un gestionale cloud: si usa dal browser, da {city} come da qualsiasi altra città, senza installazioni né server da gestire.",
+        "faq2Question": "Quanto costa un gestionale per una scuola di {city}?",
+        "faq2Answer": "Il prezzo dipende dal numero di studenti della scuola: i piani sono pubblicati nella pagina prezzi e includono 14 giorni di prova gratuita, senza carta di credito.",
+        "faq3Question": "Come inizio con la mia scuola di {city}?",
+        "faq3Answer": "Crei un account con la prova gratuita, importi studenti e corsi (anche da Excel) e inviti docenti e famiglie. Per qualsiasi dubbio il nostro team risponde via email.",
+        "sidebar": {
+          "trialTitle": "Prova Gratis",
+          "trialText": "14 giorni di prova gratuita per la tua scuola a {city}",
+          "trialCta": "Inizia la Prova Gratuita",
+          "noCard": "Nessuna carta di credito richiesta",
+          "infoTitle": "Informazioni su {city}",
+          "provinceLabel": "Provincia",
+          "regionLabel": "Regione",
+          "capLabel": "CAP",
+          "populationLabel": "Popolazione",
+          "questionsTitle": "Hai Domande?",
+          "questionsText": "Il nostro team è disponibile per aiutarti a scegliere il piano giusto per la tua scuola a {city}.",
+          "contactCta": "Contattaci"
+        },
+        "nearbyTitle": "InsegnaMi.pro in Altri Comuni di {province}",
+        "ctaTitle": "Inizia Oggi con InsegnaMi.pro a {city}",
+        "ctaSubtitle": "Semplifica la gestione quotidiana della tua scuola a {city} ({province}). Prova gratuita di 14 giorni, nessuna carta di credito richiesta."
+      }
+    }
+  }
 }

@@ -3,6 +3,26 @@ import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { hasFeature } from '@/lib/billing/features';
+
+// Gating di piano 'hoursPackages' (vedi app/api/hours-packages/route.ts):
+// 403 'feature-not-in-plan', SUPERADMIN esente, fail-open su errori infra.
+async function hoursPackagesFeatureGate(session: {
+  user: { role: string; tenantId: string };
+}): Promise<NextResponse | null> {
+  if (session.user.role === 'SUPERADMIN') return null;
+  try {
+    if (!(await hasFeature(session.user.tenantId, 'hoursPackages'))) {
+      return NextResponse.json(
+        { error: 'Funzionalità non inclusa nel tuo piano', code: 'feature-not-in-plan' },
+        { status: 403 }
+      );
+    }
+  } catch (featureError) {
+    console.error('hoursPackages feature gate failed (fail-open):', featureError);
+  }
+  return null;
+}
 
 const updatePackageSchema = z.object({
   totalHours: z.number().min(1).optional(),
@@ -25,6 +45,9 @@ export async function GET(
 
     const blocked = await blockIfTenantInaccessible(session);
     if (blocked) return blocked;
+
+    const featureBlocked = await hoursPackagesFeatureGate(session);
+    if (featureBlocked) return featureBlocked;
 
     const { id } = await params;
 
@@ -120,6 +143,9 @@ export async function PUT(
     if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
+
+    const featureBlocked = await hoursPackagesFeatureGate(session);
+    if (featureBlocked) return featureBlocked;
 
     const { id } = await params;
     const body = await request.json();
@@ -232,6 +258,9 @@ export async function DELETE(
     if (!isAdminRole(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
     }
+
+    const featureBlocked = await hoursPackagesFeatureGate(session);
+    if (featureBlocked) return featureBlocked;
 
     const { id } = await params;
 

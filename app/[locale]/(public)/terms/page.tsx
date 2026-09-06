@@ -31,12 +31,23 @@ import {
 import Link from 'next/link';
 import { Metadata } from 'next';
 import type { ComponentType, ReactNode } from 'react';
+import { buildPublicMetadata } from '@/lib/seo';
 import { PUB_GRADIENT } from '@/components/public/PublicUI';
 
-export const metadata: Metadata = {
-  title: 'Termini di Servizio',
-  description: 'Termini e condizioni di utilizzo della piattaforma InsegnaMi.pro per la gestione scolastica.',
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return buildPublicMetadata({
+    locale,
+    path: '/terms',
+    title: 'Termini di Servizio',
+    description:
+      'Termini e condizioni di utilizzo della piattaforma InsegnaMi.pro per la gestione scolastica.',
+  });
+}
 
 // Indice delle sezioni (anchor interni alla pagina)
 const INDICE = [

@@ -123,6 +123,19 @@ export const province: Provincia[] = [
   { codice: '090', nome: 'Sassari', slug: 'sassari', sigla: 'SS', regione: '20' },
   { codice: '091', nome: 'Nuoro', slug: 'nuoro', sigla: 'NU', regione: '20' },
   { codice: '092', nome: 'Cagliari', slug: 'cagliari', sigla: 'CA', regione: '20' },
+
+  // Province referenziate dai comuni ma storicamente assenti dal dataset:
+  // senza queste voci getComuneWithContext restituiva null e le pagine di
+  // 9 capoluoghi (Genova, Trieste, Perugia...) non venivano mai generate.
+  { codice: '010', nome: 'Genova', slug: 'genova', sigla: 'GE', regione: '07' },
+  { codice: '032', nome: 'Trieste', slug: 'trieste', sigla: 'TS', regione: '06' },
+  { codice: '038', nome: 'Ferrara', slug: 'ferrara', sigla: 'FE', regione: '08' },
+  { codice: '039', nome: 'Ravenna', slug: 'ravenna', sigla: 'RA', regione: '08' },
+  { codice: '049', nome: 'Livorno', slug: 'livorno', sigla: 'LI', regione: '09' },
+  { codice: '054', nome: 'Perugia', slug: 'perugia', sigla: 'PG', regione: '10' },
+  { codice: '068', nome: 'Pescara', slug: 'pescara', sigla: 'PE', regione: '13' },
+  { codice: '080', nome: 'Reggio Calabria', slug: 'reggio-calabria', sigla: 'RC', regione: '18' },
+  { codice: '099', nome: 'Rimini', slug: 'rimini', sigla: 'RN', regione: '08' },
 ];
 
 // Sample comuni for major cities (full list would include all 7904)

@@ -12,6 +12,8 @@ const lessonUpdateSchema = z.object({
   startTime: z.string().datetime().optional(),
   endTime: z.string().datetime().optional(),
   room: z.string().optional(),
+  // Materia opzionale (null per rimuoverla)
+  subjectId: z.string().cuid().optional().nullable(),
   isRecurring: z.boolean().optional(),
   recurrenceRule: z.string().optional(),
   materials: z.string().optional(),
@@ -168,6 +170,19 @@ export async function PUT(
       }
     }
 
+    // Materia: se indicata deve appartenere allo stesso tenant
+    if (validatedData.subjectId) {
+      const subject = await prisma.subject.findFirst({
+        where: {
+          id: validatedData.subjectId,
+          tenantId: session.user.tenantId,
+        },
+      });
+      if (!subject) {
+        return NextResponse.json({ error: 'Materia non trovata' }, { status: 404 });
+      }
+    }
+
     // If updating times or room, check for conflicts (teacher + room).
     if (validatedData.startTime || validatedData.endTime || validatedData.room !== undefined) {
       const startTime = validatedData.startTime ? new Date(validatedData.startTime) : existingLesson.startTime;
@@ -198,6 +213,11 @@ export async function PUT(
     const willComplete =
       validatedData.status === 'COMPLETED' && existingLesson.status !== 'COMPLETED';
 
+    // COMPLETED → CANCELLED: se le ore erano già state consumate va fatto
+    // il refund (ledger-driven) nella stessa transazione dell'update.
+    const willCancelCompleted =
+      validatedData.status === 'CANCELLED' && existingLesson.status === 'COMPLETED';
+
     const updatedLesson = await prisma.$transaction(async (tx) => {
       const updated = await tx.lesson.update({
         where: { id: id },
@@ -226,8 +246,44 @@ export async function PUT(
         await consumeHoursForLesson(id, tx);
       }
 
+      if (willCancelCompleted && existingLesson.hoursConsumed) {
+        const { refundHoursForLesson } = await import('@/lib/hours/consume');
+        await refundHoursForLesson(id, tx);
+      }
+
       return updated;
     });
+
+    // Notifica cancellazione lezione (best-effort, DOPO il commit): studenti
+    // iscritti + docente. Un errore qui non deve far fallire la PUT.
+    if (willCancelCompleted) {
+      try {
+        const { NotificationService } = await import('@/lib/notification-service');
+        const [enrolled, teacher] = await Promise.all([
+          prisma.studentClass.findMany({
+            where: { classId: existingLesson.classId, isActive: true },
+            select: { student: { select: { userId: true } } },
+          }),
+          prisma.teacher.findUnique({
+            where: { id: existingLesson.teacherId },
+            select: { userId: true },
+          }),
+        ]);
+        const studentUserIds = enrolled
+          .map((e) => e.student.userId)
+          .filter((uid): uid is string => Boolean(uid));
+        await NotificationService.notifyLessonCancelled(
+          existingLesson.tenantId,
+          id,
+          updatedLesson.title,
+          updatedLesson.startTime,
+          studentUserIds,
+          teacher?.userId ?? undefined,
+        );
+      } catch (notifyErr) {
+        console.error('Notifica cancellazione lezione fallita (non bloccante):', notifyErr);
+      }
+    }
 
     return NextResponse.json(updatedLesson);
   } catch (error) {

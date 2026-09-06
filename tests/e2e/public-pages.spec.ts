@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Public Pages', () => {
-  test('landing page loads and contains branding', async ({ page }) => {
+  test('landing page loads and contains branding @smoke', async ({ page }) => {
     await page.goto('/');
     const body = await page.textContent('body');
     expect(body).toContain('InsegnaMi');
   });
 
-  test('pricing page loads and shows plans', async ({ page }) => {
+  test('pricing page loads and shows plans @smoke', async ({ page }) => {
     await page.goto('/it/pricing');
     await expect(page.locator('body')).not.toBeEmpty();
     const body = await page.textContent('body');

@@ -87,6 +87,40 @@ export async function syncPaymentMovement(
 }
 
 /**
+ * Allinea l'importo del movimento REVENUE quando l'amount di un Payment
+ * PAID viene corretto a posteriori. Upsert: se il movimento non esiste
+ * (edge: flip a PAID avvenuto prima dell'introduzione del sync) lo crea
+ * passando da syncPaymentMovement.
+ */
+export async function updatePaymentMovementAmount(
+  tx: Tx,
+  paymentId: string,
+  amount: number,
+  opts: { createdBy?: string } = {},
+): Promise<{ movementId: string | null; reason: 'updated' | 'created' | 'not-paid' | 'not-found' }> {
+  const existing = await tx.accountingMovement.findFirst({
+    where: { paymentId, source: 'PAYMENT', type: 'REVENUE' },
+    select: { id: true },
+  });
+
+  if (existing) {
+    await tx.accountingMovement.update({
+      where: { id: existing.id },
+      data: { amount: new Decimal(amount) },
+    });
+    return { movementId: existing.id, reason: 'updated' };
+  }
+
+  // Nessun movimento: riusa il sync idempotente (leggerà il nuovo amount
+  // dal Payment, già aggiornato dal chiamante nella stessa transazione).
+  const synced = await syncPaymentMovement(tx, paymentId, opts);
+  return {
+    movementId: synced.movementId,
+    reason: synced.reason === 'created' ? 'created' : synced.reason === 'already-exists' ? 'updated' : synced.reason,
+  };
+}
+
+/**
  * Reversal helper: when a Payment goes from PAID back to PENDING/OVERDUE
  * (rare but happens when an admin corrects an entry), we delete the
  * existing AccountingMovement so the P&L doesn't double-count.

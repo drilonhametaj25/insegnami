@@ -52,7 +52,7 @@ function validateFiscal(data: z.infer<typeof profileSchema>): string | null {
 
 export async function GET(request: NextRequest) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'read', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'invoice' }, feature: 'einvoicing' });
     const sp = request.nextUrl.searchParams;
     const search = sp.get('search')?.trim();
     const studentId = sp.get('studentId') ?? undefined;
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'create', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'create', resource: 'invoice' }, feature: 'einvoicing' });
     const body = await request.json().catch(() => ({}));
     const parsed = profileSchema.safeParse(body);
     if (!parsed.success) {

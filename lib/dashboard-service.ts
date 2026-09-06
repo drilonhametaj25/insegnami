@@ -283,8 +283,12 @@ export class DashboardService {
   static async getParentStats(userId: string, tenantId: string) {
     const children = await prisma.student.findMany({
       where: {
-        parentUserId: userId, // Use parentUserId directly with the user's ID
-        tenantId
+        tenantId,
+        // Guardian-aware: StudentGuardian + fallback legacy parentUserId
+        OR: [
+          { parentUserId: userId },
+          { guardians: { some: { userId } } },
+        ],
       } as any,
       include: {
         classes: {

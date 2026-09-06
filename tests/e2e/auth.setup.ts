@@ -22,7 +22,7 @@ setup('prepara sessioni autenticate', async ({ browser, request }) => {
     data: { action: 'complete-onboarding', slug: SECOND_TENANT_SLUG },
   });
 
-  const roles: Role[] = ['admin', 'teacher', 'student', 'parent', 'admin2'];
+  const roles: Role[] = ['admin', 'director', 'secretary', 'teacher', 'student', 'parent', 'admin2'];
   for (const role of roles) {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();

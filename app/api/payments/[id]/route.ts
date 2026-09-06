@@ -5,62 +5,8 @@ import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
 import { z } from 'zod';
 import { getTeacherIdForUser, getStudentIdForUser, type AuthContext } from '@/lib/api-auth';
 import { logAudit } from '@/lib/audit';
-
-// C6 — Ricevuta di pagamento: notifica in-app + email (sendEmail: true) allo
-// user dello studente e, se collegato, al parentUser. Best-effort: qualsiasi
-// errore viene loggato e NON deve mai far fallire la richiesta chiamante
-// (il pagamento è già committato quando questa funzione parte).
-async function sendPaymentReceipt(payment: {
-  id: string;
-  tenantId: string;
-  studentId: string;
-  amount: unknown;
-  description: string;
-  paidDate?: Date | null;
-}) {
-  try {
-    const { createAndDispatch } = await import('@/lib/notifications/dispatcher');
-
-    // userId è obbligatorio su Student, parentUserId opzionale
-    const student = await prisma.student.findFirst({
-      where: { id: payment.studentId },
-      select: { userId: true, parentUserId: true },
-    });
-    if (!student) return;
-
-    // Importo in formato italiano (es. 1.250,00) e data del pagamento
-    const importo = Number(payment.amount).toLocaleString('it-IT', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    const dataPagamento = (payment.paidDate ?? new Date()).toLocaleDateString('it-IT');
-    const base = {
-      tenantId: payment.tenantId,
-      title: 'Ricevuta di pagamento',
-      content: `Abbiamo registrato il pagamento di € ${importo} — "${payment.description}" — in data ${dataPagamento}. Questa notifica vale come ricevuta.`,
-      type: 'PAYMENT' as const,
-      sourceType: 'Payment',
-      sourceId: payment.id,
-    };
-
-    // Ricevuta allo studente
-    await createAndDispatch(
-      { ...base, userId: student.userId, actionUrl: '/dashboard/student' },
-      { sendEmail: true },
-    );
-
-    // Ricevuta al genitore, se esiste un account collegato
-    if (student.parentUserId) {
-      await createAndDispatch(
-        { ...base, userId: student.parentUserId, actionUrl: '/dashboard/parent' },
-        { sendEmail: true },
-      );
-    }
-  } catch (error) {
-    // Fire-and-forget: logghiamo e basta, niente throw verso il chiamante
-    console.error('Errore invio ricevuta di pagamento (non bloccante):', error);
-  }
-}
+// C6 — implementazione condivisa (route payments + webhook Stripe)
+import { sendPaymentReceipt } from '@/lib/payments/receipts';
 
 const paymentUpdateSchema = z.object({
   description: z.string().min(1, 'Descrizione richiesta').optional(),
@@ -110,8 +56,12 @@ export async function GET(
       const sid = await getStudentIdForUser(ctx);
       where.studentId = sid ?? '__no_student__';
     } else if (session.user.role === 'PARENT') {
+      // Guardian-aware: StudentGuardian + fallback legacy parentUserId
       where.student = {
-        parentUserId: session.user.id,
+        OR: [
+          { parentUserId: session.user.id },
+          { guardians: { some: { userId: session.user.id } } },
+        ],
       };
     } else if (session.user.role === 'TEACHER') {
       const tid = await getTeacherIdForUser(ctx);
@@ -223,6 +173,14 @@ export async function PUT(
     //   - PAID → PAID:     no-op (sync is idempotent)
     const willBePaid = validatedData.status === 'PAID' && existingPayment.status !== 'PAID';
     const wasPaid = existingPayment.status === 'PAID' && validatedData.status && validatedData.status !== 'PAID';
+    // PAID che resta PAID ma con amount modificato: il movimento contabile
+    // esistente va allineato al nuovo importo (altrimenti il P&L diverge).
+    const staysPaid =
+      existingPayment.status === 'PAID' &&
+      (validatedData.status === undefined || validatedData.status === 'PAID');
+    const amountChanged =
+      validatedData.amount !== undefined &&
+      Number(existingPayment.amount) !== validatedData.amount;
 
     const updatedPayment = await prisma.$transaction(async (tx) => {
       const updated = await tx.payment.update({
@@ -246,6 +204,9 @@ export async function PUT(
       } else if (wasPaid) {
         const { reversePaymentMovement } = await import('@/lib/accounting/movements');
         await reversePaymentMovement(tx, id);
+      } else if (staysPaid && amountChanged) {
+        const { updatePaymentMovementAmount } = await import('@/lib/accounting/movements');
+        await updatePaymentMovementAmount(tx, id, validatedData.amount!);
       }
 
       return updated;

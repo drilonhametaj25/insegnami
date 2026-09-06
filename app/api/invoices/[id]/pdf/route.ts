@@ -11,12 +11,20 @@ interface RouteParams {
 /** GET /api/invoices/[id]/pdf — stream rendered PDF inline. */
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'read', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'invoice' }, feature: 'einvoicing' });
     const { id } = await params;
 
     const where: any = tenantScope(ctx, { id });
     if (ctx.role === 'PARENT') {
-      where.customerProfile = { student: { parentUserId: ctx.userId } };
+      // Guardian-aware: StudentGuardian + fallback legacy parentUserId
+      where.customerProfile = {
+        student: {
+          OR: [
+            { parentUserId: ctx.userId },
+            { guardians: { some: { userId: ctx.userId } } },
+          ],
+        },
+      };
     }
 
     const invoice = await prisma.invoice.findFirst({

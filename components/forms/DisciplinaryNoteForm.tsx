@@ -32,6 +32,10 @@ interface DisciplinaryNoteFormProps {
   className?: string;
   onSave: (data: any) => Promise<void>;
   loading?: boolean;
+  /** Creazione: opzioni classe/studente (lo studente dipende dalla classe scelta) */
+  classOptions?: { value: string; label: string }[];
+  studentOptions?: { value: string; label: string }[];
+  onClassChange?: (classId: string | null) => void;
 }
 
 export function DisciplinaryNoteForm({
@@ -42,12 +46,19 @@ export function DisciplinaryNoteForm({
   className,
   onSave,
   loading,
+  classOptions,
+  studentOptions,
+  onClassChange,
 }: DisciplinaryNoteFormProps) {
   const t = useTranslations('disciplinary');
   const tCommon = useTranslations('common');
 
+  const isCreation = !note;
+
   const form = useForm({
     initialValues: {
+      classId: note?.classId || '',
+      studentId: note?.studentId || '',
       type: note?.type || 'NOTE',
       severity: note?.severity || 'MEDIUM',
       title: note?.title || '',
@@ -57,6 +68,10 @@ export function DisciplinaryNoteForm({
       resolution: note?.resolution || '',
     },
     validate: {
+      classId: (value) =>
+        isCreation && !value ? 'Seleziona una classe' : null,
+      studentId: (value) =>
+        isCreation && !value ? 'Seleziona uno studente' : null,
       title: (value) =>
         !value || value.length < 1
           ? t('validation.titleRequired')
@@ -72,6 +87,9 @@ export function DisciplinaryNoteForm({
   const handleSubmit = async (values: typeof form.values) => {
     try {
       await onSave({
+        ...(isCreation
+          ? { studentId: values.studentId, classId: values.classId }
+          : {}),
         type: values.type,
         severity: values.severity,
         title: values.title,
@@ -137,6 +155,36 @@ export function DisciplinaryNoteForm({
                 )}
               </Group>
             </Paper>
+          )}
+
+          {/* Creazione: selezione classe e studente */}
+          {isCreation && (
+            <Group grow>
+              <Select
+                label={t('class')}
+                placeholder="Seleziona classe"
+                data={classOptions || []}
+                searchable
+                required
+                data-testid="disciplinary-seleziona-classe"
+                {...form.getInputProps('classId')}
+                onChange={(value) => {
+                  form.setFieldValue('classId', value || '');
+                  form.setFieldValue('studentId', '');
+                  onClassChange?.(value);
+                }}
+              />
+              <Select
+                label={t('student')}
+                placeholder="Seleziona studente"
+                data={studentOptions || []}
+                searchable
+                required
+                disabled={!form.values.classId}
+                data-testid="disciplinary-seleziona-studente"
+                {...form.getInputProps('studentId')}
+              />
+            </Group>
           )}
 
           {/* Type and Severity */}

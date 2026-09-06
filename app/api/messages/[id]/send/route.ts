@@ -112,39 +112,36 @@ export async function POST(
         },
       });
 
-      // Update recipient statuses atomically
-      if (message.sendEmail) {
-        await tx.messageRecipient.updateMany({
-          where: { messageId: id },
-          data: { emailStatus: 'SENT' },
-        });
-      }
-
+      // Stati onesti per i canali: email resta SCHEDULED e diventa SENT solo
+      // DOPO l'enqueue riuscito (fuori transaction). SMS e push non hanno
+      // alcun provider implementato: l'enum MessageStatus non prevede
+      // NOT_SENT, quindi usiamo FAILED (il valore onesto disponibile) invece
+      // del vecchio 'SENT' fittizio.
       if (message.sendSms) {
         await tx.messageRecipient.updateMany({
           where: { messageId: id },
-          data: { smsStatus: 'SENT' },
+          data: { smsStatus: 'FAILED' }, // canale SMS non implementato
         });
       }
 
       if (message.sendPush) {
         await tx.messageRecipient.updateMany({
           where: { messageId: id },
-          data: { pushStatus: 'SENT' },
+          data: { pushStatus: 'FAILED' }, // canale push non implementato
         });
       }
 
       return updated;
     });
 
-    // Queue message for actual delivery
+    // Queue message for actual delivery. emailStatus diventa SENT SOLO dopo
+    // l'enqueue riuscito; se l'enqueue fallisce marca FAILED (onesto).
     if (message.sendEmail && message.recipients.length > 0) {
-      try {
-        // Send email to all recipients
-        const recipientEmails = message.recipients
-          .map(r => r.user.email)
-          .filter((email): email is string => !!email);
+      const recipientEmails = message.recipients
+        .map(r => r.user.email)
+        .filter((email): email is string => !!email);
 
+      try {
         if (recipientEmails.length > 0) {
           await EmailNotificationService.sendGenericEmail({
             to: recipientEmails,
@@ -162,11 +159,29 @@ export async function POST(
               </div>
             `,
             text: message.content,
+            meta: {
+              tenantId: session.user.tenantId,
+              sourceType: 'message',
+              sourceId: message.id,
+            },
+          });
+
+          await prisma.messageRecipient.updateMany({
+            where: { messageId: id },
+            data: { emailStatus: 'SENT' },
           });
         }
       } catch (emailError) {
         console.error('Error queueing email:', emailError);
-        // Don't fail the entire request, just log the error
+        // Coda non disponibile: lo stato riflette il mancato invio
+        try {
+          await prisma.messageRecipient.updateMany({
+            where: { messageId: id },
+            data: { emailStatus: 'FAILED' },
+          });
+        } catch (statusError) {
+          console.error('Error updating email status:', statusError);
+        }
       }
     }
 

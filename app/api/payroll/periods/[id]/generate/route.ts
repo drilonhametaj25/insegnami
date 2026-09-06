@@ -15,7 +15,7 @@ interface RouteParams {
  */
 export async function POST(_request: NextRequest, { params }: RouteParams) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'create', resource: 'payroll' } });
+    const ctx = await requireAuth({ permission: { action: 'create', resource: 'payroll' }, feature: 'payroll' });
     const { id } = await params;
 
     const period = await prisma.payrollPeriod.findFirst({

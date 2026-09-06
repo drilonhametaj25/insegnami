@@ -1,6 +1,5 @@
 import { Queue } from 'bullmq';
 import { prisma } from '@/lib/db';
-import { sendEmail } from '@/lib/email';
 import { logger } from '@/lib/logger';
 import { rateLimitByKey } from '@/lib/rate-limit';
 import { redis } from '@/lib/redis';
@@ -30,12 +29,13 @@ async function checkAutomationQuota(tenantId: string, jobLabel: string): Promise
 }
 
 // Define job types
+// NB: il tipo 'end-of-day' (mai implementato) è stato rimosso.
 export interface AttendanceReminderJob {
   type: 'attendance-reminder';
   tenantId: string;
   lessonId: string;
   teacherId: string;
-  reminderTime: 'before-class' | 'after-class' | 'end-of-day';
+  reminderTime: 'before-class' | 'after-class';
 }
 
 export interface PaymentReminderJob {
@@ -62,20 +62,13 @@ export interface AutoEnrollmentJob {
   classId: string;
 }
 
-export interface RecurringLessonJob {
-  type: 'recurring-lesson';
-  tenantId: string;
-  templateLessonId: string;
-  nextDate: Date;
-  patternEnd?: Date;
-}
-
+// Ricorrenze deprecate: la generazione delle lezioni ricorrenti è ora eager
+// nell'endpoint dedicato (app/api/lessons/recurring) — niente più job in coda.
 export type AutomationJob =
   | AttendanceReminderJob
   | PaymentReminderJob
   | ClassCapacityWarningJob
-  | AutoEnrollmentJob
-  | RecurringLessonJob;
+  | AutoEnrollmentJob;
 
 // Lazy initialization for automation queue
 let _automationQueue: Queue<AutomationJob> | null = null;
@@ -113,7 +106,7 @@ export class AutomationService {
    */
   static async scheduleAttendanceReminder(
     lessonId: string,
-    reminderTime: 'before-class' | 'after-class' | 'end-of-day',
+    reminderTime: 'before-class' | 'after-class',
     delay: number = 0
   ) {
     try {
@@ -291,121 +284,6 @@ export class AutomationService {
   }
 
   /**
-   * Generate recurring lessons
-   */
-  static async generateRecurringLesson(templateLessonId: string, nextDate: Date) {
-    try {
-      const templateLesson = await prisma.lesson.findUnique({
-        where: { id: templateLessonId },
-      });
-
-      if (!templateLesson || !templateLesson.isRecurring) return;
-
-      const duration = new Date(templateLesson.endTime).getTime() - 
-                      new Date(templateLesson.startTime).getTime();
-
-      // Create new lesson based on template
-      const newLesson = await prisma.lesson.create({
-        data: {
-          title: templateLesson.title,
-          description: templateLesson.description,
-          startTime: nextDate,
-          endTime: new Date(nextDate.getTime() + duration),
-          room: templateLesson.room,
-          status: 'SCHEDULED',
-          tenantId: templateLesson.tenantId,
-          classId: templateLesson.classId,
-          teacherId: templateLesson.teacherId,
-          isRecurring: true,
-          recurrenceRule: templateLesson.recurrenceRule,
-          parentLessonId: templateLesson.parentLessonId || templateLessonId,
-        },
-      });
-
-      // Calculate next occurrence based on recurrence rule
-      // This would need a proper RRULE parser like 'rrule' package
-      const nextOccurrence = this.calculateNextOccurrenceFromRule(
-        nextDate, 
-        templateLesson.recurrenceRule
-      );
-      
-      if (nextOccurrence) {
-        const job: RecurringLessonJob = {
-          type: 'recurring-lesson',
-          tenantId: templateLesson.tenantId,
-          templateLessonId: templateLesson.parentLessonId || templateLessonId,
-          nextDate: nextOccurrence,
-        };
-
-        const queue = automationQueue.get();
-        if (queue) {
-          await queue.add(job.type, job, {
-            delay: nextOccurrence.getTime() - Date.now(),
-            jobId: `recurring-${templateLessonId}-${nextOccurrence.getTime()}`,
-          });
-        }
-      }
-
-      logger.info(`Created recurring lesson ${newLesson.id} for ${nextDate}`);
-      return newLesson;
-    } catch (error) {
-      logger.error('Failed to generate recurring lesson', error);
-    }
-  }
-
-  /**
-   * Calculate next occurrence from RRULE string
-   * This is a simplified version - in production use 'rrule' package
-   */
-  static calculateNextOccurrenceFromRule(currentDate: Date, rrule: string | null): Date | null {
-    if (!rrule) return null;
-
-    // Simple parsing for basic rules
-    // Format: "FREQ=WEEKLY;INTERVAL=1" or "FREQ=DAILY;INTERVAL=1"
-    const nextDate = new Date(currentDate);
-    
-    if (rrule.includes('FREQ=WEEKLY')) {
-      const interval = rrule.includes('INTERVAL=') ? 
-        parseInt(rrule.split('INTERVAL=')[1].split(';')[0]) : 1;
-      nextDate.setDate(nextDate.getDate() + 7 * interval);
-    } else if (rrule.includes('FREQ=DAILY')) {
-      const interval = rrule.includes('INTERVAL=') ? 
-        parseInt(rrule.split('INTERVAL=')[1].split(';')[0]) : 1;
-      nextDate.setDate(nextDate.getDate() + interval);
-    } else {
-      return null;
-    }
-
-    return nextDate;
-  }
-
-  /**
-   * Calculate next occurrence based on pattern (legacy method)
-   */
-  private static calculateNextOccurrence(currentDate: Date, pattern: any): Date | null {
-    const nextDate = new Date(currentDate);
-
-    switch (pattern.frequency) {
-      case 'DAILY':
-        nextDate.setDate(nextDate.getDate() + (pattern.interval || 1));
-        break;
-      case 'WEEKLY':
-        nextDate.setDate(nextDate.getDate() + 7 * (pattern.interval || 1));
-        break;
-      case 'MONTHLY':
-        nextDate.setMonth(nextDate.getMonth() + (pattern.interval || 1));
-        break;
-      case 'YEARLY':
-        nextDate.setFullYear(nextDate.getFullYear() + (pattern.interval || 1));
-        break;
-      default:
-        return null;
-    }
-
-    return nextDate;
-  }
-
-  /**
    * Setup automatic reminders for today's lessons
    */
   static async setupDailyReminders() {
@@ -456,7 +334,9 @@ export class AutomationService {
 
       logger.info(`Setup daily reminders for ${todaysLessons.length} lessons`);
     } catch (error) {
+      // Logga E rilancia: l'errore deve emergere fino ad AutomationRun (FAILED)
       logger.error('Failed to setup daily reminders', error);
+      throw error;
     }
   }
 
@@ -481,10 +361,12 @@ export class AutomationService {
         },
       });
 
-      // Overdue payments (7 days past due)
+      // Overdue payments (7 days past due). Il cron mark-payments-overdue
+      // ha già spostato i PENDING scaduti a OVERDUE: la query li include
+      // entrambi per non perdere solleciti se il cron non è ancora girato.
       const overduePayments = await prisma.payment.findMany({
         where: {
-          status: 'PENDING',
+          status: { in: ['PENDING', 'OVERDUE'] },
           dueDate: {
             gte: sevenDaysAgo,
             lt: now,
@@ -495,7 +377,7 @@ export class AutomationService {
       // Final notice (30 days past due)
       const finalNoticePayments = await prisma.payment.findMany({
         where: {
-          status: 'PENDING',
+          status: { in: ['PENDING', 'OVERDUE'] },
           dueDate: {
             gte: thirtyDaysAgo,
             lt: sevenDaysAgo,
@@ -521,7 +403,9 @@ export class AutomationService {
         `${overduePayments.length} overdue, ${finalNoticePayments.length} final notice`
       );
     } catch (error) {
+      // Logga E rilancia: l'errore deve emergere fino ad AutomationRun (FAILED)
       logger.error('Failed to setup payment reminders', error);
+      throw error;
     }
   }
 
@@ -530,17 +414,20 @@ export class AutomationService {
    */
   static async runDailyAutomation() {
     logger.info('Starting daily automation routine');
-    
+
     try {
       await Promise.all([
         this.setupDailyReminders(),
         this.setupPaymentReminders(),
         // Add other daily automations here
       ]);
-      
+
       logger.info('Daily automation routine completed successfully');
     } catch (error) {
+      // Niente catch inghiottito: il chiamante (withAuditRun) deve vedere
+      // il fallimento e marcare la run FAILED.
       logger.error('Daily automation routine failed', error);
+      throw error;
     }
   }
 }

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { createAndDispatch } from '@/lib/notifications/dispatcher';
 
 export interface CreateNotificationData {
   tenantId: string;
@@ -157,12 +158,18 @@ export class NotificationService {
     tenantId: string,
     paymentId: string,
     studentUserId: string,
-    parentUserId: string | null,
+    // Guardian-aware: accetta anche la lista dei tutori (StudentGuardian)
+    parentUserId: string | string[] | null,
     amount: number,
     dueDate: Date,
     studentName: string
   ) {
-    const userIds = parentUserId ? [studentUserId, parentUserId] : [studentUserId];
+    const parentIds = Array.isArray(parentUserId)
+      ? parentUserId
+      : parentUserId
+        ? [parentUserId]
+        : [];
+    const userIds = Array.from(new Set([studentUserId, ...parentIds]));
     
     const notifications = userIds.map(userId => ({
       tenantId,
@@ -183,7 +190,43 @@ export class NotificationService {
   }
 
   /**
-   * Notifica per lezione cancellata
+   * Invio reale via dispatcher, per-utente: un destinatario problematico non
+   * blocca gli altri (warn e si prosegue). Ritorna il conteggio dispatchati.
+   */
+  private static async dispatchToUsers(
+    notifications: CreateNotificationData[],
+  ): Promise<{ count: number }> {
+    let count = 0;
+    for (const notif of notifications) {
+      try {
+        await createAndDispatch(
+          {
+            tenantId: notif.tenantId,
+            userId: notif.userId,
+            title: notif.title,
+            content: notif.content,
+            type: notif.type,
+            priority: notif.priority,
+            actionUrl: notif.actionUrl,
+            actionLabel: notif.actionLabel,
+            sourceType: notif.sourceType,
+            sourceId: notif.sourceId,
+            scheduledFor: notif.scheduledFor,
+            expiresAt: notif.expiresAt,
+          },
+          { sendEmail: notif.sendEmail ?? false, sendPush: notif.sendPush ?? false },
+        );
+        count++;
+      } catch (error) {
+        console.error(`Errore dispatch notifica per utente ${notif.userId}:`, error);
+      }
+    }
+    return { count };
+  }
+
+  /**
+   * Notifica per lezione cancellata — collegata al dispatcher: la riga
+   * in-app viene creata E l'email accodata davvero.
    */
   static async notifyLessonCancelled(
     tenantId: string,
@@ -194,7 +237,7 @@ export class NotificationService {
     teacherUserId?: string
   ) {
     const allUserIds = teacherUserId ? [...studentUserIds, teacherUserId] : studentUserIds;
-    
+
     const notifications = allUserIds.map(userId => ({
       tenantId,
       userId,
@@ -210,7 +253,7 @@ export class NotificationService {
       sendPush: true,
     }));
 
-    return await this.createBulkNotifications(notifications);
+    return await this.dispatchToUsers(notifications);
   }
 
   /**
@@ -222,11 +265,18 @@ export class NotificationService {
     studentName: string,
     lessonTitle: string,
     lessonDate: Date,
-    parentUserId: string | null,
+    // Guardian-aware: accetta anche la lista dei tutori (StudentGuardian)
+    parentUserId: string | string[] | null,
     teacherUserId: string
   ) {
-    const userIds = parentUserId ? [parentUserId, teacherUserId] : [teacherUserId];
-    
+    const parentIds = Array.isArray(parentUserId)
+      ? parentUserId
+      : parentUserId
+        ? [parentUserId]
+        : [];
+    // teacherUserId può mancare (Teacher senza account collegato)
+    const userIds = Array.from(new Set([...parentIds, teacherUserId].filter(Boolean))) as string[];
+
     const notifications = userIds.map(userId => ({
       tenantId,
       userId,
@@ -238,10 +288,10 @@ export class NotificationService {
       actionLabel: 'Vedi presenze',
       sourceType: 'attendance',
       sourceId: attendanceId,
-      sendEmail: parentUserId === userId, // Solo ai genitori via email
+      sendEmail: parentIds.includes(userId), // Solo ai genitori via email
     }));
 
-    return await this.createBulkNotifications(notifications);
+    return await this.dispatchToUsers(notifications);
   }
 
   /**
@@ -281,7 +331,7 @@ export class NotificationService {
       sendPush: true,
     }));
 
-    return await this.createBulkNotifications(notifications);
+    return await this.dispatchToUsers(notifications);
   }
 
   /**

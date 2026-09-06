@@ -3,6 +3,8 @@ import { getAuth, isAdminRole } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { requireAuth, authError } from '@/lib/api-auth';
+import { computeAnalytics, REPORT_TYPE_TO_ANALYTICS } from '@/lib/analytics/compute';
 
 const createReportSchema = z.object({
   title: z.string().min(1, 'Titolo richiesto'),
@@ -16,13 +18,7 @@ const createReportSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'analytics' } });
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
@@ -32,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     // Build query filters
     const where: any = {
-      tenantId: session.user.tenantId,
+      tenantId: ctx.tenantId,
     };
 
     if (type) {
@@ -72,6 +68,8 @@ export async function GET(request: NextRequest) {
       hasMore: offset + reports.length < totalCount,
     });
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     console.error('Reports API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -97,6 +95,29 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createReportSchema.parse(body);
 
+    const startDate = new Date(validatedData.startDate);
+    const endDate = new Date(validatedData.endDate);
+
+    // Snapshot: i dati vengono calcolati ORA e persistiti in report.data,
+    // così il report resta stabile anche quando i dati sottostanti cambiano.
+    let snapshot: Record<string, any> = validatedData.data || {};
+    if (Object.keys(snapshot).length === 0) {
+      const analyticsType = REPORT_TYPE_TO_ANALYTICS[validatedData.type] || 'overview';
+      try {
+        snapshot = await computeAnalytics(
+          analyticsType,
+          session.user.tenantId,
+          startDate,
+          endDate
+        );
+      } catch (computeError) {
+        // Il fallimento del calcolo non blocca la creazione: la pagina di
+        // dettaglio ricade sul ricalcolo live per i report con data vuoto.
+        console.error('Report snapshot compute error:', computeError);
+        snapshot = {};
+      }
+    }
+
     // Create report in database
     const report = await prisma.report.create({
       data: {
@@ -104,9 +125,9 @@ export async function POST(request: NextRequest) {
         title: validatedData.title,
         type: validatedData.type as any,
         period: validatedData.period as any,
-        startDate: new Date(validatedData.startDate),
-        endDate: new Date(validatedData.endDate),
-        data: validatedData.data || {},
+        startDate,
+        endDate,
+        data: snapshot,
         filters: validatedData.filters || {},
         generatedBy: userId,
       },

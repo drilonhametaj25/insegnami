@@ -91,7 +91,8 @@ const SECRETARY_PERMS = merge(
     course: ['read', 'create', 'update'] as Action[],
     subject: ['read'] as Action[],
     lesson: ['read', 'create', 'update'] as Action[],
-    attendance: ['read', 'export'] as Action[],
+    // La segreteria registra e corregge le presenze (flusso operativo tipico)
+    attendance: ['read', 'create', 'update', 'export'] as Action[],
     grade: ['read'] as Action[],
     reportCard: ['read', 'export'] as Action[],
     homework: ['read'] as Action[],

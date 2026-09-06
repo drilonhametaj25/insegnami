@@ -1,7 +1,18 @@
 import { Queue, Worker, QueueEvents, Job } from 'bullmq';
 import { redis } from '@/lib/redis';
 import { logger } from '@/lib/logger';
+import { prisma } from '@/lib/db';
 import nodemailer from 'nodemailer';
+
+// Metadati opzionali per il registro EmailLog: chi accoda può passare il
+// tenant e la sorgente (es. 'payment-reminder' + id) oppure l'id di una riga
+// EmailLog già creata (QUEUED) che il worker deve flippare a SENT/FAILED.
+export interface EmailJobMeta {
+  emailLogId?: string;
+  tenantId?: string;
+  sourceType?: string;
+  sourceId?: string;
+}
 
 // Email job types
 export interface EmailJobData {
@@ -14,6 +25,7 @@ export interface EmailJobData {
     content: Buffer | string;
     contentType?: string;
   }>;
+  meta?: EmailJobMeta;
 }
 
 export interface WelcomeEmailJobData extends EmailJobData {
@@ -53,7 +65,13 @@ export enum EmailJobType {
 
 let _emailQueue: Queue | null = null;
 
-export function getEmailQueue(): Queue {
+export function getEmailQueue(): Queue | null {
+  // Guardia REDIS_URL (come cron/automation queue): senza Redis configurato
+  // la coda non esiste — i chiamanti gestiscono il null (fallback SMTP).
+  if (!process.env.REDIS_URL) {
+    return null;
+  }
+
   if (!_emailQueue) {
     _emailQueue = new Queue('email', {
       connection: redis.getConnectionConfig(),
@@ -74,10 +92,14 @@ export function getEmailQueue(): Queue {
 
 // Retrocompatibilità: storicamente il modulo esportava l'istanza creata a
 // module load. Il Proxy mantiene la stessa API ma istanzia la Queue solo
-// al primo accesso reale.
+// al primo accesso reale; senza REDIS_URL lancia un errore esplicito che i
+// chiamanti (dispatcher, EmailService) intercettano per il fallback SMTP.
 export const emailQueue = new Proxy({} as Queue, {
   get(_target, prop) {
     const queue = getEmailQueue();
+    if (!queue) {
+      throw new Error('Email queue unavailable: REDIS_URL not configured');
+    }
     const value = (queue as any)[prop];
     return typeof value === 'function' ? value.bind(queue) : value;
   },
@@ -114,6 +136,44 @@ let _emailQueueEvents: QueueEvents | null = null;
 let _workerTransporter: nodemailer.Transporter | null = null;
 
 /**
+ * Scrittura best-effort del registro EmailLog dal worker: aggiorna la riga
+ * QUEUED indicata da meta.emailLogId, oppure ne crea una nuova con lo stato
+ * finale. Non lancia mai (il bookkeeping non deve rompere il job).
+ */
+async function writeWorkerEmailLog(
+  data: EmailJobData,
+  status: 'SENT' | 'FAILED',
+  messageId: string | null,
+  error: string | null,
+): Promise<void> {
+  try {
+    const sentAt = status === 'SENT' ? new Date() : null;
+    if (data.meta?.emailLogId) {
+      await prisma.emailLog.update({
+        where: { id: data.meta.emailLogId },
+        data: { status, messageId, sentAt, error },
+      });
+    } else {
+      await prisma.emailLog.create({
+        data: {
+          tenantId: data.meta?.tenantId ?? null,
+          to: Array.isArray(data.to) ? data.to.join(',') : data.to,
+          subject: data.subject,
+          sourceType: data.meta?.sourceType ?? null,
+          sourceId: data.meta?.sourceId ?? null,
+          status,
+          messageId,
+          sentAt,
+          error,
+        },
+      });
+    }
+  } catch (err) {
+    logger.warn('EmailLog bookkeeping failed in email worker', err);
+  }
+}
+
+/**
  * Factory del consumer email (pattern getCronWorker). Idempotente: la
  * seconda chiamata ritorna la stessa istanza. Da invocare SOLO dal processo
  * worker — il processo Next non deve mai consumare la coda.
@@ -129,7 +189,7 @@ export function createEmailWorker(): Worker {
   _emailWorker = new Worker(
     'email',
     async (job: Job<EmailJobData>) => {
-      const { to, subject, html, text, attachments } = job.data;
+      const { to, subject, html, text, attachments, meta } = job.data;
 
       logger.info(`Processing email job ${job.id}: ${subject}`, { to, jobType: job.name });
 
@@ -149,9 +209,26 @@ export function createEmailWorker(): Worker {
           subject,
         });
 
+        // Registro EmailLog: QUEUED→SENT (o riga nuova SENT se il producer
+        // non ne aveva creata una). Best-effort: un problema di bookkeeping
+        // non deve far fallire un invio riuscito.
+        await writeWorkerEmailLog(job.data, 'SENT', result.messageId ?? null, null);
+
         return { messageId: result.messageId, status: 'sent' };
       } catch (error) {
         logger.error(`Failed to send email for job ${job.id}`, error, { to, subject });
+        // FAILED solo sull'ultimo tentativo (i retry intermedi non sporcano
+        // il registro), oppure sempre se c'è una riga QUEUED da flippare.
+        const attempts = (job.opts?.attempts as number | undefined) ?? 1;
+        const isLastAttempt = job.attemptsMade + 1 >= attempts;
+        if (meta?.emailLogId || isLastAttempt) {
+          await writeWorkerEmailLog(
+            job.data,
+            'FAILED',
+            null,
+            error instanceof Error ? error.message.slice(0, 1000) : String(error).slice(0, 1000),
+          );
+        }
         throw error;
       }
     },
@@ -246,8 +323,13 @@ export class EmailNotificationService {
     });
   }
 
-  static async sendGenericEmail(data: EmailJobData): Promise<void> {
-    await emailQueue.add(EmailJobType.GENERIC, data);
+  static async sendGenericEmail(data: EmailJobData, opts?: { delay?: number }): Promise<void> {
+    // delay: "non prima di" (quiet hours / scheduledFor) via delayed job BullMQ
+    if (opts?.delay && opts.delay > 0) {
+      await emailQueue.add(EmailJobType.GENERIC, data, { delay: opts.delay });
+    } else {
+      await emailQueue.add(EmailJobType.GENERIC, data);
+    }
   }
 }
 

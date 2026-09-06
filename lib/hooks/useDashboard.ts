@@ -25,8 +25,6 @@ interface StudentDashboardData {
   classes: Array<{
     id: string;
     name: string;
-    description?: string;
-    schedule?: any;
     course: any;
     teacher: {
       id: string;
@@ -89,8 +87,7 @@ interface StudentDashboardData {
     description?: string;
     dueDate: string;
     status: string;
-    paidAt?: string;
-    type: string;
+    paidDate?: string | null;
   }>;
   notices: Array<{
     id: string;
@@ -100,6 +97,18 @@ interface StudentDashboardData {
     isUrgent: boolean;
     isPinned: boolean;
     targetRoles: string[];
+  }>;
+  hoursPackages: Array<{
+    id: string;
+    course?: { id: string; name: string; level?: string | null } | null;
+    totalHours: number;
+    usedHours: number;
+    remainingHours: number;
+    usedPercentage: number;
+    isLow: boolean;
+    expiryDate?: string | null;
+    isActive: boolean;
+    purchaseDate: string;
   }>;
 }
 
@@ -134,12 +143,11 @@ interface ParentDashboardData {
       activeCourses: number;
       attendanceRate: number;
       totalLessons: number;
+      pendingPayments: number;
     };
     classes: Array<{
       id: string;
       name: string;
-      description?: string;
-      schedule?: any;
       course: any;
       teacher: {
         id: string;
@@ -202,8 +210,7 @@ interface ParentDashboardData {
     description?: string;
     dueDate: string;
     status: string;
-    paidAt?: string;
-    type: string;
+    paidDate?: string | null;
     child: {
       id: string;
       name: string;
@@ -218,6 +225,48 @@ interface ParentDashboardData {
     isPinned: boolean;
     targetRoles: string[];
   }>;
+}
+
+// Teacher dashboard data interface
+export interface TeacherDashboardLesson {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  room?: string | null;
+  class: { id: string; name: string } | null;
+  _count?: { attendance: number };
+}
+
+export interface TeacherDashboardData {
+  todayLessons: TeacherDashboardLesson[];
+  pendingAttendance: TeacherDashboardLesson[];
+  upcomingHomework: Array<{
+    id: string;
+    title: string;
+    dueDate: string;
+    class: { id: string; name: string } | null;
+    subject?: { id: string; name: string } | null;
+  }>;
+  weekLessonsCount: number;
+}
+
+// Hook per la dashboard docente
+export function useTeacherDashboard() {
+  return useQuery<{ success: boolean; data: TeacherDashboardData }>({
+    queryKey: ['dashboard', 'teacher'],
+    queryFn: async () => {
+      const response = await fetch('/api/dashboard/teacher');
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Errore nel caricamento della dashboard docente');
+      }
+      return response.json();
+    },
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
 }
 
 // Hook for student dashboard

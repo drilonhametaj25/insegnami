@@ -153,14 +153,17 @@ export async function PUT(
     }
 
     // If teacher, verify they created this note
-    if (session.user.role === 'TEACHER' && session.user.email) {
-      const teacher = await prisma.teacher.findFirst({
-        where: {
-          email: session.user.email,
-          tenantId: session.user.tenantId,
-        },
-      });
-      if (teacher && existingNote.teacherId !== teacher.id) {
+    if (session.user.role === 'TEACHER') {
+      const teacher = session.user.email
+        ? await prisma.teacher.findFirst({
+            where: {
+              email: session.user.email,
+              tenantId: session.user.tenantId,
+            },
+          })
+        : null;
+      // Deny esplicito: profilo non risolvibile o nota di un altro docente → 403
+      if (!teacher || existingNote.teacherId !== teacher.id) {
         return NextResponse.json(
           { error: 'Non puoi modificare note inserite da altri docenti' },
           { status: 403 }

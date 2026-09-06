@@ -9,6 +9,7 @@ import {
   DEFAULT_CONFIG,
 } from '@/lib/scheduling';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { hasFeature } from '@/lib/billing/features';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -27,6 +28,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (!['ADMIN', 'DIRECTOR', 'SUPERADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+    }
+
+    // Gating di piano 'scheduleGenerator': 403 'feature-not-in-plan' → upsell
+    // in UI. SUPERADMIN esente; fail-open su errori infra del check.
+    if (session.user.role !== 'SUPERADMIN') {
+      try {
+        if (!(await hasFeature(session.user.tenantId, 'scheduleGenerator'))) {
+          return NextResponse.json(
+            { error: 'Funzionalità non inclusa nel tuo piano', code: 'feature-not-in-plan' },
+            { status: 403 }
+          );
+        }
+      } catch (featureError) {
+        console.error('scheduleGenerator feature gate failed (fail-open):', featureError);
+      }
     }
 
     const { id } = await params;

@@ -185,6 +185,13 @@ model Tenant {
   email   String?
   logo    String?
 
+  // Dati fiscali del cliente SaaS (per la fatturazione dell'abbonamento)
+  billingName String?
+  vatNumber   String?
+  taxCode     String?
+  sdiCode     String?
+  pec         String?
+
   // Feature flags
   featureFlags Json @default("{}")
 
@@ -204,9 +211,12 @@ model Tenant {
   updatedAt DateTime @updatedAt
 
   // Relations
-  users               UserTenant[]
-  students            Student[]
-  teachers            Teacher[]
+  users                 UserTenant[]
+  students              Student[]
+  studentGuardians      StudentGuardian[]
+  absenceJustifications AbsenceJustification[]
+  hoursLedger           HoursLedger[]
+  teachers              Teacher[]
   classes             Class[]
   courses             Course[]
   lessons             Lesson[]
@@ -314,6 +324,14 @@ model Subscription {
   // Status
   status SubscriptionStatus @default(TRIALING)
 
+  // Intervallo di fatturazione scelto al checkout (mensile o annuale):
+  // guida UI billing, MRR e selezione prezzi add-on.
+  interval PlanInterval @default(MONTHLY)
+
+  // Grace period su PAST_DUE: finché non scade il tenant resta operativo
+  // (banner di dunning), poi scatta il blocco. Impostato dal webhook.
+  gracePeriodEnd DateTime?
+
   // Billing period
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
@@ -382,10 +400,13 @@ model TenantAddon {
 // persistono solo gli ID Stripe creati dalla sync idempotente
 // (scripts/sync-stripe.ts / POST /api/superadmin/addons).
 model AddonCatalog {
-  id              String    @id @default(cuid())
-  type            AddonType @unique
-  stripeProductId String?   @unique
-  stripePriceId   String?   @unique
+  id                  String    @id @default(cuid())
+  type                AddonType @unique
+  stripeProductId     String?   @unique
+  stripePriceId       String?   @unique
+  // Prezzo annuale (12 mesi al prezzo di 10): per gli add-on acquistati su
+  // abbonamenti annuali (Stripe rifiuta interval misti nella stessa sub).
+  stripeYearlyPriceId String?   @unique
   priceAmount     Decimal?  @db.Decimal(10, 2) // snapshot del prezzo sincronizzato (€/mese)
   syncedAt        DateTime?
   createdAt       DateTime  @default(now())
@@ -435,6 +456,9 @@ model User {
   // Student relations
   studentProfile   Student?  @relation("StudentUser")
   childrenAsParent Student[] @relation("ParentUser")
+  guardianLinks    StudentGuardian[] @relation("GuardianUser")
+  justificationsRequested AbsenceJustification[] @relation("JustificationRequestedBy")
+  justificationsDecided   AbsenceJustification[] @relation("JustificationDecidedBy")
 
   // Teacher profile (1:1 — a User can be the underlying account of at most
   // one Teacher within the system).
@@ -473,7 +497,9 @@ model Student {
 
   // Links to User accounts
   userId       String  @unique // Student user account
-  parentUserId String? @unique // Optional parent user account
+  // Tutore primario denormalizzato (fonte di verità: StudentGuardian).
+  // Niente @unique: un genitore può avere più figli.
+  parentUserId String?
 
   // Personal info (duplicated from User for quick access)
   firstName   String
@@ -484,7 +510,7 @@ model Student {
   address     String?
 
   // Student specific
-  studentCode    String     @unique // Generated student ID
+  studentCode    String // Generated student ID — univoco PER TENANT (vedi @@unique)
   enrollmentDate DateTime   @default(now())
   status         UserStatus @default(ACTIVE)
 
@@ -507,6 +533,9 @@ model Student {
   attendance    Attendance[]
   payments      Payment[]
   hoursPackages HoursPackage[]
+  guardians     StudentGuardian[]
+  absenceJustifications AbsenceJustification[]
+  hoursLedger   HoursLedger[]  @relation("StudentHoursLedger")
 
   // New: School Core Relations
   grades              Grade[]
@@ -521,7 +550,29 @@ model Student {
   invoiceCustomerProfiles InvoiceCustomerProfile[]
   invoiceLines            InvoiceLine[]
 
+  @@unique([tenantId, studentCode])
   @@map("students")
+}
+
+// Tabella ponte famiglia: più tutori per studente, più figli per tutore.
+// Sostituisce il vecchio vincolo Student.parentUserId @unique (1 solo figlio).
+model StudentGuardian {
+  id           String   @id @default(cuid())
+  tenantId     String
+  studentId    String
+  userId       String
+  relationship String? // es. "madre", "padre", "tutore legale"
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  user    User    @relation("GuardianUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, userId])
+  @@index([userId, tenantId])
+  @@index([tenantId, studentId])
+  @@map("student_guardians")
 }
 
 model Teacher {
@@ -544,7 +595,7 @@ model Teacher {
   address   String?
 
   // Professional info
-  teacherCode String     @unique // Generated teacher ID
+  teacherCode String // Generated teacher ID — univoco PER TENANT (vedi @@unique)
   hireDate    DateTime   @default(now())
   status      UserStatus @default(ACTIVE)
 
@@ -583,6 +634,7 @@ model Teacher {
   payrolls        Payroll[]
   payrollSettings TeacherPayrollSettings?
 
+  @@unique([tenantId, teacherCode])
   @@index([tenantId, status])
   @@map("teachers")
 }
@@ -592,7 +644,7 @@ model Course {
   tenantId String
 
   name        String
-  code        String  @unique
+  code        String // univoco PER TENANT: due scuole possono usare lo stesso codice
   description String?
   category    String?
   level       String? // Beginner, Intermediate, Advanced
@@ -616,6 +668,7 @@ model Course {
   hoursPackages HoursPackage[]
   invoiceLines  InvoiceLine[]
 
+  @@unique([tenantId, code])
   @@map("courses")
 }
 
@@ -626,7 +679,13 @@ model Class {
   teacherId String
 
   name String
-  code String @unique
+  code String // univoco PER TENANT (vedi @@unique)
+
+  // Dettagli operativi (persistiti dal form classe)
+  description  String?
+  level        String?
+  room         String?
+  monthlyPrice Decimal? @db.Decimal(10, 2)
 
   // Schedule
   startDate DateTime
@@ -658,6 +717,7 @@ model Class {
   // Smart Scheduling
   scheduleSlots ScheduleSlot[]
 
+  @@unique([tenantId, code])
   @@map("classes")
 }
 
@@ -702,9 +762,10 @@ model HoursPackage {
   updatedAt DateTime @updatedAt
 
   // Relations
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tenant  Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  ledger  HoursLedger[]
 
   @@map("hours_packages")
 }
@@ -714,6 +775,9 @@ model Lesson {
   tenantId  String
   classId   String
   teacherId String
+  // Materia della lezione (registro per materia): valorizzata dall'orario
+  // generato o dalla selezione nel form lezione.
+  subjectId String?
 
   title       String
   description String?
@@ -748,8 +812,10 @@ model Lesson {
   tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   class           Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
   teacher         Teacher      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  subject         Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   attendance      Attendance[]
   lessonMaterials Material[]
+  hoursLedger     HoursLedger[]
 
   // New: School Core Relations
   homeworkAssignments Homework[]
@@ -839,6 +905,12 @@ model Payment {
   @@map("payments")
 }
 
+enum NoticeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 model Notice {
   id       String @id @default(cuid())
   tenantId String
@@ -846,6 +918,10 @@ model Notice {
   title   String
   content String
   type    NoticeType @default(ANNOUNCEMENT)
+
+  // Ciclo di vita: le bozze sono visibili solo a chi gestisce gli avvisi
+  status      NoticeStatus @default(PUBLISHED)
+  publishedAt DateTime?
 
   // Visibility
   isPublic    Boolean @default(true)
@@ -1351,6 +1427,7 @@ model Subject {
   homework          Homework[]
   classSubjects     ClassSubject[]
   reportCardEntries ReportCardEntry[]
+  lessons           Lesson[]
 
   // Smart Scheduling
   scheduleSlots ScheduleSlot[]
@@ -2064,6 +2141,8 @@ model InvoiceSettings {
 
   // Conservazione sostitutiva (servizio aggiuntivo del provider).
   conservazioneEnabled Boolean @default(false)
+  // Bollo virtuale (2€) su fatture esenti art.10 sopra 77,47€
+  bolloVirtuale        Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2136,7 +2215,9 @@ model Invoice {
   payrolls            Payroll[]
   accountingMovements AccountingMovement[]
 
-  @@unique([tenantId, seriesId, year, number])
+  // NB: l'unicità (tenantId, seriesId, year, number) è imposta da un PARTIAL
+  // UNIQUE INDEX in migration (WHERE number > 0): le bozze hanno number=0 e
+  // possono coesistere in numero arbitrario. Niente @@unique qui.
   @@index([tenantId, year, status])
   @@index([tenantId, sdiStatus])
   @@map("invoices")
@@ -2431,4 +2512,130 @@ model AccountingMovement {
   @@index([tenantId, source])
   @@index([tenantId, classId])
   @@map("accounting_movements")
+}
+
+// ============================================================
+// Wave 3: impostazioni piattaforma, giustificazioni, email log,
+// ledger consumo ore
+// ============================================================
+
+// Impostazioni globali del SaaS (singleton, id fisso 'platform'):
+// sostituisce la vecchia cache in-memory della route superadmin/settings.
+model PlatformSettings {
+  id                    String   @id @default("platform")
+  defaultTrialDays      Int      @default(14)
+  allowNewRegistrations Boolean  @default(true)
+  maintenanceMode       Boolean  @default(false)
+  senderName            String?
+  senderEmail           String?
+  replyTo               String?
+  // Giorni di grazia su PAST_DUE prima del blocco (dunning)
+  graceDays             Int      @default(7)
+  updatedAt             DateTime @updatedAt
+
+  @@map("platform_settings")
+}
+
+enum JustificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Giustificazione assenze: richiesta dal genitore (o studente maggiorenne),
+// approvata da segreteria/docente. All'approvazione le Attendance del range
+// passano a EXCUSED.
+model AbsenceJustification {
+  id            String              @id @default(cuid())
+  tenantId      String
+  studentId     String
+  dateFrom      DateTime
+  dateTo        DateTime
+  reason        String
+  note          String?
+  attachmentUrl String?
+  status        JustificationStatus @default(PENDING)
+  requestedById String
+  decidedById   String?
+  decidedAt     DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student     Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  requestedBy User    @relation("JustificationRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  decidedBy   User?   @relation("JustificationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([tenantId, studentId, dateFrom])
+  @@map("absence_justifications")
+}
+
+enum EmailLogStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+// Registro consegna email: scritto dal worker e dal fallback SMTP.
+// Risponde a "il sollecito e' stato consegnato?" e fa da dedup dei promemoria.
+model EmailLog {
+  id         String         @id @default(cuid())
+  tenantId   String?
+  to         String
+  subject    String
+  sourceType String? // es. 'payment-reminder', 'disciplinary-note', 'auth'
+  sourceId   String?
+  status     EmailLogStatus @default(QUEUED)
+  error      String?
+  messageId  String?
+  sentAt     DateTime?
+  createdAt  DateTime       @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([sourceType, sourceId])
+  @@index([to, createdAt])
+  @@map("email_logs")
+}
+
+// Ledger dei consumi ore: ricostruisce quale lezione ha eroso quali ore da
+// quale pacchetto. La @@unique(packageId, lessonId) e' la garanzia hard di
+// idempotenza del consumo.
+model HoursLedger {
+  id        String   @id @default(cuid())
+  tenantId  String
+  packageId String
+  lessonId  String
+  studentId String
+  hours     Decimal  @db.Decimal(5, 2)
+  createdAt DateTime @default(now())
+
+  tenant   Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  package  HoursPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  lesson   Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  student  Student      @relation("StudentHoursLedger", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, lessonId])
+  @@index([tenantId, studentId])
+  @@map("hours_ledger")
+}
+
+// Lead dal sito pubblico (form contatti): persistito PRIMA dell'invio email
+// così un problema SMTP non perde mai il contatto commerciale.
+model ContactRequest {
+  id        String    @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  school    String?
+  subject   String?
+  message   String
+  locale    String    @default("it")
+  source    String? // es. 'contact-form', 'enterprise-cta'
+  handledAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([handledAt])
+  @@map("contact_requests")
 }

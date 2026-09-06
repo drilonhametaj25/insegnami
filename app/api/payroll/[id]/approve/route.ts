@@ -18,6 +18,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     const ctx = await requireAuth({
       roles: ['ADMIN', 'DIRECTOR', 'SUPERADMIN'],
       permission: { action: 'update', resource: 'payroll' },
+      feature: 'payroll',
     });
     const { id } = await params;
 

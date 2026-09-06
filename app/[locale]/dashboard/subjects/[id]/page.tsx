@@ -43,6 +43,7 @@ import {
   useDeleteSubject,
   CreateSubjectData,
 } from '@/lib/hooks/useSubjects';
+import { usePermission } from '@/lib/hooks/usePermissions';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -65,9 +66,8 @@ export default function SubjectDetailPage({ params }: PageProps) {
   const updateSubject = useUpdateSubject();
   const deleteSubject = useDeleteSubject();
 
-  // Check permissions
-  const canManageSubjects =
-    session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN';
+  // Check permissions (matrice: risorsa 'subject')
+  const canManageSubjects = usePermission('manage', 'subject');
 
   // Handle back
   const handleBack = () => {

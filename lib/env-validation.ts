@@ -137,6 +137,24 @@ export function validateEnv(): EnvValidationResult {
       }
       warnings.push(msg);
     }
+
+    // Chiavi placeholder = dev-billing silenzioso: tutto gratis senza errori.
+    // In produzione è fatale, salvo opt-in esplicito con BILLING_MODE=dev.
+    const placeholderRe = /placeholder|your_stripe/i;
+    const hasPlaceholderKey =
+      (env.STRIPE_SECRET_KEY && placeholderRe.test(env.STRIPE_SECRET_KEY)) ||
+      (env.STRIPE_WEBHOOK_SECRET && placeholderRe.test(env.STRIPE_WEBHOOK_SECRET));
+    if (hasPlaceholderKey && process.env.BILLING_MODE !== 'dev') {
+      const msg =
+        'STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET contengono un placeholder: il billing girerebbe in modalità simulata (nessun addebito). Impostare chiavi reali o BILLING_MODE=dev per consentirlo esplicitamente.';
+      if (
+        process.env.NODE_ENV === 'production' &&
+        process.env.NEXT_PHASE !== 'phase-production-build'
+      ) {
+        throw new Error(msg);
+      }
+      warnings.push(msg);
+    }
   }
 
   // REDIS_URL è obbligatorio in produzione (rate limiting, code BullMQ, cache):

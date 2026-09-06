@@ -73,6 +73,38 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             name: true,
           },
         },
+        guardians: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+              },
+            },
+          },
+          orderBy: { isPrimary: 'desc' },
+        },
+        classes: {
+          include: {
+            class: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                isActive: true,
+                teacher: {
+                  select: { id: true, firstName: true, lastName: true },
+                },
+                course: {
+                  select: { id: true, name: true, level: true },
+                },
+              },
+            },
+          },
+        },
       } as any,
     });
 
@@ -80,9 +112,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    // SECURITY: For PARENT role, verify they are the parent of this student
+    // SECURITY: il genitore accede solo ai propri figli (tutore primario
+    // denormalizzato O riga StudentGuardian)
     if (session.user.role === 'PARENT') {
-      if ((student as any).parentUserId !== session.user.id) {
+      const isGuardian =
+        (student as any).parentUserId === session.user.id ||
+        ((student as any).guardians ?? []).some(
+          (g: any) => g.userId === session.user.id
+        );
+      if (!isGuardian) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }
@@ -109,6 +147,29 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       // Include user relations for advanced forms
       user: (student as any).user,
       parentUser: (student as any).parentUser,
+      // Tutori (tabella ponte StudentGuardian)
+      guardians: ((student as any).guardians ?? []).map((g: any) => ({
+        id: g.id,
+        userId: g.userId,
+        relationship: g.relationship,
+        isPrimary: g.isPrimary,
+        user: g.user,
+      })),
+      // Classi frequentate (StudentClass → Class)
+      classes: ((student as any).classes ?? []).map((sc: any) => ({
+        id: sc.class.id,
+        name: sc.class.name,
+        code: sc.class.code,
+        isActive: sc.class.isActive,
+        enrolledAt: sc.enrolledAt,
+        teacher: sc.class.teacher
+          ? {
+              id: sc.class.teacher.id,
+              name: `${sc.class.teacher.firstName} ${sc.class.teacher.lastName}`,
+            }
+          : null,
+        course: sc.class.course,
+      })),
     };
 
     return NextResponse.json({ student: responseStudent });
@@ -188,7 +249,39 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       
       // Existing parent
       existingParentId,
+
+      // Tutori (sync tabella ponte): [{ userId, relationship?, isPrimary? }]
+      guardians,
     } = data;
+
+    const hasGuardiansPayload = Array.isArray(guardians);
+
+    // Anti-bypass limiti piano: la riattivazione di uno studente non attivo
+    // conta come nuovo posto occupato (stesso guard di POST e bulk-activate).
+    if (
+      status === 'ACTIVE' &&
+      existingStudent.status !== 'ACTIVE' &&
+      session.user.role !== 'SUPERADMIN'
+    ) {
+      const { getEffectiveLimits } = await import('@/lib/billing/limits');
+      const limits = await getEffectiveLimits(existingStudent.tenantId);
+      if (limits.maxStudents != null) {
+        const currentActive = await prisma.student.count({
+          where: { tenantId: existingStudent.tenantId, status: 'ACTIVE' },
+        });
+        if (currentActive + 1 > limits.maxStudents) {
+          return NextResponse.json(
+            {
+              error: `Limite studenti del piano raggiunto (${limits.maxStudents}): impossibile riattivare lo studente. Effettua l'upgrade del piano o acquista un add-on.`,
+              code: 'plan-limit',
+              limit: limits.maxStudents,
+              current: currentActive,
+            },
+            { status: 403 }
+          );
+        }
+      }
+    }
 
     // Perform updates in transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -270,8 +363,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             data: { userId: studentUser.id } as any,
           });
         }
-      } else if (studentUser) {
-        // Remove student account if unchecked
+      } else if (data.createStudentAccount === false && studentUser) {
+        // Remove student account solo su richiesta esplicita (campo presente
+        // e false): i form che non gestiscono l'account non devono rimuoverlo
         await tx.userTenant.deleteMany({
           where: {
             userId: studentUser.id,
@@ -294,8 +388,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         studentUser = null;
       }
 
-      // Handle parent account
-      if (hasParent) {
+      // Handle parent account (flusso legacy, saltato se arriva guardians[])
+      if (!hasGuardiansPayload && hasParent) {
         if (parentType === 'existing' || parentType === 'search') {
           // Use existing parent
           if (!existingParentId) {
@@ -435,8 +529,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             });
           }
         }
-      } else if (parentUser) {
-        // Remove parent connection
+      } else if (!hasGuardiansPayload && data.hasParent === false && parentUser) {
+        // Remove parent connection (solo se il client dichiara esplicitamente
+        // hasParent: false — un payload senza campo non deve scollegare nulla)
         // Check if parent has other children
         const otherChildren = await tx.student.findMany({
           where: {
@@ -469,6 +564,70 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         });
 
         parentUser = null;
+      }
+
+      // Sync tabella ponte StudentGuardian (fonte di verità dei tutori).
+      // parentUserId resta come denormalizzazione del tutore primario.
+      if (hasGuardiansPayload) {
+        const wanted: Array<{ userId: string; relationship?: string | null; isPrimary?: boolean }> =
+          (guardians as any[])
+            .filter((g) => g && typeof g.userId === 'string' && g.userId.length > 0)
+            // dedup per userId (l'ultimo vince)
+            .reduce((acc: any[], g) => {
+              const idx = acc.findIndex((x) => x.userId === g.userId);
+              if (idx >= 0) acc[idx] = g;
+              else acc.push(g);
+              return acc;
+            }, []);
+
+        if (wanted.length > 0) {
+          // I tutori devono essere utenti del tenant dello studente
+          const validUsers = await tx.user.findMany({
+            where: {
+              id: { in: wanted.map((g) => g.userId) },
+              tenants: { some: { tenantId: existingStudent.tenantId } },
+            },
+            select: { id: true },
+          });
+          if (validUsers.length !== wanted.length) {
+            throw new Error('Uno o più tutori non appartengono a questa scuola');
+          }
+        }
+
+        await tx.studentGuardian.deleteMany({
+          where: {
+            studentId: existingStudent.id,
+            userId: { notIn: wanted.map((g) => g.userId) },
+          },
+        });
+
+        for (const g of wanted) {
+          await tx.studentGuardian.upsert({
+            where: {
+              studentId_userId: {
+                studentId: existingStudent.id,
+                userId: g.userId,
+              },
+            },
+            update: {
+              relationship: g.relationship ?? null,
+              isPrimary: Boolean(g.isPrimary),
+            },
+            create: {
+              tenantId: existingStudent.tenantId,
+              studentId: existingStudent.id,
+              userId: g.userId,
+              relationship: g.relationship ?? null,
+              isPrimary: Boolean(g.isPrimary),
+            },
+          });
+        }
+
+        const primary = wanted.find((g) => g.isPrimary) ?? wanted[0] ?? null;
+        await tx.student.update({
+          where: { id: existingStudent.id },
+          data: { parentUserId: primary ? primary.userId : null },
+        });
       }
 
       // Update student record
@@ -504,6 +663,20 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
               email: true,
               phone: true,
             },
+          },
+          guardians: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+            orderBy: { isPrimary: 'desc' },
           },
         } as any,
       });

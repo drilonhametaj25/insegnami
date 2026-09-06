@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   Container,
   Title,
@@ -30,7 +31,6 @@ import {
   IconClipboardCheck,
   IconBell,
   IconTrendingUp,
-  IconDownload,
   IconInfoCircle,
   IconClock,
   IconMapPin,
@@ -45,19 +45,11 @@ import { StudentHoursWidget } from '@/components/widgets/StudentHoursWidget';
 
 const localizer = momentLocalizer(moment);
 
-interface Assignment {
-  id: string;
-  title: string;
-  course: string;
-  dueDate: Date;
-  status: 'pending' | 'submitted' | 'graded';
-  grade?: number;
-}
-
 export default function StudentDashboard() {
   const { data: session } = useSession();
   const t = useTranslations('student');
   const tc = useTranslations('common');
+  const locale = useLocale();
   const [activeTab, setActiveTab] = useState('overview');
   const [changePasswordOpened, setChangePasswordOpened] = useState(false);
 
@@ -269,7 +261,13 @@ export default function StudentDashboard() {
                                 Corso: {assignment.course} • Scadenza: {moment(assignment.dueDate).format('DD/MM/YYYY')}
                               </Text>
                             </div>
-                            <Button size="xs" variant="light">
+                            <Button
+                              size="xs"
+                              variant="light"
+                              component={Link}
+                              href={`/${locale}/dashboard/my/homework`}
+                              data-testid="student-homework-visualizza"
+                            >
                               Visualizza
                             </Button>
                           </Group>
@@ -342,10 +340,6 @@ export default function StudentDashboard() {
                             </Group>
 
                             <Text size="sm" c="dimmed">
-                              Descrizione: {classItem.description || 'Nessuna descrizione disponibile'}
-                            </Text>
-
-                            <Text size="sm" c="dimmed">
                               Corso: {classItem.course?.name || 'N/A'}
                             </Text>
 
@@ -366,10 +360,6 @@ export default function StudentDashboard() {
                                 Lezioni: {attendedLessons}/{totalLessons}
                               </Text>
                             </Group>
-
-                            <Button variant="light" fullWidth>
-                              Dettagli Corso
-                            </Button>
                           </Stack>
                         </Card>
                       </Grid.Col>
@@ -428,8 +418,13 @@ export default function StudentDashboard() {
             <Stack gap="md">
               <Group justify="space-between">
                 <Title order={2}>Stato Pagamenti</Title>
-                <Button leftSection={<IconDownload size={16} />} variant="light">
-                  Scarica Ricevute
+                <Button
+                  variant="light"
+                  component={Link}
+                  href={`/${locale}/dashboard/my/payments`}
+                  data-testid="student-payments-tutti"
+                >
+                  Tutti i Pagamenti
                 </Button>
               </Group>
               
@@ -469,14 +464,15 @@ export default function StudentDashboard() {
                         </Group>
                         
                         {payment.status === 'PENDING' && (
-                          <Button fullWidth mt="md" color="blue">
+                          <Button
+                            fullWidth
+                            mt="md"
+                            color="blue"
+                            component={Link}
+                            href={`/${locale}/dashboard/my/payments`}
+                            data-testid="student-paga-ora"
+                          >
                             Paga Ora
-                          </Button>
-                        )}
-                        
-                        {payment.status === 'PAID' && (
-                          <Button fullWidth mt="md" variant="light">
-                            Scarica Ricevuta
                           </Button>
                         )}
                       </Card>

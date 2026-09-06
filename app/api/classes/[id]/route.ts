@@ -72,6 +72,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 firstName: true,
                 lastName: true,
                 email: true,
+                phone: true,
+                studentCode: true,
               },
             },
           },
@@ -101,6 +103,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       id: classData.id,
       code: classData.code,
       name: classData.name,
+      description: classData.description,
+      level: classData.level,
+      room: classData.room,
+      monthlyPrice: classData.monthlyPrice,
       maxStudents: classData.maxStudents,
       startDate: classData.startDate,
       endDate: classData.endDate,
@@ -166,18 +172,39 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Prepare update data
     const updateData: any = {};
-    const { 
-      name, 
+    const {
+      name,
       courseId,
       teacherId,
       maxStudents,
       startDate,
       endDate,
-      isActive
+      isActive,
+      description,
+      level,
+      room,
+      monthlyPrice,
     } = body;
 
     // Basic updates
     if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description || null;
+    if (level !== undefined) updateData.level = level || null;
+    if (room !== undefined) updateData.room = room || null;
+    if (monthlyPrice !== undefined) {
+      if (monthlyPrice === null || monthlyPrice === '') {
+        updateData.monthlyPrice = null;
+      } else {
+        const price = Number(monthlyPrice);
+        if (isNaN(price) || price < 0) {
+          return NextResponse.json(
+            { error: 'Monthly price must be a non-negative number' },
+            { status: 400 }
+          );
+        }
+        updateData.monthlyPrice = price;
+      }
+    }
     if (maxStudents !== undefined) {
       if (maxStudents === null || maxStudents === '') {
         updateData.maxStudents = 20;
@@ -304,6 +331,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       id: updatedClass.id,
       code: updatedClass.code,
       name: updatedClass.name,
+      description: updatedClass.description,
+      level: updatedClass.level,
+      room: updatedClass.room,
+      monthlyPrice: updatedClass.monthlyPrice,
       maxStudents: updatedClass.maxStudents,
       startDate: updatedClass.startDate,
       endDate: updatedClass.endDate,

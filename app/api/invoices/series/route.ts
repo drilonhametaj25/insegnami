@@ -13,7 +13,7 @@ const createSchema = z.object({
 
 export async function GET() {
   try {
-    const ctx = await requireAuth({ permission: { action: 'read', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'invoice' }, feature: 'einvoicing' });
     const series = await prisma.invoiceSeries.findMany({
       where: tenantScope(ctx),
       orderBy: [{ isDefault: 'desc' }, { code: 'asc' }],
@@ -28,7 +28,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const ctx = await requireAuth({ permission: { action: 'create', resource: 'invoice' } });
+    const ctx = await requireAuth({ permission: { action: 'create', resource: 'invoice' }, feature: 'einvoicing' });
     const body = await request.json().catch(() => ({}));
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {

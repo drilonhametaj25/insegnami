@@ -44,8 +44,10 @@ export async function requireSuperAdmin(): Promise<AuthResult> {
 
 /**
  * Check if the current user is authenticated (any role)
+ * Rinominata da requireAuth per evitare collisione semantica con
+ * l'omonima di lib/api-auth.ts (che lancia invece di ritornare {authorized}).
  */
-export async function requireAuth(): Promise<AuthResult> {
+export async function requireSuperadminAuth(): Promise<AuthResult> {
   const session = await getAuth();
 
   if (!session?.user) {

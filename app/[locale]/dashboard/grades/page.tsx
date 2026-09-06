@@ -36,6 +36,7 @@ import {
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { ModernStatsCard } from '@/components/cards/ModernStatsCard';
+import { usePermissionAny } from '@/lib/hooks/usePermissions';
 
 export default function GradesPage() {
   const { data: session } = useSession();
@@ -49,10 +50,8 @@ export default function GradesPage() {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
 
-  const canManage =
-    session?.user?.role === 'ADMIN' ||
-    session?.user?.role === 'SUPERADMIN' ||
-    session?.user?.role === 'TEACHER';
+  // Matrice: chi inserisce/modifica voti (ADMIN, DIRECTOR, TEACHER)
+  const canManage = usePermissionAny(['create', 'update'], 'grade');
 
   // Fetch classes
   const { data: classesData, isLoading: classesLoading } = useQuery({

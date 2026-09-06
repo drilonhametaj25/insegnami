@@ -5,6 +5,7 @@ import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { can, type Action, type Resource } from '@/lib/permissions/matrix';
 import { getTenantAccessCached } from '@/lib/tenant-access';
+import { hasFeature, type FeatureKey } from '@/lib/billing/features';
 
 export type AuthContext = {
   session: Session;
@@ -18,6 +19,12 @@ export type AuthContext = {
 export type RequireAuthOptions = {
   roles?: Role[];
   permission?: { action: Action; resource: Resource };
+  /**
+   * Feature di piano richiesta (lib/billing/features.ts). Se il piano del
+   * tenant non la include → 403 con code 'feature-not-in-plan': la UI la
+   * intercetta e mostra l'upsell. SUPERADMIN bypassa.
+   */
+  feature?: FeatureKey;
   allowSuperAdminCrossTenant?: boolean;
   /**
    * Salta l'enforcement dello stato commerciale del tenant. Riservato alle
@@ -74,6 +81,14 @@ export async function requireAuth(opts: RequireAuthOptions = {}): Promise<AuthCo
     }
   }
 
+  // Feature gating di piano: 403 con code dedicato → upsell in UI
+  if (opts.feature && !ctx.isSuperAdmin) {
+    const enabled = await hasFeature(ctx.tenantId, opts.feature);
+    if (!enabled) {
+      throw new AuthError(403, 'Funzionalità non inclusa nel tuo piano', 'feature-not-in-plan');
+    }
+  }
+
   return ctx;
 }
 
@@ -102,10 +117,9 @@ export function tenantScope(ctx: AuthContext, base: Record<string, any> = {}, ov
 /**
  * Resolve the Teacher record linked to the current authenticated User.
  *
- * Schema note: Teacher has no userId FK — link is by email + tenantId.
- * This helper is the ONLY safe place to do that lookup, because it always
- * scopes by tenantId (preventing cross-tenant leak when two tenants
- * happen to have a teacher with the same email).
+ * Lookup primario sulla FK Teacher.userId (robusta ai cambi email);
+ * fallback legacy su email + tenantId per i record non ancora backfillati.
+ * Sempre scoped per tenantId (nessun leak cross-tenant).
  *
  * Returns null if the current user is not a teacher in this tenant.
  */
@@ -113,22 +127,55 @@ const teacherCache = new WeakMap<AuthContext, string | null>();
 export async function getTeacherIdForUser(ctx: AuthContext): Promise<string | null> {
   if (teacherCache.has(ctx)) return teacherCache.get(ctx) ?? null;
 
-  if (!ctx.email) {
-    teacherCache.set(ctx, null);
-    return null;
-  }
-
-  const teacher = await prisma.teacher.findFirst({
+  let teacher = await prisma.teacher.findFirst({
     where: {
-      email: ctx.email,
+      userId: ctx.userId,
       tenantId: ctx.tenantId,
     },
     select: { id: true },
   });
 
+  if (!teacher && ctx.email) {
+    teacher = await prisma.teacher.findFirst({
+      where: {
+        email: ctx.email,
+        tenantId: ctx.tenantId,
+      },
+      select: { id: true },
+    });
+  }
+
   const id = teacher?.id ?? null;
   teacherCache.set(ctx, id);
   return id;
+}
+
+/**
+ * Id degli studenti di cui l'utente corrente è tutore (StudentGuardian),
+ * con fallback legacy su Student.parentUserId per i dati non backfillati.
+ * È l'UNICO punto da cui i filtri "solo i miei figli" devono passare.
+ */
+const childrenCache = new WeakMap<AuthContext, string[]>();
+export async function getChildStudentIds(ctx: AuthContext): Promise<string[]> {
+  const cached = childrenCache.get(ctx);
+  if (cached) return cached;
+
+  const [links, legacy] = await Promise.all([
+    prisma.studentGuardian.findMany({
+      where: { userId: ctx.userId, tenantId: ctx.tenantId },
+      select: { studentId: true },
+    }),
+    prisma.student.findMany({
+      where: { parentUserId: ctx.userId, tenantId: ctx.tenantId },
+      select: { id: true },
+    }),
+  ]);
+
+  const ids = Array.from(
+    new Set([...links.map((l) => l.studentId), ...legacy.map((s) => s.id)])
+  );
+  childrenCache.set(ctx, ids);
+  return ids;
 }
 
 /**

@@ -32,11 +32,17 @@ jest.mock('next/server', () => {
     constructor(data: any, init?: any) {
       this._data = data
       this.status = init?.status || 200
-      this.headers = new Map()
+      this.headers = new Map(Object.entries(init?.headers || {}))
     }
 
     json() {
       return Promise.resolve(this._data)
+    }
+
+    text() {
+      return Promise.resolve(
+        typeof this._data === 'string' ? this._data : JSON.stringify(this._data)
+      )
     }
 
     static json(data: any, init?: { status?: number; headers?: Record<string, string> }) {

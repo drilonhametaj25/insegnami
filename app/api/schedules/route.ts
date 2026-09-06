@@ -3,6 +3,7 @@ import { getAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { blockIfTenantInaccessible } from '@/lib/tenant-guard';
+import { requireAuth, authError } from '@/lib/api-auth';
 
 // Schema for schedule creation
 const scheduleCreateSchema = z.object({
@@ -36,13 +37,7 @@ const scheduleCreateSchema = z.object({
 // GET: Lista orari
 export async function GET(request: NextRequest) {
   try {
-    const session = await getAuth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
-    }
-
-    const blocked = await blockIfTenantInaccessible(session);
-    if (blocked) return blocked;
+    const ctx = await requireAuth({ permission: { action: 'read', resource: 'schedule' } });
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -53,7 +48,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: any = {
-      tenantId: session.user.tenantId,
+      tenantId: ctx.tenantId,
     };
 
     if (status) where.status = status;
@@ -96,6 +91,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    const r = authError(error);
+    if (r) return r;
     console.error('Error fetching schedules:', error);
     return NextResponse.json(
       { error: 'Errore interno del server' },
