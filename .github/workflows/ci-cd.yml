@@ -177,91 +177,16 @@ jobs:
       - name: Build application
         run: npm run build
 
-  # Smoke e2e BLOCCANTE per il deploy: ~15 scenari critici taggati @smoke
-  # (login, isolamento tenant, permessi dati, checkout, portale famiglia,
-  # SEO). La suite completa gira nel workflow nightly schedulato
-  # (.github/workflows/e2e-nightly.yml) e resta lanciabile a mano
-  # (.github/workflows/e2e-manual.yml).
-  e2e-smoke:
-    runs-on: ubuntu-latest
-    needs: lint
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_pass
-          POSTGRES_DB: test_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-    env:
-      DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
-      REDIS_URL: redis://localhost:6379
-      NEXTAUTH_SECRET: 'e2e-ci-nextauth-key-32-chars-okay!!'
-      NEXTAUTH_URL: http://localhost:3000
-      MODE: saas
-      NODE_ENV: test
-      STRIPE_SECRET_KEY: sk_test_placeholder
-      STRIPE_WEBHOOK_SECRET: whsec_placeholder
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Run database migrations
-        run: npx prisma migrate deploy
-
-      - name: Seed database
-        run: npm run db:seed
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Run smoke e2e tests
-        run: npx playwright test --project=chromium --grep "@smoke"
-
-      - name: Upload Playwright report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-smoke-report
-          path: playwright-report/
-          retention-days: 7
+  # NB: gli e2e NON bloccano il deploy (scelta del titolare, set 2026: il job
+  # smoke rallentava/instabilizzava la pipeline). La copertura e2e resta su:
+  # - nightly completo schedulato (.github/workflows/e2e-nightly.yml)
+  # - lancio manuale (.github/workflows/e2e-manual.yml)
+  # - locale: `npm run test:e2e:smoke` (~1 min) prima di pushare.
 
   # Deploy to Production (only on main branch push)
-  # La produzione NON è raggiungibile senza smoke e2e verdi.
   deploy:
     runs-on: ubuntu-latest
-    needs: [build, e2e-smoke]
+    needs: [build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:

@@ -41,6 +41,7 @@ import {
 import Link from 'next/link';
 import { useLocale } from 'next-intl';
 import { isSaaSMode } from '@/lib/config';
+import { DEFAULT_DEMO_PASSWORD, DEMO_EMAIL } from '@/lib/demo/constants';
 
 interface LoginForm {
   email: string;
@@ -58,11 +59,12 @@ function LoginForm() {
   const callbackUrl = searchParams.get('callbackUrl') || `/${locale}/dashboard`;
   const verified = searchParams.get('verified');
   const errorParam = searchParams.get('error');
-  // Bottone demo: visibile solo con ?demo=true E con la password demo
-  // pubblica configurata (NEXT_PUBLIC_DEMO_PASSWORD, vedi .env.example).
+  // Bottone demo: visibile con ?demo=true. La password demo è pubblica per
+  // scelta (tenant isolato con reset notturno): default condiviso in
+  // lib/demo/constants, sovrascrivibile via NEXT_PUBLIC_DEMO_PASSWORD.
   // Nessuna credenziale viene mai mostrata in chiaro a schermo.
-  const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
-  const showDemo = searchParams.get('demo') === 'true' && Boolean(demoPassword);
+  const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD || DEFAULT_DEMO_PASSWORD;
+  const showDemo = searchParams.get('demo') === 'true';
   const [demoLoading, setDemoLoading] = useState(false);
 
   const handleDemoLogin = async () => {
@@ -71,7 +73,7 @@ function LoginForm() {
     setError('');
     try {
       const result = await signIn('credentials', {
-        email: 'demo@insegnami.pro',
+        email: DEMO_EMAIL,
         password: demoPassword,
         redirect: false,
       });

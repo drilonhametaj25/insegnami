@@ -18,18 +18,15 @@ import { prisma } from '@/lib/db';
  */
 
 export const DEMO_TENANT_SLUG = 'demo';
-export const DEMO_EMAIL = 'demo@insegnami.pro';
+export { DEMO_EMAIL } from './constants';
+import { DEMO_EMAIL, DEFAULT_DEMO_PASSWORD } from './constants';
 
 function demoPassword(): string {
   const fromEnv = process.env.DEMO_PASSWORD;
   if (fromEnv && fromEnv.length >= 6) return fromEnv;
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      'DEMO_PASSWORD mancante: in produzione la password del tenant demo DEVE arrivare da env.'
-    );
-  }
-  // Default esplicitamente solo per sviluppo/test
-  return 'demo1234';
+  // Password demo PUBBLICA per scelta di prodotto (tenant isolato, reset
+  // notturno): stesso default del bottone di login, niente env richiesta.
+  return DEFAULT_DEMO_PASSWORD;
 }
 
 /** Lunedì (00:00 locale del processo) della settimana corrente. */

@@ -54,6 +54,11 @@ jobs:
       # (contiene 'placeholder') → la suite gira col dev billing interno.
       STRIPE_SECRET_KEY: sk_test_placeholder
       STRIPE_WEBHOOK_SECRET: whsec_placeholder
+      # `next start` forza NODE_ENV=production a runtime: senza questo opt-in
+      # env-validation blocca le chiavi placeholder (crash della pagina login).
+      BILLING_MODE: dev
+      # Abilita /api/test (helper e2e) anche sulla build di produzione del job.
+      E2E_TEST_ENDPOINTS: '1'
 
     steps:
       - name: Checkout code

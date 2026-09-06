@@ -104,9 +104,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Destinatario interno configurabile via env.
-    // TODO: rimuovere il fallback hardcoded quando CONTACT_TO_EMAIL sarà
-    // presente in tutti gli ambienti (vedi .env.example).
+    // Destinatario lead: info@drilonhametaj.it è il default DELIBERATO
+    // (decisione del titolare, set 2026) — CONTACT_TO_EMAIL può sovrascriverlo.
+    // Il lead è comunque già persistito in contact_requests sopra.
     const contactTo = process.env.CONTACT_TO_EMAIL || 'info@drilonhametaj.it';
 
     // Generate email HTML

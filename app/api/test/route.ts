@@ -13,6 +13,10 @@ import { prisma } from '@/lib/db';
  * NON viene mai servito in produzione (ritorna 404).
  */
 function guard(): NextResponse | null {
+  // `next start` forza NODE_ENV=production anche in CI: il flag dedicato
+  // E2E_TEST_ENDPOINTS=1 abilita gli helper e2e sulla build di produzione
+  // dei workflow di test. In produzione VERA il flag non va mai impostato.
+  if (process.env.E2E_TEST_ENDPOINTS === '1') return null;
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
