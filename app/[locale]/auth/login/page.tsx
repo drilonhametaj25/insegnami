@@ -53,6 +53,7 @@ interface LoginForm {
 function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const router = useRouter();
   const locale = useLocale();
   const searchParams = useSearchParams();
@@ -118,6 +119,7 @@ function LoginForm() {
   const handleSubmit = async (values: LoginForm) => {
     setLoading(true);
     setError('');
+    setErrorCode(null);
 
     try {
       const result = await signIn('credentials', {
@@ -128,13 +130,22 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setError('Credenziali non valide');
-        notifications.show({
-          title: 'Errore di accesso',
-          message: 'Email o password non corretti',
-          color: 'red',
-          icon: <IconAlertCircle size="1rem" />,
-        });
+        if (result.code === 'email-not-verified') {
+          // Password corretta ma account mai verificato: messaggio dedicato
+          // col CTA di reinvio, invece del generico "credenziali non valide"
+          // che spingeva le persone a ri-registrarsi da zero pensando di
+          // aver sbagliato qualcosa.
+          setErrorCode('email-not-verified');
+          setError('La tua email non è ancora stata verificata. Controlla la posta (anche lo spam) o richiedi un nuovo link qui sotto.');
+        } else {
+          setError('Credenziali non valide');
+          notifications.show({
+            title: 'Errore di accesso',
+            message: 'Email o password non corretti',
+            color: 'red',
+            icon: <IconAlertCircle size="1rem" />,
+          });
+        }
       } else if (result?.ok) {
         notifications.show({
           title: 'Accesso effettuato',
@@ -294,12 +305,19 @@ function LoginForm() {
                     {error && (
                       <Alert
                         icon={<IconAlertCircle size="1rem" />}
-                        title="Errore di accesso"
-                        color="red"
+                        title={errorCode === 'email-not-verified' ? 'Email da verificare' : 'Errore di accesso'}
+                        color={errorCode === 'email-not-verified' ? 'yellow' : 'red'}
                         variant="light"
                         radius="md"
                       >
                         {error}
+                        {errorCode === 'email-not-verified' && (
+                          <Text size="sm" mt={8}>
+                            <Anchor component={Link} href={`/${locale}/auth/resend-verification`} fw={600}>
+                              Invia di nuovo il link di verifica
+                            </Anchor>
+                          </Text>
+                        )}
                       </Alert>
                     )}
 

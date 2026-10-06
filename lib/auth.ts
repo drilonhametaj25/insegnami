@@ -1,10 +1,19 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { Role } from "@prisma/client";
 import { rateLimitByKey } from "@/lib/rate-limit";
+
+// Errore dedicato per l'account non verificato: la password sopra è già
+// stata controllata corretta, quindi rivelarlo qui non apre un vettore di
+// enumeration (a differenza della registrazione, BUG-049). Il codice arriva
+// al client via result.code (next-auth v5) e pilota il CTA "reinvia email"
+// nella pagina di login invece del generico "credenziali non valide".
+class EmailNotVerifiedError extends CredentialsSignin {
+  code = "email-not-verified";
+}
 
 const authOptions = {
   trustHost: true, // Required for production behind reverse proxy
@@ -55,6 +64,11 @@ const authOptions = {
 
           // Check if user has active status
           if (user.status !== "ACTIVE") {
+            // Solo il caso "mai verificata" ha un CTA sensato (reinvia link);
+            // altri stati (es. SUSPENDED da un admin) restano generici.
+            if (user.status === "INACTIVE" && !user.emailVerified) {
+              throw new EmailNotVerifiedError();
+            }
             return null;
           }
 
@@ -94,6 +108,9 @@ const authOptions = {
             avatar: user.avatar,
           };
         } catch (error) {
+          if (error instanceof EmailNotVerifiedError) {
+            throw error;
+          }
           console.error("Auth error:", error);
           return null;
         }

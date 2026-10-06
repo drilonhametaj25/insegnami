@@ -105,11 +105,26 @@ export async function POST(request: NextRequest) {
         await prisma.userTenant.deleteMany({ where: { userId: existingUser.id } });
         await prisma.user.delete({ where: { id: existingUser.id } });
 
-        // Delete orphan tenants (tenants with no remaining users)
+        // Delete orphan tenants (tenants with no remaining users) — e il loro
+        // Customer Stripe. Senza questo, ogni re-registrazione con la stessa
+        // email lascia un Customer fantasma (0€, mai fatturato) per sempre
+        // nella dashboard Stripe: la stessa pulizia che il path "invio email
+        // fallito" già fa più sotto, mancava qui.
         for (const ut of oldUserTenants) {
           const remainingUsers = await prisma.userTenant.count({ where: { tenantId: ut.tenantId } });
           if (remainingUsers === 0) {
+            const orphanTenant = await prisma.tenant.findUnique({
+              where: { id: ut.tenantId },
+              select: { stripeCustomerId: true },
+            });
             await prisma.tenant.delete({ where: { id: ut.tenantId } });
+            if (orphanTenant?.stripeCustomerId) {
+              try {
+                await stripe.customers.del(orphanTenant.stripeCustomerId);
+              } catch (cleanupError) {
+                console.error('Failed to delete orphan Stripe customer on re-registration:', orphanTenant.stripeCustomerId, cleanupError);
+              }
+            }
           }
         }
         // Fall through to normal registration
